@@ -1,0 +1,29 @@
+{
+  "name": "Universal Video Maximizer",
+  "version": "2.0.13",
+  "manifest_version": 2,
+  "description": "Zoom videos and theater mode on most websites WITHOUT requiring permissions to every site.",
+  "homepage_url": "https://chrome.google.com/webstore/support/cdnlfphfngnfhjcnoikfhaomaaflaiie",
+  "icons": {
+    "48": "icons/icon48.png",
+    "96": "icons/icon96.png",
+    "128": "icons/icon128.png"
+  },
+  "default_locale": "en",
+  "browser_action": {
+    "default_title": "Universal Video Maximizer"
+  },
+  "background": {
+    "scripts": [
+      "background.js"
+    ],
+    "persistent": false
+  },
+  "optional_permissions": [
+    "activeTab"
+  ],
+  "web_accessible_resources": [
+    "inject.css"
+  ],
+  "content_security_policy": "script-src 'self'; object-src 'self'"
+}

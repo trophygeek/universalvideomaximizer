@@ -1,0 +1,55 @@
+
+body {
+    overflow-y: hidden; /* Hide vertical scrollbar */
+    overflow-x: hidden; /* Hide horizontal scrollbar */
+
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+
+}
+
+body::-webkit-scrollbar {
+    display: none;
+}
+
+.videomax-ext-max {
+    clear: both !important;
+    background: rgb(0, 0, 0) !important;
+    width: calc(100vw) !important;
+    height: calc(100vh) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    top: 0 !important;
+    left: 0 !important;
+    min-height: 0 !important;
+    min-width: 0 !important;
+    max-height: none !important;
+    max-width: none !important;
+    object-fit: contain !important;
+    visibility: visible !important;
+    display: block !important;
+}
+
+.videomax-ext-hide {
+    display: none !important;
+    width: 100% !important;
+}
+
+/* make it inherit style of parent*/
+.videomax-ext-overlap {
+    min-height: 0 !important;
+    max-height: none !important;
+    min-width: 0 !important;
+    max-width: none !important;
+}
+
+
+.videomax-ext-playback-controls {
+    /*width: calc(98vw);*/
+}
+
+/* this makes the video inside the <video> bigger */
+video {
+    object-fit: contain;
+}
