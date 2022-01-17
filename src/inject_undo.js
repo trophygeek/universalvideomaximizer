@@ -1,8 +1,7 @@
-'use strict';
-try {   // scope and prevent errors from leaking out to page.
-  const DEBUG_ENABLED = false;
-  const TRACE_ENABLED = false;
-  const ERR_BREAK_ENABLED = false;
+try { // scope and prevent errors from leaking out to page.
+  const DEBUG_ENABLED = true;
+  const TRACE_ENABLED = true;
+  const ERR_BREAK_ENABLED = true;
 
   const STYLE_ID = 'maximizier-css-inject';
 
@@ -31,9 +30,14 @@ try {   // scope and prevent errors from leaking out to page.
     if (DEBUG_ENABLED === false) {
       return;
     }
-    console.error('%c VideoMax Undo ',
-        'color: white; font-weight: bold; background-color: blue', ...args);
+    // eslint-disable-next-line no-console
+    console.trace(
+      '%c VideoMax Undo ',
+      'color: white; font-weight: bold; background-color: blue',
+      ...args,
+    );
     if (ERR_BREAK_ENABLED) {
+      // eslint-disable-next-line no-debugger
       debugger;
     }
   };
@@ -41,12 +45,17 @@ try {   // scope and prevent errors from leaking out to page.
   const trace = (...args) => {
     if (TRACE_ENABLED) {
       // blue color , no break
-      console.log('%c VideoMax ',
-          'color: white; font-weight: bold; background-color: blue', ...args);
+      // eslint-disable-next-line no-console
+      console.log(
+        '%c VideoMax ',
+        'color: white; font-weight: bold; background-color: blue',
+        ...args,
+      );
     }
   };
 
   if (DEBUG_ENABLED) {
+    // eslint-disable-next-line no-debugger
     debugger;
   }
 
@@ -67,7 +76,8 @@ try {   // scope and prevent errors from leaking out to page.
         recurseIFrameUndoAll(document);
         // remove the video "located" attribute.
         const videoelem = document.querySelector(
-            `[${VIDEO_MAX_ATTRIB_FIND}=${VIDEO_MAX_ATTRIB_ID}]`);
+          `[${VIDEO_MAX_ATTRIB_FIND}=${VIDEO_MAX_ATTRIB_ID}]`,
+        );
         if (videoelem && videoelem.removeAttribute) {
           videoelem.removeAttribute(VIDEO_MAX_ATTRIB_FIND);
         }
@@ -78,22 +88,20 @@ try {   // scope and prevent errors from leaking out to page.
     }, 1);
   }
 
-  main();
-
   /**
    * @param doc {Document}
    */
   function recurseIFrameUndoAll(doc) {
     try {
-      const allIFrames = doc.querySelectorAll(`iframe`);
+      const allIFrames = doc.querySelectorAll('iframe');
       for (const frame of allIFrames) {
         try {
-          const doc = frame.contentDocument;
-          if (!doc) {
+          const framedoc = frame.contentDocument;
+          if (!framedoc) {
             continue;
           }
-          setTimeout(undoAll, 1, doc);
-          recurseIFrameUndoAll(doc);
+          setTimeout(undoAll, 1, framedoc);
+          recurseIFrameUndoAll(framedoc);
         } catch (err) {
           // probably security related
         }
@@ -102,29 +110,17 @@ try {   // scope and prevent errors from leaking out to page.
       // probably security related
     }
   }
-
-  /**
-   * @param doc {Document}
-   */
-  function undoAll(doc) {
-    if (!doc) {
-      return;
-    }
-    removeAllClassStyles(doc);
-    undoAttribChange(doc);
-    undoStyleSheetChanges(doc);
-  }
-
   /**
    * @param doc {Document}
    */
   function removeAllClassStyles(doc) {
     const allElementsToFix = doc.querySelectorAll(
-        `[class*="${PREFIX_CSS_CLASS}"]`);
+      `[class*="${PREFIX_CSS_CLASS}"]`,
+    );
     for (const elem of allElementsToFix) {
       elem.classList.remove(...ALL_CLASSNAMES); // the '...' turns the array
-                                                // into a bunch of individual
-                                                // params
+      // into a bunch of individual
+      // params
       if (elem.getAttribute('class') === '') {
         elem.removeAttribute('class');
       }
@@ -138,7 +134,9 @@ try {   // scope and prevent errors from leaking out to page.
   function undoStyleSheetChanges(doc) {
     try {
       const cssNode = doc.getElementById(STYLE_ID);
-      cssNode && cssNode.parentNode.removeChild(cssNode);
+      if (cssNode?.parentNode?.removeChild()) {
+        cssNode.parentNode.removeChild(cssNode);
+      }
 
       const externcsss = doc.getElementsByTagName('link');
       for (const elem of externcsss) {
@@ -160,14 +158,15 @@ try {   // scope and prevent errors from leaking out to page.
       return;
     }
     const savedAttribsJson = JSON.parse(
-        elem.getAttribute(VIDEO_MAX_DATA_ATTRIB_UNDO) || '{}');
-    trace(`restoreAllSavedAttribute for `, elem);
+      elem.getAttribute(VIDEO_MAX_DATA_ATTRIB_UNDO) || '{}',
+    );
+    trace('restoreAllSavedAttribute for ', elem);
     for (const [key, value] of Object.entries(savedAttribsJson)) {
       trace(`  ${key}='${value}' `, elem);
       elem.setAttribute(key, value);
     }
     elem.removeAttribute(VIDEO_MAX_DATA_ATTRIB_UNDO);
-    trace(`  final restored elem:' `, elem);
+    trace('  final restored elem:\' ', elem);
   }
 
   /**
@@ -177,7 +176,8 @@ try {   // scope and prevent errors from leaking out to page.
   function undoAttribChange(doc) {
     try {
       for (const elem of doc.querySelectorAll(
-          `[${VIDEO_MAX_DATA_ATTRIB_UNDO}]`)) {
+        `[${VIDEO_MAX_DATA_ATTRIB_UNDO}]`,
+      )) {
         restoreAllSavedAttribute(elem);
         //  try and make the element realizes it needs to redraw. Fixes
         // progress bar
@@ -188,28 +188,41 @@ try {   // scope and prevent errors from leaking out to page.
     }
   }
 
+  /**
+   * @param doc {Document}
+   */
+  function undoAll(doc) {
+    if (!doc) {
+      return;
+    }
+    removeAllClassStyles(doc);
+    undoAttribChange(doc);
+    undoStyleSheetChanges(doc);
+  }
+
   function touchDocBodyToTriggerUpdate() {
     document.body.width = '99%';
-    setTimeout(function() {
+    setTimeout(() => {
       document.body.width = '100%';
     }, 1);
   }
 
-  function forceRefresh(optional_elem) {
+  function forceRefresh(optionalElem) {
     // we now need to force the flash to reload by resizing... easy thing is to
     // adjust the body
-    setTimeout(function() {
+    setTimeout(() => {
       window.dispatchEvent(new Event('resize'));
       window.dispatchEvent(new Event('visabilitychange'));
-      if (optional_elem) {
-        optional_elem?.dispatchEvent(new Event('visabilitychange'));
+      if (optionalElem) {
+        optionalElem?.dispatchEvent(new Event('visabilitychange'));
       } else {
         touchDocBodyToTriggerUpdate();
       }
     }, 50);
   }
 
+  main();
 } catch (err) {
+  // eslint-disable-next-line no-console
   console.error('videomax extension error', err, err.stack);
-  debugger;
 }

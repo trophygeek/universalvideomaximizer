@@ -1,8 +1,7 @@
-'use strict';
-try {   // scope and prevent errors from leaking out to page.
-  const DEBUG_ENABLED = false;
-  const TRACE_ENABLED = false;
-  const ERR_BREAK_ENABLED = false;
+try { // scope and prevent errors from leaking out to page.
+  const DEBUG_ENABLED = true;
+  const TRACE_ENABLED = true;
+  const ERR_BREAK_ENABLED = true;
 
   const VIDEO_MAX_DATA_ATTRIB_UNDO = 'data-videomax-saved';
   const VIDEO_MAX_ATTRIB_FIND = 'data-videomax-target';
@@ -10,7 +9,6 @@ try {   // scope and prevent errors from leaking out to page.
 
   const OBJ_TAGS = ['object', 'embed', 'video'];
 
-  const CSS_FILE = 'inject.css';
   const STYLE_ID = 'maximizier-css-inject';
 
   const PREFIX_CSS_CLASS = 'videomax-ext';
@@ -20,6 +18,7 @@ try {   // scope and prevent errors from leaking out to page.
   const MAX_CSS_CLASS = `${PREFIX_CSS_CLASS}-max`;
   const PLAYBACK_CNTLS_CSS_CLASS = `${PREFIX_CSS_CLASS}-playback-controls`;
   const PLAYBACK_VIDEO_MATCHED_CLASS = `${PREFIX_CSS_CLASS}-video-matched`;
+  // eslint-disable-next-line no-unused-vars
   const ALL_CLASSNAMES = [
     OVERLAP_CSS_CLASS,
     HIDDEN_CSS_CLASS,
@@ -35,9 +34,14 @@ try {   // scope and prevent errors from leaking out to page.
     if (DEBUG_ENABLED === false) {
       return;
     }
-    console.trace('%c VideoMax ',
-        'color: white; font-weight: bold; background-color: blue', ...args);
+    // eslint-disable-next-line no-console
+    console.trace(
+      '%c VideoMax ',
+      'color: white; font-weight: bold; background-color: blue',
+      ...args,
+    );
     if (ERR_BREAK_ENABLED) {
+      // eslint-disable-next-line no-debugger
       debugger;
     }
   };
@@ -45,8 +49,12 @@ try {   // scope and prevent errors from leaking out to page.
   const trace = (...args) => {
     if (TRACE_ENABLED) {
       // blue color , no break
-      console.log('%c VideoMax ',
-          'color: white; font-weight: bold; background-color: blue', ...args);
+      // eslint-disable-next-line no-console
+      console.log(
+        '%c VideoMax ',
+        'color: white; font-weight: bold; background-color: blue',
+        ...args,
+      );
     }
   };
 
@@ -54,10 +62,10 @@ try {   // scope and prevent errors from leaking out to page.
     trace('Found globals from prior run', window._VideoMaxExt);
   }
 
-  const g_global = window._VideoMaxExt ? window._VideoMaxExt : {
+  const videomaxGlobals = window._VideoMaxExt ? window._VideoMaxExt : {
     elemMatcher: null,
     foundOverlapping: false,
-    /** @var {HTMLElement || Node} **/
+    /** @var {HTMLElement || Node} * */
     matchedVideo: null,
 
     injectedCss: false,
@@ -69,7 +77,7 @@ try {   // scope and prevent errors from leaking out to page.
   };
 
   // experimental. save prior run into window if zooming/unzooming
-  window._VideoMaxExt = g_global;
+  window._VideoMaxExt = videomaxGlobals;
 
   /**
    *
@@ -90,106 +98,7 @@ try {   // scope and prevent errors from leaking out to page.
     return (nodeOrElem instanceof HTMLElement);
   }
 
-  main();
-
-  function main() {
-    trace('running main');
-    if (hasInjectedAlready()) {
-      trace('detected already injected. something is off?');
-      return;
-    }
-
-    g_global.elementMatcher = new ElemMatcherClass();
-
-    g_global.hideEverythingTimer = new RetryTimeoutClass(500, 10);
-
-    g_global.findVideoRetry = new RetryTimeoutClass(1000, 10);
-    g_global.findVideoRetry.startTimer(mainFixPage);
-  }
-
-  function mainFixPage() {
-    trace('running mainFixPage');
-    if (document.readyState !== 'complete') {    //  || document.readyState == "interactive"
-      trace(`document state not complete: '${document.readyState}'`);
-      return false;
-    }
-
-    trace('mainFixPage readystate = ' + document.readyState);
-    const reinstall = hasInjectedAlready();
-
-    findLargestVideoNew(document);
-    findLargestVideoOld(document, []);
-
-    const bestMatch = g_global.elementMatcher.getBestMatch();
-    if (!bestMatch) {
-      logerr('no video found, will try again');
-      return false; // keep trying
-    }
-
-    // mark it with a class. Not really used for anything other than
-    // debugging problems, but might be useful?
-    bestMatch.classList.add(PLAYBACK_VIDEO_MATCHED_CLASS, MAX_CSS_CLASS);
-    g_global.matchedVideo = bestMatch;
-
-    const bestMatchCount = g_global.elementMatcher.getBestMatchCount();
-    if (bestMatchCount > 1) {
-      trace('found too many videos on page. #' + bestMatchCount);
-      messageDisplay(`Found multiple, large videos. 
-          Couldn't figure out which was the main one. Trying the most likely`,
-          bestMatch);
-    }
-
-    injectCssHeader();
-
-    trace('Final Best Matched Element: ', bestMatch.nodeName, bestMatch);
-    g_global.hideEverythingTimer.startTimer(function() {
-      // BBC has some special css with lots of !importants
-      // TODO: fragile! We could hide all stylesheets, but then we'd be screwed
-      // for html5 floating controls.
-      hideCSS('screen-css');
-      hideEverythingThatIsntLargestVideo();
-
-      if (!reinstall) {
-        // with no element parameter, then the whole doc is "touched"
-        forceRefresh();
-      } else {
-        forceRefresh(g_global.matchedVideo);
-      }
-    });
-
-    return true;  // stop retrying
-  }
-
-  function hideEverythingThatIsntLargestVideo() {
-    if (document.readyState !== 'complete') {
-      return false;
-    }
-    const videoMatchElem = g_global.matchedVideo;
-    if (!videoMatchElem) {
-      logerr('g_global.matchedVideo empty');
-      return false;
-    }
-
-    trace('hideEverythingThatIsntLargestVideo');
-    hideDomNotInTree(videoMatchElem);
-
-    setTimeout(function() {
-      FixUpAttribs(videoMatchElem);
-    }, 1);
-
-    const embeddedFrameTree = g_global.elementMatcher.getFrameTree();
-    if (embeddedFrameTree.length) {
-      trace('hiding logic for iframe. number of frames in tree:' +
-            embeddedFrameTree.length);
-      for (const frametree of embeddedFrameTree.reverse()) {
-        hideDomNotInTree(frametree);
-        FixUpAttribs(frametree);
-      }
-    }
-    return true;  // stop retrying
-  }
-
-//// finding video logic. this code is a bit of a mess.
+  /// / finding video logic. this code is a bit of a mess.
   /**
    *
    * @param doc {Document}
@@ -200,93 +109,22 @@ try {   // scope and prevent errors from leaking out to page.
       for (const frame of doc.querySelectorAll('iframe')) {
         try {
           const allvideos = frame.contentWindow.document.querySelectorAll(
-              'video');
+            'video',
+          );
           for (const eachvido of allvideos) {
-            g_global.elementMatcher.checkIfBest(eachvido);
+            videomaxGlobals.elementMatcher.checkIfBest(eachvido);
           }
         } catch (err) {
           trace(err);
         }
       }
-      return (g_global.elementMatcher.getBestMatchCount() > 0);
+      return (videomaxGlobals.elementMatcher.getBestMatchCount() > 0);
     } catch (err) {
       trace(err);
       return false;
     }
   }
-
-  function findLargestVideoOld(doc, iframe_tree, level = 0) {
-    if (iframe_tree.length > 8) {
-      trace('hit max iframe depth, returning');
-      return false;
-    }
-    if (typeof (doc?.getElementsByTagName) !== 'function') {
-      trace('getElementsByTagName is not function, bailing');
-      return false;
-    }
-    trace(`findLargestVideoOld Depth: ${level} length: ${iframe_tree.length}`);
-
-    checkVidsInDoc(doc);
-
-    try {
-      const iframes = [...doc.getElementsByTagName('iframe')];
-      let foundnewmatch = false;
-      for (const eachframe of iframes) {
-        try {
-          foundnewmatch = checkVidsInDoc(eachframe.contentDocument);
-          if (foundnewmatch) {
-            trace('found a good video match in an iframe, stopping search');
-            iframe_tree.push(eachframe);
-            g_global.elementMatcher.setNestedFrameTree(iframe_tree);
-            // we found a good match, just return?
-            // trace("returning from findLargestVideoOld level:" +
-            // iframe_tree.length);
-          } else {
-            //// recursive nesting!!!
-            // many sites (e.g. bing video search) buries frames inside of
-            // frames
-            trace('found nested iframes, going deeper');
-            let deeper_iframe = arrayClone(iframe_tree);
-            deeper_iframe.push(eachframe);
-            if (findLargestVideoOld(foundnewmatch, deeper_iframe, level + 1)) {
-              trace(
-                  `  returning from findLargestVideoOld Depth: ${level} length: ${iframe_tree.length}`);
-              return true;
-            }
-          }
-        } catch (ex) {
-          // common exception because iframes can be protected if
-          // they cross domains
-          trace('security exception expected: ', ex);
-        }
-
-        if (!foundnewmatch) {
-          try {
-            foundnewmatch = g_global.elementMatcher.checkIfBest(eachframe);
-            if (foundnewmatch) {
-              trace(`  Found iframe correct ratio. cannot go deeper because of security. 
-                               Depth: ${level}
-                               Length: ${iframe_tree.length + 1}
-                               frame`, eachframe);
-              iframe_tree.push(eachframe);
-              g_global.elementMatcher.setNestedFrameTree(iframe_tree);
-              return true;  // new
-            }
-            // }
-          } catch (ex) {
-            trace('findLargestVideoOld exception in loop', ex);
-          }
-        }
-      }
-    } catch (ex) {
-      // probably a security exception for trying to access frames.
-      logerr('findLargestVideoOld. probably security issue', ex);
-    }
-    trace(`returning from findLargestVideoOld Depth: ${iframe_tree.length}`);
-    return false;
-  }
-
-// returns true if a new video match was found.
+  // returns true if a new video match was found.
   function checkVidsInDoc(doc) {
     if (!doc) {
       return false;
@@ -294,10 +132,10 @@ try {   // scope and prevent errors from leaking out to page.
     let matchedNew = false;
     for (const tagname of OBJ_TAGS.reverse()) {
       try {
-        const elem_search = [...doc.getElementsByTagName(tagname)];
-        if (elem_search) {
-          for (const each_elem of elem_search) {    // .reverse()
-            matchedNew |= g_global.elementMatcher.checkIfBest(each_elem);
+        const elemSearch = [...doc.getElementsByTagName(tagname)];
+        if (elemSearch) {
+          for (const eachElem of elemSearch) { // .reverse()
+            matchedNew |= videomaxGlobals.elementMatcher.checkIfBest(eachElem);
           }
         }
       } catch (err) {
@@ -307,23 +145,23 @@ try {   // scope and prevent errors from leaking out to page.
     return matchedNew;
   }
 
-  function getElemComputedStyle(node) {
-    let view = getElemsDocumentView(node);
-    return view.getComputedStyle(node, null);
-  }
-
   function getElemsDocumentView(node) {
     // this can probably be simplified
-    if (node.ownerDocument !== null && node.ownerDocument !== document &&
-        node.ownerDocument.defaultView !== null) {
+    if (node.ownerDocument !== null && node.ownerDocument !== document
+        && node.ownerDocument.defaultView !== null) {
       return node.ownerDocument.defaultView;
     }
     return document.defaultView;
   }
 
+  function getElemComputedStyle(node) {
+    const view = getElemsDocumentView(node);
+    return view.getComputedStyle(node, null);
+  }
+
   function safeParseInt(str) {
-    let result = parseInt(str, 10);
-    return isNaN(result) ? 0 : result;
+    const result = parseInt(str, 10);
+    return Number.isNaN(result) ? 0 : result;
   }
 
   // function touchDocBodyToTriggerUpdate() {
@@ -333,14 +171,14 @@ try {   // scope and prevent errors from leaking out to page.
   //   }, 1);
   // }
 
-  function forceRefresh(optional_elem) {
+  function forceRefresh(optionalElem) {
     // we now need to force the flash to reload by resizing... easy thing is to
     // adjust the body
-    setTimeout(function() {
+    setTimeout(() => {
       window.dispatchEvent(new Event('resize'));
       window.dispatchEvent(new Event('visabilitychange'));
-      if (optional_elem) {
-        optional_elem?.dispatchEvent(new Event('visabilitychange'));
+      if (optionalElem) {
+        optionalElem?.dispatchEvent(new Event('visabilitychange'));
       } else {
         // touchDocBodyToTriggerUpdate();
       }
@@ -360,7 +198,7 @@ try {   // scope and prevent errors from leaking out to page.
 
     // let compstyle = getElemComputedStyle(videoElem); // used to resize divs
     let boundingclientrect = getBoundingClientRectWhole(videoElem);
-    if (shouldUseParentDivForDockedCheck(videoElem)) {
+    if (shouldUseParentDivForDockedCheckYoutube(videoElem)) {
       boundingclientrect = getBoundingClientRectWhole(videoElem.parentNode);
     }
 
@@ -382,6 +220,78 @@ try {   // scope and prevent errors from leaking out to page.
     }
   }
 
+  function findLargestVideoOld(doc, iframeTree, level = 0) {
+    if (iframeTree.length > 8) {
+      trace('hit max iframe depth, returning');
+      return false;
+    }
+    if (typeof (doc?.getElementsByTagName) !== 'function') {
+      trace('getElementsByTagName is not function, bailing');
+      return false;
+    }
+    trace(`findLargestVideoOld Depth: ${level} length: ${iframeTree.length}`);
+
+    checkVidsInDoc(doc);
+
+    try {
+      const iframes = [...doc.getElementsByTagName('iframe')];
+      let foundnewmatch = false;
+      for (const eachframe of iframes) {
+        try {
+          foundnewmatch = checkVidsInDoc(eachframe.contentDocument);
+          if (foundnewmatch) {
+            trace('found a good video match in an iframe, stopping search');
+            iframeTree.push(eachframe);
+            videomaxGlobals.elementMatcher.setNestedFrameTree(iframeTree);
+            // we found a good match, just return?
+            // trace("returning from findLargestVideoOld level:" +
+            // iframeTree.length);
+          } else {
+            /// / recursive nesting!!!
+            // many sites (e.g. bing video search) buries frames inside of
+            // frames
+            trace('found nested iframes, going deeper');
+            const deeper_iframe = arrayClone(iframeTree);
+            deeper_iframe.push(eachframe);
+            if (findLargestVideoOld(foundnewmatch, deeper_iframe, level + 1)) {
+              trace(
+                `  returning from findLargestVideoOld Depth: ${level} length: ${iframeTree.length}`,
+              );
+              return true;
+            }
+          }
+        } catch (ex) {
+          // common exception because iframes can be protected if
+          // they cross domains
+          trace('security exception expected: ', ex);
+        }
+
+        if (!foundnewmatch) {
+          try {
+            foundnewmatch = videomaxGlobals.elementMatcher.checkIfBest(eachframe);
+            if (foundnewmatch) {
+              trace(`  Found iframe correct ratio. cannot go deeper because of XSS. 
+                               Depth: ${level}
+                               Length: ${iframeTree.length + 1}
+                               frame`, eachframe);
+              iframeTree.push(eachframe);
+              videomaxGlobals.elementMatcher.setNestedFrameTree(iframeTree);
+              return true; // new
+            }
+            // }
+          } catch (ex) {
+            trace('findLargestVideoOld exception in loop', ex);
+          }
+        }
+      }
+    } catch (ex) {
+      // probably a security exception for trying to access frames.
+      logerr('findLargestVideoOld. probably security issue', ex);
+    }
+    trace(`returning from findLargestVideoOld Depth: ${iframeTree.length}`);
+    return false;
+  }
+
   /**
    *
    * @param node {Node || HTMLElement}
@@ -397,10 +307,10 @@ try {   // scope and prevent errors from leaking out to page.
       node.setAttribute(`${VIDEO_MAX_ATTRIB_FIND}`, VIDEO_MAX_ATTRIB_ID);
       const attribs = node.attributes;
 
-      trace('attrib count = ' + attribs.length);
+      trace(`attrib count = ${attribs.length}`);
       for (const eachattrib of attribs) {
         try {
-          const name = eachattrib.name;
+          const { name } = eachattrib;
           const orgValue = eachattrib.value;
           let newValue = null;
 
@@ -423,16 +333,20 @@ try {   // scope and prevent errors from leaking out to page.
               break;
 
             case 'style':
-              newValue = orgValue + ';'; // remove at end. needed for parsing
-              newValue = newValue.replace(/width[\s]*:[\s]*[^;&]+/i,
-                  `width: ${SCALESTRING_WIDTH}`);
-              newValue = newValue.replace(/height[\s]*:[\s]*[^;&]+/i,
-                  `height: ${SCALESTRING_HEIGHT}`);
+              newValue = `${orgValue};`; // remove at end. needed for parsing
+              newValue = newValue.replace(
+                /width[\s]*:[\s]*[^;&]+/i,
+                `width: ${SCALESTRING_WIDTH}`,
+              );
+              newValue = newValue.replace(
+                /height[\s]*:[\s]*[^;&]+/i,
+                `height: ${SCALESTRING_HEIGHT}`,
+              );
               newValue = newValue.substring(0, newValue.length - 1); // removing
-                                                                     // trailing
-                                                                     // ; we
-                                                                     // added
-                                                                     // above
+              // trailing
+              // ; we
+              // added
+              // above
               break;
 
             case 'scale':
@@ -447,10 +361,13 @@ try {   // scope and prevent errors from leaking out to page.
               //   }
               //   break;
 
-              //default:
+            // default:
             case 'flashlets':
             case 'data':
               newValue = grepFlashlets(orgValue);
+              break;
+
+            default:
               break;
           }
 
@@ -462,7 +379,6 @@ try {   // scope and prevent errors from leaking out to page.
             saveAttribute(node, name);
             node.setAttribute(name, newValue);
           }
-
         } catch (ex) {
           logerr('exception in looping over properties: ', ex);
         }
@@ -479,7 +395,6 @@ try {   // scope and prevent errors from leaking out to page.
             continue;
           }
           if (!isElem(eachnode.setAttribute)) {
-            debugger; // new
             continue;
           }
           const attrName = eachnode.getAttribute('name');
@@ -492,21 +407,20 @@ try {   // scope and prevent errors from leaking out to page.
             // we might override below.
             newParams[attrName] = attrValue;
           }
-
         } catch (ex) {
           logerr('ERROR reading flash params ex', ex);
         }
       }
 
       // define all nodes
-      newParams['bgcolor'] = '#000000';
-      newParams['scale'] = 'showAll';
-      newParams['menu'] = 'true';
-      newParams['quality'] = 'high';
-      newParams['width'] = SCALESTRING_WIDTH;
-      newParams['height'] = SCALESTRING_HEIGHT;
-      newParams['quality'] = 'high';
-      newParams['autoplay'] = 'true';
+      newParams.bgcolor = '#000000';
+      newParams.scale = 'showAll';
+      newParams.menu = 'true';
+      newParams.quality = 'high';
+      newParams.width = SCALESTRING_WIDTH;
+      newParams.height = SCALESTRING_HEIGHT;
+      newParams.quality = 'high';
+      newParams.autoplay = 'true';
 
       // edit in place
       for (const eachnode of node.childNodes) {
@@ -516,7 +430,7 @@ try {   // scope and prevent errors from leaking out to page.
         const name = eachnode.getAttribute('name');
         const orgValue = eachnode.getAttribute('value');
 
-        if (newParams.hasOwnProperty(name)) { // is this one we care about?
+        if (Object.prototype.hasOwnProperty.call(newParams, name)) { // is this one we care about?
           trace(`FixUpAttribs changing child param '${name}'
             old: '${orgValue}'
             new: '${newParams[name]}'`);
@@ -532,12 +446,12 @@ try {   // scope and prevent errors from leaking out to page.
 
   function grepFlashlets(flashletsval) {
     let result = flashletsval;
-    if (result !== '' && result?.match(/[\=\%]/i) !== null) {
-      let rejoinedResult = [];
-      let params = parseParams(flashletsval);
+    if (result !== '' && result?.match(/[=%]/i) !== null) {
+      const rejoinedResult = [];
+      const params = parseParams(flashletsval);
       if (params) {
         for (const key of params) {
-          if (params.hasOwnProperty(key)) {
+          if (Object.prototype.hasOwnProperty.call(params, key)) {
             switch (key.toLocaleLowerCase()) {
               case 'width':
               case 'vwidth':
@@ -562,39 +476,45 @@ try {   // scope and prevent errors from leaking out to page.
 
               case 'flashlets':
               case 'data': {
-                let value = params[key];
-                if (value?.match(/[\=\%]/i) !== null) {
+                const value = params[key];
+                if (value?.match(/[=%]/i) !== null) {
                   params[key] = grepFlashlets(value);
                 }
               }
                 break;
+              default:
+                break;
             }
 
             rejoinedResult.push(
-                '' + key + '=' + encodeURIComponent(params[key]));
+              `${key}=${encodeURIComponent(params[key])}`,
+            );
           }
         }
 
         result = rejoinedResult.join('&');
         if (flashletsval.search(/\?/i) === 0) { // startswith
-          result = '?' + result;
+          result = `?${result}`;
         }
       }
-      trace('Replaced urls params:\n\tBefore:\t' + flashletsval +
-            '\r\n\tAfter\t' + result);
+      trace(`Replaced urls params:\n\tBefore:\t${flashletsval
+      }\r\n\tAfter\t${result}`);
     }
     return result;
   }
 
   function parseParams(urlformat) {
-    let match, pl = /\+/g,  // Regex for replacing addition symbol with a space
-        search = /([^&=]+)=?([^&]*)/g, decode = function(s) {
-          return decodeURIComponent(s.replace(pl, ' '));
-        }, query = urlformat;
+    const pl = /\+/g; // Regex for replacing addition symbol with a space
+    const search = /([^&=]+)=?([^&]*)/g;
+    const decode = (s) => decodeURIComponent(s.replace(pl, ' '));
+    const
+      query = urlformat;
 
-    let urlParamsResult = {};
-    while (match = search.exec(query)) {
+    const urlParamsResult = {};
+    let match = search.exec(query);
+    while (match) {
       urlParamsResult[decode(match[1])] = decode(match[2]);
+      match = search.exec(query);
     }
 
     return urlParamsResult;
@@ -617,31 +537,35 @@ try {   // scope and prevent errors from leaking out to page.
    * Copy over and attribute value so it can be restored by undo
    * @param node {Node || HTMLElement}
    * @param attributeName {string}
+   * @return {boolean} True if attribute saved
    */
   function saveAttribute(node, attributeName) {
     if (!isElem(node)) {
-      return;
+      return false;
     }
-    attributeName = attributeName.toLowerCase();
-    const orgValue = node.getAttribute(attributeName) || '';
+    const attributeNameLower = attributeName.toLowerCase();
+    const orgValue = node.getAttribute(attributeNameLower) || '';
     if (!orgValue.length) {
       // nothing to save
-      trace(`saveAttribute '${attributeName}' empty, nothing to save`, node);
+      trace(`saveAttribute '${attributeNameLower}' empty, nothing to save`, node);
       return false;
     }
     const startingdata = node.getAttribute(VIDEO_MAX_DATA_ATTRIB_UNDO);
     const jsondata = JSON.parse(startingdata || '{}');
-    if (Object.keys(jsondata).includes(attributeName)) {
+    if (Object.keys(jsondata).includes(attributeNameLower)) {
       // already been saved bail
-      trace(`saveAttribute '${attributeName}' already saved, not overwriting `,
-          node, jsondata);
-      return false;
+      trace(
+        `saveAttribute '${attributeNameLower}' already saved, not overwriting `,
+        node,
+        jsondata,
+      );
+      return true;
     }
 
     // ok merge in and save
-    jsondata[attributeName] = orgValue;
+    jsondata[attributeNameLower] = orgValue;
     node.setAttribute(VIDEO_MAX_DATA_ATTRIB_UNDO, JSON.stringify(jsondata));
-    trace(`saveAttribute '${attributeName}' old value ${orgValue}`, node);
+    trace(`saveAttribute '${attributeNameLower}' old value ${orgValue}`, node);
     return true;
   }
 
@@ -681,28 +605,30 @@ try {   // scope and prevent errors from leaking out to page.
     }
     // trace("hideSiblings for class '" + elemIn.className + "'
     // rect="+JSON.stringify(boundingclientrect));
-    let elemParent = elemIn.parentNode;
+    const elemParent = elemIn.parentNode;
     if (!elemParent) {
       return;
     }
 
     // could also use node.contains(elemIn) where node is the matched video?
-    const parentIsVideo = elemIn.nodeName === 'VIDEO' || elemParent.nodeName ===
-                          'VIDEO';
-    const parentIsMaximized = elemIn.classList?.contains(MAX_CSS_CLASS) ||
-                              elemIn.classList?.contains(
-                                  PLAYBACK_CNTLS_CSS_CLASS) ||
-                              elemParent.classList?.contains(MAX_CSS_CLASS) ||
-                              elemParent.classList?.contains(
-                                  PLAYBACK_CNTLS_CSS_CLASS);
+    const parentIsVideo = elemIn.nodeName === 'VIDEO' || elemParent.nodeName
+                          === 'VIDEO';
+    const parentIsMaximized = elemIn.classList?.contains(MAX_CSS_CLASS)
+                              || elemIn.classList?.contains(
+                                PLAYBACK_CNTLS_CSS_CLASS,
+                              )
+                              || elemParent.classList?.contains(MAX_CSS_CLASS)
+                              || elemParent.classList?.contains(
+                                PLAYBACK_CNTLS_CSS_CLASS,
+                              );
 
     trace('hideSiblings');
-    let sibs = getSiblings(elemParent);
+    const sibs = getSiblings(elemParent);
     for (const each_sib of sibs.reverse()) {
       // if the element is inside the video's rect, then they are probably
       // controls. don't touch them. we are looking for elements that overlap.
-      if (each_sib.isEqualNode(elemIn) || each_sib.nodeName.toUpperCase() ===
-          'SCRIPT') {
+      if (each_sib.isEqualNode(elemIn) || each_sib.nodeName.toUpperCase()
+          === 'SCRIPT') {
         continue;
       }
       if (!isElem(each_sib)) {
@@ -712,7 +638,7 @@ try {   // scope and prevent errors from leaking out to page.
         continue;
       }
 
-      let eachBoundingRect = getBoundingClientRectWhole(each_sib);
+      const eachBoundingRect = getBoundingClientRectWhole(each_sib);
       trace('checking siblings\n', each_sib, eachBoundingRect);
 
       // todo: check z-order?
@@ -724,31 +650,36 @@ try {   // scope and prevent errors from leaking out to page.
       const hasSliderRole = hasSliderRoleChild(each_sib);
 
       let handled = false;
-      if (!(bounded || bottomDocked || hasSliderRole || parentIsVideo ||
-            parentIsMaximized)) {
+      if (!(bounded || bottomDocked || hasSliderRole || parentIsVideo
+            || parentIsMaximized)) {
         // each_elem.style.setProperty("display", "none", "important");
-        trace(`  Add HIDDEN_CSS_CLASS overlapping elem ${each_sib.nodeName}`,
-            each_sib);
-        each_sib.classList?.add(HIDDEN_CSS_CLASS);    // may be Node
+        trace(
+          `  Add HIDDEN_CSS_CLASS overlapping elem ${each_sib.nodeName}`,
+          each_sib,
+        );
+        each_sib.classList?.add(HIDDEN_CSS_CLASS); // may be Node
         handled = true;
       }
 
       if (!handled) {
-        g_global.foundOverlapping = true;
+        videomaxGlobals.foundOverlapping = true;
         trace(`Found overlapping elem ${each_sib.nodeName}`, each_sib);
 
-        const isLikelyControls = hasSliderRole || bottomDocked ||
-                                 (parentIsVideo && parentIsMaximized);
+        const isLikelyControls = hasSliderRole || bottomDocked
+                                 || (parentIsVideo && parentIsMaximized);
 
         if (!isLikelyControls) {
-          trace(`  Add OVERLAP_CSS_CLASS to children ${each_sib.nodeName} `,
-              each_sib);
-          walkAllChildren(each_sib, function(each_child_elem) {
-            let eachChildBoundingRect = getBoundingClientRectWhole(
-                each_child_elem);
-            if (isBoundedRect(boundingclientrect, eachChildBoundingRect) ||
-                isBottomDocked(boundingclientrect, eachChildBoundingRect) ||
-                hasSliderRoleChild(each_child_elem)) {
+          trace(
+            `  Add OVERLAP_CSS_CLASS to children ${each_sib.nodeName} `,
+            each_sib,
+          );
+          walkAllChildren(each_sib, (each_child_elem) => {
+            const eachChildBoundingRect = getBoundingClientRectWhole(
+              each_child_elem,
+            );
+            if (isBoundedRect(boundingclientrect, eachChildBoundingRect)
+                || isBottomDocked(boundingclientrect, eachChildBoundingRect)
+                || hasSliderRoleChild(each_child_elem)) {
               if (!containsAnyVideoMaxClass(each_child_elem)) { // not already something else
                 each_child_elem.classList.add(OVERLAP_CSS_CLASS);
                 handled = true;
@@ -758,8 +689,10 @@ try {   // scope and prevent errors from leaking out to page.
         }
 
         if (!handled && isLikelyControls) {
-          trace(`  Add PLAYBACK_CNTLS_CSS_CLASS ${each_sib.nodeName} `,
-              each_sib);
+          trace(
+            `  Add PLAYBACK_CNTLS_CSS_CLASS ${each_sib.nodeName} `,
+            each_sib,
+          );
           // we're going to assume it contains the playback controls and are
           // going to max with it.
           each_sib.classList?.add(PLAYBACK_CNTLS_CSS_CLASS);
@@ -767,8 +700,10 @@ try {   // scope and prevent errors from leaking out to page.
           // each_sib.setAttribute ? each_sib.setAttribute('width',
           // 'calc(100vw)') : '';
         } else {
-          trace(`  Add HIDDEN_CSS_CLASS overlapping elem ${each_sib.nodeName}`,
-              each_sib);
+          trace(
+            `  Add HIDDEN_CSS_CLASS overlapping elem ${each_sib.nodeName}`,
+            each_sib,
+          );
           each_sib.classList?.add(HIDDEN_CSS_CLASS);
           handled = true;
         }
@@ -782,12 +717,12 @@ try {   // scope and prevent errors from leaking out to page.
    * @param actionFn {function}
    */
   function walkAllChildren(elem, actionFn) {
-    let active_elems = getChildren(elem, null);
-    actionFn(elem);  // call the parent element
+    const active_elems = getChildren(elem, null);
+    actionFn(elem); // call the parent element
     let safty = 5000;
 
     while (active_elems.length > 0 && safty--) {
-      let next_elem = active_elems.pop();
+      const next_elem = active_elems.pop();
       active_elems.concat(getChildren(next_elem, null));
       actionFn(elem);
     }
@@ -803,15 +738,16 @@ try {   // scope and prevent errors from leaking out to page.
    * @return {*[]}
    */
   function getChildren(node, skipMe) {
-    let r = [];
-    for (let sanityMax = 0; sanityMax < 10000; sanityMax++) {
-      if (!node) {
+    const r = [];
+    let currentNode = node;
+    for (let sanityMax = 0; sanityMax < 5000; sanityMax++) {
+      if (!currentNode) {
         return r;
       }
-      if (node?.nodeType === 1 && !node.isEqualNode(skipMe)) {
-        r.push(node);
+      if (currentNode?.nodeType === 1 && !currentNode.isEqualNode(skipMe)) {
+        r.push(currentNode);
       }
-      node = node.nextSibling;
+      currentNode = currentNode.nextSibling;
     }
     logerr('Hit max children in getChildren, stopping');
     return r;
@@ -829,75 +765,61 @@ try {   // scope and prevent errors from leaking out to page.
 
   /**
    * @constructor
+   * @param delay {number}
+   * @param maxretries {number}
    */
   function RetryTimeoutClass(delay, maxretries) {
     this.timerid = 0;
-    // delay is dithered to for situations when inject happens twice.
-    this.delay = delay + Math.round((0.5 - Math.random()) * delay / 10); //  +/-
-                                                                         // 5%
-                                                                         // dither.
+    this.nextdelay = 0;
+    // nextdelay is 5% dithered to for situations when inject happens twice.
+    this.retrydelay = delay + (Math.round((0.5 - Math.random()) * delay) / 10); //  +/-
+
     this.maxretries = maxretries;
     this.retrycount = 0;
 
     // func() returning true means done
-    this.startTimer = function(func) {
+    /**
+     * @param func {() => boolean}
+     */
+    this.startTimer = (func) => {
       this.func = func;
-      this.retryFunc(this);
+      this.retryFunc.bind(this);
+      this.retryFunc();
     };
 
-    this.retryFunc = function(self) {
+    this.retryFunc = () => {
       trace('RetryTimeoutClass.retryFunc');
       let result = false;
-      let delay = self.delay;
 
-      if (self.startdelay === 0) {
-        result = self.func();
-      } else {
-        delay = self.startdelay;
-        self.startdelay = 0;
+      // first time called, nextdelay will be zero
+      if (!this.nextdelay) {
+        result = this.func();
+        this.delay = this.retrydelay;
       }
-      if (result === false) {
+      if (!result) {
         // returns true if we're done
-        self.retrycount++;
-        if (self.retrycount < self.maxretries) {
-          self.cleartimeout();
-          self.timerid = setTimeout(function g() {
-            self.retryFunc(self);
-          }, delay);
+        this.retrycount++;
+        if (this.retrycount < this.maxretries) {
+          this.cleartimeout();
+          this.timerid = setTimeout(() => {
+            this.retryFunc();
+          }, this.nextdelay);
         }
       } else {
-        self.cleartimeout();
+        this.cleartimeout();
       }
     };
 
-    this.cleartimeout = function() {
+    this.cleartimeout = () => {
       if (this.timerid) {
         clearTimeout(this.timerid);
         this.timerid = 0;
+        this.delay = 0;
       }
     };
   }
 
-  function injectCssHeader() {
-    try {
-      if (document.getElementById(STYLE_ID)) {
-        trace('already injected css header skipping');
-        return;
-      }
-
-      let link = document.createElement('link');
-      link.href = chrome?.extension?.getURL(CSS_FILE);
-      link.id = STYLE_ID;
-      link.type = 'text/css';
-      link.rel = 'stylesheet';
-      link.media = 'all';
-      document.getElementsByTagName('head')[0].appendChild(link);
-    } catch (ex) {
-      logerr('injectCssHeader ', ex);
-    }
-  }
-
-//
+  //
   function hideCSS(id) {
     // try {
     if (id) {
@@ -943,8 +865,8 @@ try {   // scope and prevent errors from leaking out to page.
    * @return {boolean}
    */
   function isEqualRect(outer, inner) {
-    if ((inner.top === outer.top) && (inner.left >= outer.left) &&
-        (inner.bottom >= outer.bottom) && (inner.right >= outer.right)) {
+    if ((inner.top === outer.top) && (inner.left >= outer.left)
+        && (inner.bottom >= outer.bottom) && (inner.right >= outer.right)) {
       return false;
     }
     return false;
@@ -955,10 +877,10 @@ try {   // scope and prevent errors from leaking out to page.
       trace('isBoundedRect exact match. probably preview image.');
       return false;
     }
-    return ((inner.top >= outer.top) && (inner.top <= outer.bottom) &&
-            (inner.bottom >= outer.top) && (inner.bottom <= outer.bottom) &&
-            (inner.left >= outer.left) && (inner.left <= outer.right) &&
-            (inner.right >= outer.left) && (inner.right <= outer.right));
+    return ((inner.top >= outer.top) && (inner.top <= outer.bottom)
+            && (inner.bottom >= outer.top) && (inner.bottom <= outer.bottom)
+            && (inner.left >= outer.left) && (inner.left <= outer.right)
+            && (inner.right >= outer.left) && (inner.right <= outer.right));
   }
 
   /**
@@ -968,12 +890,13 @@ try {   // scope and prevent errors from leaking out to page.
    *     number, height: number}}
    */
   function getBoundingClientRectWhole(node) {
-    if (!isElem(node)) {  //todo: verify
+    if (!isElem(node)) { // todo: verify
       trace('getBoundingClientRectWhole failed, returning empty clientRect');
-      return {top: 0, left: 0, bottom: 0, right: 0, width: 0, height: 0};
-    } else {
-      return wholeClientRect(node.getBoundingClientRect());
+      return {
+        top: 0, left: 0, bottom: 0, right: 0, width: 0, height: 0,
+      };
     }
+    return wholeClientRect(node.getBoundingClientRect());
   }
 
   /**
@@ -989,10 +912,13 @@ try {   // scope and prevent errors from leaking out to page.
       return false;
     }
     // must be same width and top must be touching bottom of parent
-    let closeWidths = Math.abs(targetClientRect.width - parentClientRect.width); // widths can be real numbers (122.4)
-    let result = (closeWidths < 4 && targetClientRect.top >=
-                  parentClientRect.top && targetClientRect.top <=
-                  parentClientRect.bottom + 5); // fudge
+    const closeWidths = Math.abs(
+      targetClientRect.width - parentClientRect.width,
+    ); // widths can be real
+    // numbers (122.4)
+    const result = (closeWidths < 4 && targetClientRect.top
+                    >= parentClientRect.top && targetClientRect.top
+                    <= parentClientRect.bottom + 5); // fudge
     if (result) {
       trace('found bottom docked element');
     }
@@ -1010,8 +936,10 @@ try {   // scope and prevent errors from leaking out to page.
     }
     const result = elem.querySelectorAll('[role="slider"]').length > 1 || false;
     if (result) {
-      trace(`Element has slider role elements, not hiding ${elem.nodeName}`,
-          elem);
+      trace(
+        `Element has slider role elements, not hiding ${elem.nodeName}`,
+        elem,
+      );
     }
     return result;
   }
@@ -1021,12 +949,12 @@ try {   // scope and prevent errors from leaking out to page.
    * @param videoElem {Node}
    * @return {boolean}
    */
-  function shouldUseParentDivForDockedCheck(videoElem) {
+  function shouldUseParentDivForDockedCheckYoutube(videoElem) {
     if (videoElem.nodeName === 'VIDEO') {
-      if (videoElem.className?.match(/html5\-main\-video/i) !== null) {
-        let parent = videoElem.parentNode;
-        if (parent && parent.className.match(/html5\-video\-container/i) !=
-            null) {
+      if (videoElem.className?.match(/html5-main-video/i) !== null) {
+        const parent = videoElem.parentNode;
+        if (parent && parent.className.match(/html5-video-container/i)
+            != null) {
           return true;
         }
       }
@@ -1049,23 +977,24 @@ try {   // scope and prevent errors from leaking out to page.
      * @param elem {HTMLElement}
      * @return {boolean} True means done
      */
-    this.checkIfBest = function(elem) {
+    this.checkIfBest = (elem) => {
       if (elem === this.largestElem) {
         trace('Matched element same as ideal element already');
         return true;
-      } else if (this.largestElem && elem === this.largestElem.parentNode) {
+      }
+      if (this.largestElem && elem === this.largestElem.parentNode) {
         trace('Matched element same as parent.');
       }
       let replacedBest = false;
-      let score = this._getElemMatchScore(elem);
+      const score = this._getElemMatchScore(elem);
       if (score > this.largestScore) {
         this.largestScore = score;
         this.largestElem = elem;
         this.matchCount = 1;
         // g_LargestVideoClientRect = getBoundingClientRectWhole(each_elem);
         replacedBest = true;
-        trace('Making item best match: \t' + elem.nodeName + '\t' +
-              elem.className + '\t' + elem.id);
+        trace(`Making item best match: \t${elem.nodeName}\t${
+          elem.className}\t${elem.id}`);
       } else if (score === this.largestScore) {
         this.matchCount++;
       }
@@ -1073,21 +1002,15 @@ try {   // scope and prevent errors from leaking out to page.
       return replacedBest;
     };
 
-    this.getBestMatch = function() {
-      return this.largestElem;
-    };
+    this.getBestMatch = () => this.largestElem;
 
-    this.getBestMatchCount = function() {
-      return this.matchCount;  // should be 1 for most cases
-    };
+    this.getBestMatchCount = () => this.matchCount; // should be 1 for most case
 
-    this.setNestedFrameTree = function(iframeTree) {
+    this.setNestedFrameTree = (iframeTree) => {
       this.nestedFrameTree = arrayClone(iframeTree);
     };
 
-    this.getFrameTree = function() {
-      return this.nestedFrameTree;
-    };
+    this.getFrameTree = () => this.nestedFrameTree;
 
     /**
      *   weight for videos that are the right ratios!
@@ -1096,34 +1019,35 @@ try {   // scope and prevent errors from leaking out to page.
      * @return {number}
      * @private
      */
-    this._getElemMatchScore = function(elem) {
+    this._getElemMatchScore = (elem) => {
       if (!elem) {
         return 0;
       }
-      let width = 0, height = 0;
-      let compstyle = getElemComputedStyle(elem);
+      let width = 0;
+      let
+        height = 0;
+      const compstyle = getElemComputedStyle(elem);
 
       if (compstyle && compstyle.width && compstyle.height) {
         // make sure the ratio is reasonable for a video.
         width = safeParseInt(compstyle.width);
         height = safeParseInt(compstyle.height);
         if (width > 0 && height > 0) {
-          trace('\t' + elem.nodeName + '\t' + width + '\t' + height + '\t' +
-                (width / height) + '\t' + elem.className + '\t' + elem.id +
-                '\t ', elem);
+          trace(`\t${elem.nodeName}\t${width}\t${height}\t${
+            width / height}\t${elem.className}\t${elem.id
+          }\t `, elem);
         }
 
         if (width >= 100 && height >= 75) {
-
-          let ratio = width / height;
+          const ratio = width / height;
           if (ratio > 1.3 && ratio < 1.8) {
-            trace('Found good ratio for.\t Ratio is: width=' + width +
-                  ' height=' + height);
+            trace(`Found good ratio for.\t Ratio is: width=${width
+            } height=${height}`);
             return width * height;
           }
         }
       }
-      trace('Ratio is wrong:\twidth:' + width + 'px\t height=' + height + 'px');
+      trace(`Ratio is wrong:\twidth:${width}px\t height=${height}px`);
       return 0;
     };
 
@@ -1133,7 +1057,7 @@ try {   // scope and prevent errors from leaking out to page.
      * @return {number}
      * @private
      */
-    this._getElemMatchScore = function(elem) {
+    this._getElemMatchScore = (elem) => {
       if (!elem) {
         return 0;
       }
@@ -1143,16 +1067,18 @@ try {   // scope and prevent errors from leaking out to page.
       // const MAX_R_THRESHOLD = 0.15;
       // const MAX_R_ADJUST = 0.8;
 
-      let width = 0, height = 0;
-      let compstyle = getElemComputedStyle(elem);
+      let width = 0;
+      let
+        height = 0;
+      const compstyle = getElemComputedStyle(elem);
       if (compstyle && compstyle.width && compstyle.height) {
         // make sure the ratio is reasonable for a video.
         width = safeParseInt(compstyle.width);
         height = safeParseInt(compstyle.height);
 
         if (width > 0 && height > 0) {
-          trace('\tWidth:\t' + width + '\tHeight:\t' + height + '\tRatio:\t' +
-                (width / height), elem);
+          trace(`\tWidth:\t${width}\tHeight:\t${height}\tRatio:\t${
+            width / height}`, elem);
         }
 
         // twitch allows videos to be any random size. If the width & height of
@@ -1162,22 +1088,24 @@ try {   // scope and prevent errors from leaking out to page.
           return 300000;
         }
 
-        if (width <= 100 || height <= 75) {  // Min size
+        if (width <= 100 || height <= 75) { // Min size
           return 0;
         }
 
-        let ratio = width / height;
+        const ratio = width / height;
 
         // which ever is smaller is better
-        let bestRatioComp = Math.min((Math.abs(VIDEO_RATIO_16_9 - ratio)),
-            (Math.abs(VIDEO_RATIO_4_3 - ratio)));
+        let bestRatioComp = Math.min(
+          (Math.abs(VIDEO_RATIO_16_9 - ratio)),
+          (Math.abs(VIDEO_RATIO_4_3 - ratio)),
+        );
 
         if (bestRatioComp === 0) {
           bestRatioComp = 0.00000001;
         }
 
         // now invert the value so better values are closer to 1.0
-        let logRatio = Math.log(bestRatioComp / 1.5);
+        const logRatio = Math.log(bestRatioComp / 1.5);
 
         if (logRatio > 0) {
           return 0;
@@ -1190,22 +1118,18 @@ try {   // scope and prevent errors from leaking out to page.
         // frame shaped like videos?
         // todo: make a single grep?
         if (elem.nodeName.toUpperCase() === 'IFRAME') {
-          let src = elem.getAttribute('src') || '';
+          const src = elem.getAttribute('src') || '';
           if (src.match(/\.facebook\.com/i)) {
-            trace('demoting facebook plugin iframe. \tOld weight=' + weight +
-                  '\tNew Weight=0');
+            trace(`demoting facebook plugin iframe. \tOld weight=${weight
+            }\tNew Weight=0`);
             weight = 0;
-          } else if (src.match(/javascript\:/i)) {
-            trace('demoting :javascript iframe. \tOld weight=' + weight +
-                  '\tNew Weight=0');
-            weight = 0;
-          } else if (src.match(/platform\.tumblr\.com/i)) {
-            trace('demoting platform.tumbr.com \tOld weight=' + weight +
-                  '\tNew Weight=0');
+          } else if (src.match(/javascript:/i)) {
+            trace(`demoting :javascript iframe. \tOld weight=${weight
+            }\tNew Weight=0`);
             weight = 0;
           } else if (src.match(/platform\.tumblr\.com/i)) {
-            trace('demoting platform.tumbr.com \tOld weight=' + weight +
-                  '\tNew Weight=0');
+            trace(`demoting platform.tumbr.com \tOld weight=${weight
+            }\tNew Weight=0`);
             weight = 0;
           }
           if (weight === 0) {
@@ -1215,46 +1139,143 @@ try {   // scope and prevent errors from leaking out to page.
 
         // todo: now we need to figure in z-order? but we don't want to
         // overweight it.
-        trace('Found good ratio weight:' + weight + '\t Ratio is: width=' +
-              width + ' height=' + height + ' for ', elem);
+        trace(`Found good ratio weight:${weight}\t Ratio is: width=${
+          width} height=${height} for `, elem);
 
-        if ((compstyle.visibility && compstyle.visibility === 'hidden') ||
-            ((compstyle.display && compstyle.display === 'none'))) {
+        if ((compstyle.visibility && compstyle.visibility === 'hidden')
+            || ((compstyle.display && compstyle.display === 'none'))) {
           // Vimeo hides video before it starts playing (replacing it with a
           // static image), so we cannot ignore hidden. But UStream's homepage
           // has a large hidden flash that isn't a video.
           trace(' Hidden item. Reducing score by 50% ', elem);
-          weight = weight * 0.5;
+          weight *= 0.5;
         }
 
         const tabindex = elem?.getAttribute('tabindex') || -1;
         if (tabindex !== -1) {
           // this is a newer thing for accessibility, it's a good indicator
           trace('tabindex = -1 increasing weight');
-          weight = weight * 1.25;
+          weight *= 1.25;
         }
 
         if (elem.nodeName.toUpperCase() === 'VIDEO') {
-          weight = weight * 1.50;
+          weight *= 1.50;
         }
 
         return weight;
       }
 
-      trace(
-          'Ratio is wrong:\t width:' + width + 'px\t height=' + height + 'px');
+      trace(`Ratio is wrong:\t width:${width}px\t height=${height}px`);
       return 0;
     };
   }
 
   function messageDisplay(...msg) {
-    // todo: show a popup under out extension with a message. means
-    // sending a message to the background task or injecting html into the page
+    // todo: show a popup under out extension with a message.
+    // which mean sending a message to the background task or injecting html
+    // into the page
     trace(...msg);
   }
 
+  function hideEverythingThatIsntLargestVideo() {
+    if (document.readyState !== 'complete') {
+      return false;
+    }
+    const videoMatchElem = videomaxGlobals.matchedVideo;
+    if (!videoMatchElem) {
+      logerr('maxGlobals.matchedVideo empty');
+      return false;
+    }
+
+    trace('hideEverythingThatIsntLargestVideo');
+    hideDomNotInTree(videoMatchElem);
+
+    setTimeout(() => {
+      FixUpAttribs(videoMatchElem);
+    }, 1);
+
+    const embeddedFrameTree = videomaxGlobals.elementMatcher.getFrameTree();
+    if (embeddedFrameTree.length) {
+      trace(`hiding logic for iframe. number of frames in tree:
+      ${embeddedFrameTree.length}`);
+      for (const frametree of embeddedFrameTree.reverse()) {
+        hideDomNotInTree(frametree);
+        FixUpAttribs(frametree);
+      }
+    }
+    return true; // stop retrying
+  }
+
+  function mainFixPage() {
+    trace('running mainFixPage');
+    if (document.readyState !== 'complete') { //  || document.readyState == "interactive"
+      trace(`document state not complete: '${document.readyState}'`);
+      return false;
+    }
+
+    trace(`mainFixPage readystate = ${document.readyState}`);
+    const reinstall = hasInjectedAlready();
+
+    findLargestVideoNew(document);
+    findLargestVideoOld(document, []);
+
+    const bestMatch = videomaxGlobals.elementMatcher.getBestMatch();
+    if (!bestMatch) {
+      logerr('no video found, will try again');
+      return false; // keep trying
+    }
+
+    // mark it with a class. Not really used for anything other than
+    // debugging problems, but might be useful?
+    bestMatch.classList.add(PLAYBACK_VIDEO_MATCHED_CLASS, MAX_CSS_CLASS);
+    videomaxGlobals.matchedVideo = bestMatch;
+
+    const bestMatchCount = videomaxGlobals.elementMatcher.getBestMatchCount();
+    if (bestMatchCount > 1) {
+      trace(`found too many videos on page. #${bestMatchCount}`);
+      messageDisplay(`Found multiple, large videos. 
+          Couldn't figure out which was the main one. Trying the most likely one`);
+    }
+
+    //    injectCssHeader();
+
+    trace('Final Best Matched Element: ', bestMatch.nodeName, bestMatch);
+    videomaxGlobals.hideEverythingTimer.startTimer(() => {
+      // BBC has some special css with lots of !importants
+      // TODO: fragile! We could hide all stylesheets, but then we'd be screwed
+      // for html5 floating controls.
+      hideCSS('screen-css');
+      hideEverythingThatIsntLargestVideo();
+
+      if (!reinstall) {
+        // with no element parameter, then the whole doc is "touched"
+        forceRefresh();
+      } else {
+        forceRefresh(videomaxGlobals.matchedVideo);
+      }
+    });
+
+    return true; // stop retrying
+  }
+
+  function main() {
+    trace('running main');
+    if (hasInjectedAlready()) {
+      trace('detected already injected. something is off?');
+      return;
+    }
+
+    videomaxGlobals.elementMatcher = new ElemMatcherClass();
+
+    videomaxGlobals.hideEverythingTimer = new RetryTimeoutClass(500, 10);
+
+    videomaxGlobals.findVideoRetry = new RetryTimeoutClass(1000, 10);
+    videomaxGlobals.findVideoRetry.startTimer(mainFixPage);
+  }
+
+  main();
 } catch
-    (err) {
+(err) {
+  // eslint-disable-next-line no-console
   console.error('videomax extension error', err, err.stack);
-  debugger;
 }

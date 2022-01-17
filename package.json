@@ -21,6 +21,11 @@
       "last 1 firefox version"
     ]
   },
+  "imports": {
+    "#dep": {
+      "default": "./node_modules/@types/chrome/index.d.ts"
+    }
+  },
   "scripts": {
     "lint:eslint:write": "eslint --fix 'src/**/*.{js,ts,jsx,tsx}'"
   }

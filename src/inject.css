@@ -2,10 +2,8 @@
 body {
     overflow-y: hidden; /* Hide vertical scrollbar */
     overflow-x: hidden; /* Hide horizontal scrollbar */
-
     -ms-overflow-style: none; /* IE and Edge */
     scrollbar-width: none; /* Firefox */
-
 }
 
 body::-webkit-scrollbar {
@@ -43,7 +41,6 @@ body::-webkit-scrollbar {
     min-width: 0 !important;
     max-width: none !important;
 }
-
 
 .videomax-ext-playback-controls {
     /*width: calc(98vw);*/
