@@ -70,7 +70,7 @@ chrome.browserAction.onClicked.addListener(async (tab) => {
     logerr('Need refresh to run');
     return;
   } else {
-    if (!tab?.url?.startsWith('https://')) {
+    if (!(tab?.url?.startsWith('https://') || tab?.url?.startsWith('http://'))) {
       // do not run on chrome: or about: urls.
       return;
     }
