@@ -48,5 +48,5 @@ body::-webkit-scrollbar {
 
 /* this makes the video inside the <video> bigger */
 video {
-    object-fit: contain;
+    object-fit: contain !important;
 }

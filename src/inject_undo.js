@@ -1,6 +1,6 @@
 try { // scope and prevent errors from leaking out to page.
   const DEBUG_ENABLED = true;
-  const TRACE_ENABLED = true;
+  const TRACE_ENABLED = false;
   const ERR_BREAK_ENABLED = true;
 
   const STYLE_ID = 'maximizier-css-inject';
@@ -24,6 +24,7 @@ try { // scope and prevent errors from leaking out to page.
     PLAYBACK_CNTLS_CSS_CLASS,
     PLAYBACK_VIDEO_MATCHED_CLASS,
   ];
+  const SPEED_CONTROLS = `${PREFIX_CSS_CLASS}-speed-control'}`;
 
   /* eslint-disable: no-console no-undef no-octal-escape no-octal */
   const logerr = (...args) => {
@@ -188,6 +189,15 @@ try { // scope and prevent errors from leaking out to page.
     }
   }
 
+  function undoSpeedControls(doc) {
+    try {
+      const elem = document.getElementById(SPEED_CONTROLS);
+      elem?.parentElement?.removeChild(elem);
+    } catch(ex) {
+      logerr(ex);
+    }
+  }
+
   /**
    * @param doc {Document}
    */
@@ -195,6 +205,7 @@ try { // scope and prevent errors from leaking out to page.
     if (!doc) {
       return;
     }
+    undoSpeedControls(doc);
     removeAllClassStyles(doc);
     undoAttribChange(doc);
     undoStyleSheetChanges(doc);

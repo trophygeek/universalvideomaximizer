@@ -26,6 +26,7 @@ try { // scope and prevent errors from leaking out to page.
     PLAYBACK_CNTLS_CSS_CLASS,
     PLAYBACK_VIDEO_MATCHED_CLASS];
 
+  const SPEED_CONTROLS = `${PREFIX_CSS_CLASS}-speed-control`;
   const SCALESTRING_WIDTH = '100%'; // "calc(100vw)";
   const SCALESTRING_HEIGHT = '100%'; // "calc(100vh)";
   const SCALESTRING = '100%';
@@ -124,6 +125,7 @@ try { // scope and prevent errors from leaking out to page.
       return false;
     }
   }
+
   // returns true if a new video match was found.
   function checkVidsInDoc(doc) {
     if (!doc) {
@@ -353,18 +355,23 @@ try { // scope and prevent errors from leaking out to page.
               newValue = 'showAll';
               break;
 
-              // case 'autoplay':
-              //   if (orgValue === '0') {
-              //     newValue = '1';
-              //   } else {
-              //     newValue = 'true';
-              //   }
-              //   break;
+            // case 'autoplay':
+            //   if (orgValue === '0') {
+            //     newValue = '1';
+            //   } else {
+            //     newValue = 'true';
+            //   }
+            //   break;
 
             // default:
             case 'flashlets':
             case 'data':
               newValue = grepFlashlets(orgValue);
+              break;
+
+            case 'controls':
+              debugger;
+              newValue = 1;
               break;
 
             default:
@@ -552,7 +559,8 @@ try { // scope and prevent errors from leaking out to page.
     }
     const startingdata = node.getAttribute(VIDEO_MAX_DATA_ATTRIB_UNDO);
     const jsondata = JSON.parse(startingdata || '{}');
-    if (Object.keys(jsondata).includes(attributeNameLower)) {
+    if (Object.keys(jsondata)
+      .includes(attributeNameLower)) {
       // already been saved bail
       trace(
         `saveAttribute '${attributeNameLower}' already saved, not overwriting `,
@@ -615,12 +623,12 @@ try { // scope and prevent errors from leaking out to page.
                           === 'VIDEO';
     const parentIsMaximized = elemIn.classList?.contains(MAX_CSS_CLASS)
                               || elemIn.classList?.contains(
-                                PLAYBACK_CNTLS_CSS_CLASS,
-                              )
+        PLAYBACK_CNTLS_CSS_CLASS,
+      )
                               || elemParent.classList?.contains(MAX_CSS_CLASS)
                               || elemParent.classList?.contains(
-                                PLAYBACK_CNTLS_CSS_CLASS,
-                              );
+        PLAYBACK_CNTLS_CSS_CLASS,
+      );
 
     trace('hideSiblings');
     const sibs = getSiblings(elemParent);
@@ -803,7 +811,7 @@ try { // scope and prevent errors from leaking out to page.
           this.cleartimeout();
           this.timerid = setTimeout(() => {
             this.retryFunc();
-          }, this.nextdelay);
+          }, this.delay);
         }
       } else {
         this.cleartimeout();
@@ -893,7 +901,12 @@ try { // scope and prevent errors from leaking out to page.
     if (!isElem(node)) { // todo: verify
       trace('getBoundingClientRectWhole failed, returning empty clientRect');
       return {
-        top: 0, left: 0, bottom: 0, right: 0, width: 0, height: 0,
+        top: 0,
+        left: 0,
+        bottom: 0,
+        right: 0,
+        width: 0,
+        height: 0,
       };
     }
     return wholeClientRect(node.getBoundingClientRect());
@@ -1253,6 +1266,7 @@ try { // scope and prevent errors from leaking out to page.
       } else {
         forceRefresh(videomaxGlobals.matchedVideo);
       }
+      return true;
     });
 
     return true; // stop retrying
@@ -1275,7 +1289,7 @@ try { // scope and prevent errors from leaking out to page.
 
   main();
 } catch
-(err) {
+  (err) {
   // eslint-disable-next-line no-console
   console.error('videomax extension error', err, err.stack);
 }
