@@ -155,6 +155,7 @@ try {   // scope and prevent errors from leaking out to page.
       } else {
         forceRefresh(g_global.matchedVideo);
       }
+      return true; // stop retrying
     });
 
     return true;  // stop retrying

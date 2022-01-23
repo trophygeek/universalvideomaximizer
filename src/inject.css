@@ -1,11 +1,10 @@
 
-body {
+body.videomax-ext-max {
     overflow-y: hidden; /* Hide vertical scrollbar */
     overflow-x: hidden; /* Hide horizontal scrollbar */
 
     -ms-overflow-style: none; /* IE and Edge */
     scrollbar-width: none; /* Firefox */
-
 }
 
 body::-webkit-scrollbar {
