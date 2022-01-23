@@ -1,7 +1,7 @@
 try { // scope and prevent errors from leaking out to page.
-  const DEBUG_ENABLED = true;
-  const TRACE_ENABLED = true;
-  const ERR_BREAK_ENABLED = true;
+  const DEBUG_ENABLED = false;
+  const TRACE_ENABLED = false;
+  const ERR_BREAK_ENABLED = false;
 
   const VIDEO_MAX_DATA_ATTRIB_UNDO = 'data-videomax-saved';
   const VIDEO_MAX_ATTRIB_FIND = 'data-videomax-target';
@@ -370,8 +370,11 @@ try { // scope and prevent errors from leaking out to page.
               break;
 
             case 'controls':
-              debugger;
               newValue = 1;
+              break;
+
+            case 'disablepictureinpicture':
+              newValue = 0;
               break;
 
             default:
@@ -827,7 +830,25 @@ try { // scope and prevent errors from leaking out to page.
     };
   }
 
-  //
+  function injectCssHeader() {
+    try {
+      if (document.getElementById(STYLE_ID)) {
+        trace('already injected css header skipping');
+        return;
+      }
+
+      let link = document.createElement('link');
+      link.href = chrome?.extension?.getURL(CSS_FILE);
+      link.id = STYLE_ID;
+      link.type = 'text/css';
+      link.rel = 'stylesheet';
+      link.media = 'all';
+      document.getElementsByTagName('head')[0].appendChild(link);
+    } catch (ex) {
+      logerr('injectCssHeader ', ex);
+    }
+  }
+
   function hideCSS(id) {
     // try {
     if (id) {
@@ -1255,8 +1276,6 @@ try { // scope and prevent errors from leaking out to page.
     trace('Final Best Matched Element: ', bestMatch.nodeName, bestMatch);
     videomaxGlobals.hideEverythingTimer.startTimer(() => {
       // BBC has some special css with lots of !importants
-      // TODO: fragile! We could hide all stylesheets, but then we'd be screwed
-      // for html5 floating controls.
       hideCSS('screen-css');
       hideEverythingThatIsntLargestVideo();
 
@@ -1266,7 +1285,7 @@ try { // scope and prevent errors from leaking out to page.
       } else {
         forceRefresh(videomaxGlobals.matchedVideo);
       }
-      return true;
+      return true;  // stop retrying
     });
 
     return true; // stop retrying

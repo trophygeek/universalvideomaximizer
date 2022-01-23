@@ -1,5 +1,5 @@
 
-body {
+body.videomax-ext-max {
     overflow-y: hidden; /* Hide vertical scrollbar */
     overflow-x: hidden; /* Hide horizontal scrollbar */
     -ms-overflow-style: none; /* IE and Edge */
@@ -47,6 +47,6 @@ body::-webkit-scrollbar {
 }
 
 /* this makes the video inside the <video> bigger */
-video {
+video.videomax-ext-max {
     object-fit: contain !important;
 }

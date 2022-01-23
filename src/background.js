@@ -1,10 +1,14 @@
 try { // scope and prevent errors from leaking out to page.
-  const DEBUG_ENABLED = true;
-  const ERR_BREAK_ENABLED = true;
-  const SHOW_SPEED_POPUP = true;
+  const DEBUG_ENABLED = false;
+  const ERR_BREAK_ENABLED = false;
+  // feature flags
+  const FEATURE_SHOW_SPEED_POPUP = true;
 
-  const UNZOOM_CMD = "UNZOOM";
-  const SPEED_CMD = "SPEED";
+  const UNZOOM_CMD = 'UNZOOM';
+  const SPEED_CMD = 'SPEED';
+
+  const CSS_FILE = 'inject.css';
+  const STYLE_ID = 'maximizier-css-inject';
 
   const BADGE_TEXT = '←  →';
   const REFRESH_TEXT = '⟳';
@@ -34,16 +38,39 @@ try { // scope and prevent errors from leaking out to page.
    *
    * @param newspeed {number}
    */
-   async function injectVideoSpeedAdjust(newspeed) {
-    const allVideoElems = document.querySelectorAll('video');
-    for (const eachVideo of allVideoElems) {
-      try {
-        eachVideo.playbackRate = newspeed;
-      } catch (err) {
-        logerr('VideoMax', err);
-      }
+  function injectVideoSpeedAdjust(newspeed) {
+    // warning run inside context of page
+    for (const eachVideo of document.querySelectorAll('video')) {
+      eachVideo.playbackRate = newspeed;
     }
   }
+
+
+  function injectCssHeader(cssHRef, styleId) {
+    // warning run inside context of page
+    try {
+      if (document.getElementById(styleId)) {
+        return;
+      }
+
+      let link = document.createElement('link');
+      link.href = cssHRef;
+      link.id = styleId;
+      link.type = 'text/css';
+      link.rel = 'stylesheet';
+      link.media = 'all';
+      document.getElementsByTagName('head')[0].appendChild(link);
+    } catch(e) {
+      console.trace(e);
+    }
+  }
+
+  function uninjectCssHeader(styleId) {
+    // warning run inside context of page
+    const cssHeaderNode = document.getElementById(styleId);
+    cssHeaderNode?.parentNode?.removeChild(cssHeaderNode);
+  }
+
 
   /**
    *
@@ -51,9 +78,46 @@ try { // scope and prevent errors from leaking out to page.
    * @return {Promise<void>}
    */
   async function resetUI(tabId) {
-    await chrome?.action?.setBadgeText({ tabId, text: '' }); // remove
-    await chrome?.action?.setPopup({tabId, popup: ''}); // clear
+    await chrome?.action?.setBadgeText({
+      tabId: tabId,
+      text: '',
+    }); // remove
+    await chrome?.action?.setPopup({
+      tabId: tabId,
+      popup: '',
+    }); // clear
   }
+
+  async function DoInjectCSS(tabId) {
+    const cssFilePath = chrome?.runtime?.getURL(CSS_FILE);
+    // we inject this way because we can undo it by deleting the element.
+    await chrome?.scripting?.executeScript({
+      target: {
+        tabId,
+        frameIds: [0],
+      },
+      func: injectCssHeader,
+      args: [cssFilePath, STYLE_ID],
+      world: 'MAIN',
+    });
+  }
+
+  async function UndoInjectCSS(tabId) {
+    try {
+      await chrome?.scripting?.executeScript({
+        target: {
+          tabId,
+          frameIds: [0],
+        },
+        func: uninjectCssHeader,
+        args: [STYLE_ID],
+        world: 'MAIN',
+      });
+    } catch(e) {
+      logerr(e);
+    }
+  }
+
 
   /**
    *
@@ -62,14 +126,16 @@ try { // scope and prevent errors from leaking out to page.
    */
   async function unZoom(tabId) {
     await resetUI(tabId);
+    await UndoInjectCSS(tabId);
     await chrome?.scripting?.executeScript({
       target: {
-        tabId,
+        tabId: tabId,
         frameIds: [0],
       },
       files: ['inject_undo.js'],
     });
   }
+
 
   chrome?.action?.onClicked.addListener(async (tab) => {
     const tabId = tab.id;
@@ -77,8 +143,14 @@ try { // scope and prevent errors from leaking out to page.
       { permissions: ['activeTab', 'scripting'] },
       async (granted) => {
         if (!granted) {
-          await chrome?.action?.setBadgeText({ tabId, text: WARNING_TEXT });
-          await chrome?.action?.setTitle({ tabId, title: SECURITY_CHECK_FAILED });
+          await chrome?.action?.setBadgeText({
+            tabId,
+            text: WARNING_TEXT,
+          });
+          await chrome?.action?.setTitle({
+            tabId,
+            title: SECURITY_CHECK_FAILED,
+          });
           logerr(
             'permissions to run were denied, so extension is not injecting',
           );
@@ -89,8 +161,14 @@ try { // scope and prevent errors from leaking out to page.
         if (!tab?.url) {
           // now we have to go back and get the url since it wasn't passed to us
           // simple thing is to ask the user to click the button again.
-          await chrome?.action?.setBadgeText({ tabId, text: REFRESH_TEXT });
-          await chrome?.action?.setTitle({ tabId, title: REFRESH_NEEDED_TEXT });
+          await chrome?.action?.setBadgeText({
+            tabId,
+            text: REFRESH_TEXT,
+          });
+          await chrome?.action?.setTitle({
+            tabId,
+            title: REFRESH_NEEDED_TEXT,
+          });
           logerr('Need refresh to run');
           return;
         }
@@ -98,8 +176,14 @@ try { // scope and prevent errors from leaking out to page.
         if (!(tab?.url?.startsWith('https://')
               || tab?.url?.startsWith('http://'))) {
           // do not run on chrome: or about: urls.
-          await chrome?.action?.setBadgeText({ tabId, text: WARNING_TEXT });
-          await chrome?.action?.setTitle({ tabId, title: NOT_HTTPS_URL });
+          await chrome?.action?.setBadgeText({
+            tabId,
+            text: WARNING_TEXT,
+          });
+          await chrome?.action?.setTitle({
+            tabId,
+            title: NOT_HTTPS_URL,
+          });
           return;
         }
 
@@ -108,28 +192,29 @@ try { // scope and prevent errors from leaking out to page.
         const tabText = await chrome?.action?.getBadgeText({ tabId });
         if (tabText !== BADGE_TEXT) {
           // zoom
-          await chrome?.action?.setBadgeText({ tabId, text: BADGE_TEXT });
-          await chrome?.scripting?.insertCSS(
-            {
-              files: ['inject.css'],
-              origin: 'USER',
-              target: { tabId, frameIds: [0] },
-            },
-          );
+          await chrome?.action?.setBadgeText({
+            tabId,
+            text: BADGE_TEXT,
+          });
           await chrome?.scripting?.executeScript({
             target: {
-              tabId, frameIds: [0],
+              tabId,
+              frameIds: [0],
             },
             files: ['inject.js'],
           });
-          if (SHOW_SPEED_POPUP) {
-            await chrome?.action?.setPopup({tabId, popup: `popup.html#tabId=${tabId}`});
+          await DoInjectCSS(tabId);
+          if (FEATURE_SHOW_SPEED_POPUP) {
+            await chrome?.action?.setPopup({
+              tabId,
+              popup: `popup.html#tabId=${tabId}`,
+            });
           }
           return;
         }
 
-        if (!SHOW_SPEED_POPUP) {
-          await unZoom();
+        if (!FEATURE_SHOW_SPEED_POPUP) {
+          await unZoom(tabId);
         }
       },
     );
@@ -159,7 +244,7 @@ try { // scope and prevent errors from leaking out to page.
       await chrome?.scripting?.executeScript({
         target: {
           tabId,
-          allFrames: true
+          allFrames: true,
         },
         func: injectVideoSpeedAdjust,
         args: [speed],

@@ -62,7 +62,7 @@ try {
         value: '16.0',
       },
       {
-        label: '🔄',
+        label: 'unzoom',
         value: UNZOOM_CMD,
       },
     ].map((item, ii) => {

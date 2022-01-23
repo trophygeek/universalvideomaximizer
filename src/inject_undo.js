@@ -1,7 +1,7 @@
 try { // scope and prevent errors from leaking out to page.
-  const DEBUG_ENABLED = true;
+  const DEBUG_ENABLED = false;
   const TRACE_ENABLED = false;
-  const ERR_BREAK_ENABLED = true;
+  const ERR_BREAK_ENABLED = false;
 
   const STYLE_ID = 'maximizier-css-inject';
 
