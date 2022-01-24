@@ -28,6 +28,7 @@ body::-webkit-scrollbar {
     object-fit: contain !important;
     visibility: visible !important;
     display: block !important;
+    transform: revert !important;
 }
 
 .videomax-ext-hide {
@@ -46,9 +47,4 @@ body::-webkit-scrollbar {
 
 .videomax-ext-playback-controls {
     /*width: calc(98vw);*/
-}
-
-/* this makes the video inside the <video> bigger */
-video {
-    object-fit: contain;
 }

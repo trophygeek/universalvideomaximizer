@@ -98,7 +98,10 @@ chrome.browserAction.onClicked.addListener(async (tab) => {
 });
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
-  if (tabId && changeInfo?.status === 'loading') {
+  // the changeInfo will include a url if it's a navigation.
+  // We don't need to know the url, just that it's changed. Would be nice to have a
+  // urlSha256 or page navigated event or _something_ for better privacy.
+  if (tabId && changeInfo?.status === 'loading' && changeInfo?.url) {
     await chrome.browserAction.setBadgeText({tabId});  // remove on any nav
   }
 });
