@@ -217,10 +217,16 @@ chrome?.action?.onClicked.addListener(async (tab) => {
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab, param4) => {
   if (tabId && changeInfo?.status === 'loading' && changeInfo?.url) {
+    const tabText = await chrome?.action?.getBadgeText({ tabId }) || '';
+    if (tabText === BADGE_TEXT) {
+      // some SPA won't do a clean refetch, we need to uninstall.
+      await unZoom(tabId);
+    }
+
     // the changeInfo will include a url if it's a navigation.
     // we don't need to know the url, just that it's changed. Would be nice to have a
     // urlSha256 or something for better privacy.
-    await resetUI(tabId);
+    // await resetUI(tabId);
   }
 });
 

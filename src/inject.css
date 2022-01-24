@@ -27,7 +27,7 @@ body::-webkit-scrollbar {
     object-fit: contain !important;
     visibility: visible !important;
     display: block !important;
-    transform: revert;
+    transform: revert !important;
 }
 
 .videomax-ext-hide {
