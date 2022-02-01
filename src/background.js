@@ -71,7 +71,7 @@ function uninjectCssHeader(styleId) {
 
 /**
  *
- * @param tabId {string}
+ * @param tabId {number}
  * @return {Promise<void>}
  */
 async function resetUI(tabId) {
@@ -91,7 +91,7 @@ async function DoInjectCSS(tabId) {
   await chrome?.scripting?.executeScript({
     target: {
       tabId,
-      frameIds: [0],
+      allFrames: true
     },
     func: injectCssHeader,
     args: [cssFilePath, STYLE_ID],
@@ -117,7 +117,7 @@ async function UndoInjectCSS(tabId) {
 
 /**
  *
- * @param tabId {string}
+ * @param tabId {number}
  * @return {Promise<void>}
  */
 async function unZoom(tabId) {
@@ -126,7 +126,7 @@ async function unZoom(tabId) {
   await chrome?.scripting?.executeScript({
     target: {
       tabId: tabId,
-      frameIds: [0],
+      allFrames:true
     },
     files: ['inject_undo.js'],
   });
@@ -182,6 +182,21 @@ chrome?.action?.onClicked.addListener(async (tab) => {
         return;
       }
 
+      // "all frames" feature in v3 manifest doesn't REALLY work.
+      // https://bugs.chromium.org/p/chromium/issues/detail?id=826433
+      
+      // {
+      //   let frames = await chrome?.webNavigation?.getAllFrames({ tabId }) || [];
+      //   const getDomain = (url) => (new URL(url)).host;
+      //   const tld = getDomain(tab?.url);
+      //
+      //   filtered = frames.filter(
+      //       eachframe => (tld === getDomain(eachframe.url)))
+      //     .map(eachframe => eachframe.frameId);
+      //
+      //   lame_global_test.frameIds = filtered;
+      // }
+
       // instead of saving/restoring state we just use the badge icon
       // to save if we are running on this tab or not.
       const tabText = await chrome?.action?.getBadgeText({ tabId });
@@ -194,10 +209,11 @@ chrome?.action?.onClicked.addListener(async (tab) => {
         await chrome?.scripting?.executeScript({
           target: {
             tabId,
-            frameIds: [0],
+            allFrames: true
           },
           files: ['inject.js'],
         });
+
         await DoInjectCSS(tabId);
         if (FEATURE_SHOW_SPEED_POPUP) {
           await chrome?.action?.setPopup({
@@ -215,7 +231,7 @@ chrome?.action?.onClicked.addListener(async (tab) => {
   );
 });
 
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab, param4) => {
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
   if (tabId && changeInfo?.status === 'loading' && changeInfo?.url) {
     const tabText = await chrome?.action?.getBadgeText({ tabId }) || '';
     if (tabText === BADGE_TEXT) {
@@ -231,7 +247,10 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab, param4) => {
 });
 
 // handle popup messages
-chrome.runtime.onMessage.addListener(async (message, sender) => {
+chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+    if (sendResponse) {
+      sendResponse({});  // closes the popup
+    }
     const speed = message?.message?.value || 1.0;
     const tabId = parseFloat(message?.message?.tabId || '0');
     const cmd = message?.message?.cmd || '';
@@ -245,10 +264,12 @@ chrome.runtime.onMessage.addListener(async (message, sender) => {
       return;
     }
 
+    // "allFrames" is broken unless manifest requests permissions to EVERYTHING. From 2018
+    // see https://bugs.chromium.org/p/chromium/issues/detail?id=826433
     await chrome?.scripting?.executeScript({
       target: {
         tabId,
-        allFrames: true,
+        allFrames: true
       },
       func: injectVideoSpeedAdjust,
       args: [speed],

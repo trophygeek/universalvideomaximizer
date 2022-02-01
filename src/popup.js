@@ -1,8 +1,11 @@
 try {
-  const UNZOOM_CMD = "UNZOOM";
-  const SPEED_CMD = "SPEED";
+  const UNZOOM_CMD = 'UNZOOM';
+  const SPEED_CMD = 'SPEED';
 
   const url = new URL(document.location.href);
+
+  const NORMAL_SPEED = "1.0";
+  let currentSpeed = NORMAL_SPEED;
 
   /**
    * @param doc {Document}
@@ -31,7 +34,7 @@ try {
       },
       {
         label: '1.0',
-        value: '1.0',
+        value: NORMAL_SPEED,
       },
       {
         label: '1.25',
@@ -80,19 +83,35 @@ try {
     parent.innerHTML = htmlArr.join('\n');
     parent.className = 'videomax-ext-speed-control-container';
     parent.addEventListener('click', async (evt) => {
-      const value = evt?.target?.value;
+      if (!evt?.target?.value ) {
+        // user clicked on a child and we ignore that
+        return;
+      }
+
+      let value = evt?.target?.value || "1.0";
+
+      if (value !== UNZOOM_CMD) {
+        if (value === currentSpeed) {
+          // ok. playing with the "toggle" feature.
+          value = NORMAL_SPEED;
+        }
+        currentSpeed = value;
+      }
 
       for (const eachElem of parent.children) {
-        if (eachElem?.checked) {
-          eachElem.checked = (eachElem?.value === value)
-        }
+        eachElem.checked = (eachElem?.value === value);
       }
       const cmd = (value === UNZOOM_CMD) ? UNZOOM_CMD : SPEED_CMD;
-      if (cmd === UNZOOM_CMD) {
-        window?.close();
-      }
       await chrome.runtime.sendMessage({
-        message: { cmd, value, tabId }
+        message: {
+          cmd,
+          value,
+          tabId,
+        },
+      }, () => {
+        if (cmd === UNZOOM_CMD) {
+          window?.close();
+        }
       });
     });
   };

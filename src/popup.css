@@ -6,6 +6,7 @@ body {
     align-items: stretch;
     background-color: black;
     overflow: hidden;
+    user-select: none;
 }
 
 .videomax-ext-speed-control-container {
