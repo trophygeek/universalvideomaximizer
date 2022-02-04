@@ -830,25 +830,6 @@ try { // scope and prevent errors from leaking out to page.
     };
   }
 
-  function injectCssHeader() {
-    try {
-      if (document.getElementById(STYLE_ID)) {
-        trace('already injected css header skipping');
-        return;
-      }
-
-      let link = document.createElement('link');
-      link.href = chrome?.extension?.getURL(CSS_FILE);
-      link.id = STYLE_ID;
-      link.type = 'text/css';
-      link.rel = 'stylesheet';
-      link.media = 'all';
-      document.getElementsByTagName('head')[0].appendChild(link);
-    } catch (ex) {
-      logerr('injectCssHeader ', ex);
-    }
-  }
-
   function hideCSS(id) {
     // try {
     if (id) {

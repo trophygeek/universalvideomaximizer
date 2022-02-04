@@ -38,8 +38,15 @@ const logerr = (...args) => {
  * @param newspeed {number}
  */
 function injectVideoSpeedAdjust(newspeed) {
-  // warning run inside context of page
+  if (window?._VideoMaxExt?.matchedVideo) {
+    const vidElem = window._VideoMaxExt.matchedVideo;
+    vidElem.defaultPlaybackRate = newspeed;
+    vidElem.playbackRate = newspeed;
+  }
+
+  // fallback.
   for (const eachVideo of document.querySelectorAll('video')) {
+    eachVideo.defaultPlaybackRate = newspeed;
     eachVideo.playbackRate = newspeed;
   }
 }
@@ -91,7 +98,7 @@ async function DoInjectCSS(tabId) {
   await chrome?.scripting?.executeScript({
     target: {
       tabId,
-      allFrames: true
+      allFrames: true,
     },
     func: injectCssHeader,
     args: [cssFilePath, STYLE_ID],
@@ -126,7 +133,7 @@ async function unZoom(tabId) {
   await chrome?.scripting?.executeScript({
     target: {
       tabId: tabId,
-      allFrames:true
+      allFrames: true,
     },
     files: ['inject_undo.js'],
   });
@@ -184,7 +191,7 @@ chrome?.action?.onClicked.addListener(async (tab) => {
 
       // "all frames" feature in v3 manifest doesn't REALLY work.
       // https://bugs.chromium.org/p/chromium/issues/detail?id=826433
-      
+
       // {
       //   let frames = await chrome?.webNavigation?.getAllFrames({ tabId }) || [];
       //   const getDomain = (url) => (new URL(url)).host;
@@ -209,7 +216,7 @@ chrome?.action?.onClicked.addListener(async (tab) => {
         await chrome?.scripting?.executeScript({
           target: {
             tabId,
-            allFrames: true
+            allFrames: true,
           },
           files: ['inject.js'],
         });
@@ -251,28 +258,28 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     if (sendResponse) {
       sendResponse({});  // closes the popup
     }
-    const speed = message?.message?.value || 1.0;
     const tabId = parseFloat(message?.message?.tabId || '0');
-    const cmd = message?.message?.cmd || '';
     if (!tabId) {
       logerr('something wrong with message', message);
       return;
     }
-
-    if (cmd === UNZOOM_CMD) {
-      await unZoom(tabId);
-      return;
-    }
+  const cmd = message?.message?.cmd || '';
+  const speed = (cmd === UNZOOM_CMD) ? 1.0 :
+      (parseFloat(message?.message?.value || '1.0'));
 
     // "allFrames" is broken unless manifest requests permissions to EVERYTHING. From 2018
     // see https://bugs.chromium.org/p/chromium/issues/detail?id=826433
     await chrome?.scripting?.executeScript({
       target: {
         tabId,
-        allFrames: true
+        allFrames: true,
       },
       func: injectVideoSpeedAdjust,
       args: [speed],
     });
+
+    if (cmd === UNZOOM_CMD) {
+      await unZoom(tabId);
+    }
   },
 );
