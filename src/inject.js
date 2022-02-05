@@ -480,7 +480,6 @@ try {   // scope and prevent errors from leaking out to page.
             continue;
           }
           if (!isElem(eachnode.setAttribute)) {
-            debugger; // new
             continue;
           }
           const attrName = eachnode.getAttribute('name');
