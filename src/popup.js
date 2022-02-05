@@ -1,11 +1,15 @@
 try {
   const UNZOOM_CMD = 'UNZOOM';
-  const SPEED_CMD = 'SPEED';
+  const SET_SPEED_CMD = 'SET_SPEED';
+  const GET_SPEED_CMD = 'GET_SPEED';
+  const VAL_SPEED_RESPONSE = 'SPEED';
+  const DEFAULT_SPEED = "1.0";
 
+  console.log(window.sessionStorage.getItem('test') || 'notfound');
+  window.sessionStorage.setItem('test', 'FOUND!');
   const url = new URL(document.location.href);
 
-  const NORMAL_SPEED = "1.0";
-  let currentSpeed = NORMAL_SPEED;
+  let currentSpeed = DEFAULT_SPEED;
 
   /**
    * @param doc {Document}
@@ -34,7 +38,7 @@ try {
       },
       {
         label: '1.0',
-        value: NORMAL_SPEED,
+        value: DEFAULT_SPEED,
       },
       {
         label: '1.25',
@@ -65,7 +69,7 @@ try {
         value: '16.0',
       },
       {
-        label: 'unzoom',
+        label: '⤇ ⤆',
         value: UNZOOM_CMD,
       },
     ].map((item, ii) => {
@@ -88,12 +92,12 @@ try {
         return;
       }
 
-      let value = evt?.target?.value || "1.0";
+      let value = evt?.target?.value || DEFAULT_SPEED;
 
       if (value !== UNZOOM_CMD) {
         if (value === currentSpeed) {
           // ok. playing with the "toggle" feature.
-          value = NORMAL_SPEED;
+          value = DEFAULT_SPEED;
         }
         currentSpeed = value;
       }
@@ -101,7 +105,7 @@ try {
       for (const eachElem of parent.children) {
         eachElem.checked = (eachElem?.value === value);
       }
-      const cmd = (value === UNZOOM_CMD) ? UNZOOM_CMD : SPEED_CMD;
+      const cmd = (value === UNZOOM_CMD) ? UNZOOM_CMD : SET_SPEED_CMD;
       await chrome.runtime.sendMessage({
         message: {
           cmd,
@@ -110,20 +114,42 @@ try {
         },
       }, () => {
         if (cmd === UNZOOM_CMD) {
-          window?.close();
+          window.close();
         }
       });
+    });
+
+    parent.addEventListener('keypress', async (evt) => {
+      if (evt.code === "Escape") {
+        window.close();
+      }
     });
   };
 
   document.addEventListener('DOMContentLoaded', async () => {
     const params = new URLSearchParams(url.hash.replace('#', ''));
     const tabId = params.get('tabId');
-    const currentSpeed = params.get('speed') || '1.0';
-
-    // create the speed button UI
     const container = window.document.getElementById('speedBtnGroup');
     await addSpeedControlUI(window.document, container, tabId, currentSpeed);
+
+    await chrome.runtime.sendMessage({
+      message: {
+        cmd: GET_SPEED_CMD,
+        tabId,
+      },
+    },  (response) => {
+      const cmd = response?.cmd || '';
+      if (cmd === VAL_SPEED_RESPONSE && response.speed) {
+        currentSpeed = response.speed;
+        // update the selected checkbox
+        for (const eachElem of container.children) {
+          eachElem.checked = (eachElem.value === currentSpeed);
+        }
+      }
+      if (cmd === UNZOOM_CMD) {
+        window.close();
+      }
+    });
   });
 } catch (e) {
   console.trace(e);

@@ -4,7 +4,11 @@ const ERR_BREAK_ENABLED = false;
 const FEATURE_SHOW_SPEED_POPUP = true;
 
 const UNZOOM_CMD = 'UNZOOM';
-const SPEED_CMD = 'SPEED';
+const SET_SPEED_CMD = 'SET_SPEED';
+const GET_SPEED_CMD = 'GET_SPEED';
+const VAL_SPEED_RESPONSE = 'SPEED';
+
+const DEAULT_SPEED = "1.0";
 
 const CSS_FILE = 'inject.css';
 const STYLE_ID = 'maximizier-css-inject';
@@ -16,6 +20,11 @@ const WARNING_TEXT = '⚠';
 const REFRESH_NEEDED_TEXT = 'Permissions check complete. Try again.';
 const SECURITY_CHECK_FAILED = 'Permission denied by user';
 const NOT_HTTPS_URL = 'Extension only works on https sites';
+
+// this is ok if it's purged
+const globals = {
+  speedMapByTab: {},
+};
 
 const logerr = (...args) => {
   if (DEBUG_ENABLED === false) {
@@ -35,13 +44,15 @@ const logerr = (...args) => {
 
 /**
  *
- * @param newspeed {number}
+ * @param newspeed {string}
  */
 function injectVideoSpeedAdjust(newspeed) {
+  const speadNumber = parseFloat(newspeed);
   if (window?._VideoMaxExt?.matchedVideo) {
     const vidElem = window._VideoMaxExt.matchedVideo;
     vidElem.defaultPlaybackRate = newspeed;
     vidElem.playbackRate = newspeed;
+    window._VideoMaxExt.playbackSpeed = newspeed;
   }
 
   // fallback.
@@ -50,6 +61,7 @@ function injectVideoSpeedAdjust(newspeed) {
     eachVideo.playbackRate = newspeed;
   }
 }
+
 
 function injectCssHeader(cssHRef, styleId) {
   // warning run inside context of page
@@ -222,20 +234,20 @@ chrome?.action?.onClicked.addListener(async (tab) => {
         });
 
         await DoInjectCSS(tabId);
+
         if (FEATURE_SHOW_SPEED_POPUP) {
           await chrome?.action?.setPopup({
             tabId,
             popup: `popup.html#tabId=${tabId}`,
           });
+          return;
         }
-        return;
-      }
 
-      if (!FEATURE_SHOW_SPEED_POPUP) {
-        await unZoom(tabId);
-      }
-    },
-  );
+        if (!FEATURE_SHOW_SPEED_POPUP) {
+          await unZoom(tabId);
+        }
+      } // tabText !== BADGE_TEXT
+    });
 });
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
@@ -254,18 +266,28 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
 });
 
 // handle popup messages
-chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
-    if (sendResponse) {
-      sendResponse({});  // closes the popup
+chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+    const cmd = request?.message?.cmd || '';
+    if (sendResponse && cmd === UNZOOM_CMD) {
+      sendResponse({});  // closes the popup to avoid chrome cpu bug.
     }
-    const tabId = parseFloat(message?.message?.tabId || '0');
+    const tabId = parseFloat(request?.message?.tabId || '0');
     if (!tabId) {
-      logerr('something wrong with message', message);
+      logerr('something wrong with message', request);
       return;
     }
-  const cmd = message?.message?.cmd || '';
-  const speed = (cmd === UNZOOM_CMD) ? 1.0 :
-      (parseFloat(message?.message?.value || '1.0'));
+
+    if (cmd === GET_SPEED_CMD) {
+      const currentSpeed = globals?.speedMapByTab[tabId] || DEAULT_SPEED;
+      sendResponse({
+        cmd: VAL_SPEED_RESPONSE,
+        speed: currentSpeed,
+      });  // closes the popup to avoid chrome cpu bug.
+      return;
+    }
+
+    const speed = (cmd === SET_SPEED_CMD) ? request?.message?.value : DEAULT_SPEED;
+    globals.speedMapByTab[tabId] = speed; // save for next time, ok if it's purged.
 
     // "allFrames" is broken unless manifest requests permissions to EVERYTHING. From 2018
     // see https://bugs.chromium.org/p/chromium/issues/detail?id=826433

@@ -39,6 +39,7 @@ body {
     margin-right: -1px;
     color: #fff;
     background-color: #428bca;
+    white-space: nowrap;
 }
 
 .videomax-ext-speed-control-radio-button + label:first-of-type {
