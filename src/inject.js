@@ -107,9 +107,19 @@ try { // scope and prevent errors from leaking out to page.
    */
   function findLargestVideoNew(doc) {
     try {
+      // try top level doc
+      {
+        const allvideos = document.querySelectorAll(
+          'video',
+        );
+        for (const eachvido of allvideos) {
+          videomaxGlobals.elementMatcher.checkIfBest(eachvido);
+        }
+      }
+      // now go into frames
       for (const frame of doc.querySelectorAll('iframe')) {
         try {
-          const allvideos = frame.contentWindow.document.querySelectorAll(
+          const allvideos = frame?.contentWindow?.document.querySelectorAll(
             'video',
           );
           for (const eachvido of allvideos) {
@@ -119,6 +129,7 @@ try { // scope and prevent errors from leaking out to page.
           trace(err);
         }
       }
+
       return (videomaxGlobals.elementMatcher.getBestMatchCount() > 0);
     } catch (err) {
       trace(err);
@@ -1036,6 +1047,7 @@ try { // scope and prevent errors from leaking out to page.
      */
     this._getElemMatchScore = (elem) => {
       if (!elem) {
+        logerr("empty element gets score of zero");
         return 0;
       }
       let width = 0;
@@ -1043,28 +1055,33 @@ try { // scope and prevent errors from leaking out to page.
         height = 0;
       const compstyle = getElemComputedStyle(elem);
 
-      if (compstyle && compstyle.width && compstyle.height) {
-        // make sure the ratio is reasonable for a video.
-        width = safeParseInt(compstyle.width);
-        height = safeParseInt(compstyle.height);
-        if (width > 0 && height > 0) {
-          trace(`\t${elem.nodeName}\t${width}\t${height}\t${
-            width / height}\t${elem.className}\t${elem.id
-          }\t `, elem);
-        }
-
-        if (width >= 100 && height >= 75) {
-          const ratio = width / height;
-          if (ratio > 1.3 && ratio < 1.8) {
-            trace(`Found good ratio for.\t Ratio is: width=${width
-            } height=${height}`);
-            return width * height;
-          }
-        }
+      if (!compstyle?.width || compstyle?.height) {
+        logerr("Could NOT load computed style for element so score is zero", elem);
+        return 0;
       }
-      trace(`Ratio is wrong:\twidth:${width}px\t height=${height}px`);
-      return 0;
-    };
+
+      // make sure the ratio is reasonable for a video.
+      width = safeParseInt(compstyle.width);
+      height = safeParseInt(compstyle.height);
+      if (!width || !height) {
+        logerr("width or height zero so no score", elem);
+        return 0;
+      }
+
+      if (width < 100 || height < 75) {
+        logerr("width or height too small so no score", elem);
+        return 0;
+      }
+
+      // this test can fall for sites that make the width match the width of the page.
+      // const ratio = width / height;
+      // if (ratio < 1.3 || ratio > 3.5) {
+      //   logerr(`Video ratio (${ratio}) is too small or too big, likely ad, score is zero`, elem);
+      //   return 0;
+      // }
+      trace(`Found good ratio for.\t Ratio is: width=${width} height=${height}`);
+      return width * height;
+    }
 
     /**
      *
@@ -1231,6 +1248,7 @@ try { // scope and prevent errors from leaking out to page.
     trace(`mainFixPage readystate = ${document.readyState}`);
     const reinstall = hasInjectedAlready();
 
+    debugger;
     findLargestVideoNew(document);
     findLargestVideoOld(document, []);
 

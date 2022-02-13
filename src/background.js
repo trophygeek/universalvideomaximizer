@@ -64,21 +64,20 @@ function injectVideoSpeedAdjust(newspeed) {
 
 
 function injectCssHeader(cssHRef, styleId) {
-  // warning run inside context of page
   try {
     if (document.getElementById(styleId)) {
       return;
     }
 
-    let link = document.createElement('link');
-    link.href = cssHRef;
-    link.id = styleId;
-    link.type = 'text/css';
-    link.rel = 'stylesheet';
-    link.media = 'all';
-    document.getElementsByTagName('head')[0].appendChild(link);
-  } catch (e) {
-    console.trace(e);
+    let styleLink = document.createElement('link');
+    styleLink.id = styleId;
+    styleLink.href = cssHRef;
+    styleLink.type = 'text/css';
+    styleLink.rel = 'stylesheet';
+    styleLink.media = 'all';
+    document.getElementsByTagName('head')[0].appendChild(styleLink);
+  } catch (err) {
+    console.error(err);
   }
 }
 
