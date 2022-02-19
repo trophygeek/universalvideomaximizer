@@ -3,6 +3,17 @@ try { // scope and prevent errors from leaking out to page.
   const TRACE_ENABLED = false;
   const ERR_BREAK_ENABLED = false;
 
+  /* these are sites that are already zoomed, but playback speed is kind of nice
+  * todo: move to options dialog so user can edit.*/
+  const ZOOM_EXCLUSION_LIST = [
+    'https://www.amazon.com/gp/video/',
+    'https://play.hbomax.com/',
+    'https://www.disneyplus.com/video/',
+    'https://www.hulu.com/watch/',
+    'https://www.netflix.com/watch/',
+    'https://tv.youtube.com',   // todo: is there a subdir path?
+  ];
+
   const VIDEO_MAX_DATA_ATTRIB_UNDO = 'data-videomax-saved';
   const VIDEO_MAX_ATTRIB_FIND = 'data-videomax-target';
   const VIDEO_MAX_ATTRIB_ID = 'zoomed-video';
@@ -88,6 +99,17 @@ try { // scope and prevent errors from leaking out to page.
   function $(id) {
     return document.getElementById(id);
   }
+
+  const isPageExcluded = () => {
+    const url = (window?.location?.href || '').toLowerCase();
+    for (const elem of ZOOM_EXCLUSION_LIST) {
+      if (url.startsWith(elem)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
 
   /**
    * Node does not have getAttributes or classList. Elements do
@@ -1248,7 +1270,6 @@ try { // scope and prevent errors from leaking out to page.
     trace(`mainFixPage readystate = ${document.readyState}`);
     const reinstall = hasInjectedAlready();
 
-    debugger;
     findLargestVideoNew(document);
     findLargestVideoOld(document, []);
 
@@ -1270,7 +1291,12 @@ try { // scope and prevent errors from leaking out to page.
           Couldn't figure out which was the main one. Trying the most likely one`);
     }
 
-    //    injectCssHeader();
+    if (isPageExcluded()) {
+      // don't zoom page, but allow video playback speed to be changed?
+      trace(`Page matches excluded url because it already supports fullscreen.
+        Speed adjustment is still supported`);
+      return true;
+    }
 
     trace('Final Best Matched Element: ', bestMatch.nodeName, bestMatch);
     videomaxGlobals.hideEverythingTimer.startTimer(() => {

@@ -8,7 +8,9 @@ const SET_SPEED_CMD = 'SET_SPEED';
 const GET_SPEED_CMD = 'GET_SPEED';
 const VAL_SPEED_RESPONSE = 'SPEED';
 
-const DEAULT_SPEED = "1.0";
+const DEAULT_SPEED = '1.0';
+const MAX_AGE_TICKS = (12 * 60 * 60 * 1000);
+const SPEED_DATA_KEY = 'SPEED_DATA_KEY';
 
 const CSS_FILE = 'inject.css';
 const STYLE_ID = 'maximizier-css-inject';
@@ -16,15 +18,15 @@ const STYLE_ID = 'maximizier-css-inject';
 const BADGE_TEXT = '←  →';
 const REFRESH_TEXT = '⟳';
 const WARNING_TEXT = '⚠';
+
 // todo: move to localize
 const REFRESH_NEEDED_TEXT = 'Permissions check complete. Try again.';
 const SECURITY_CHECK_FAILED = 'Permission denied by user';
 const NOT_HTTPS_URL = 'Extension only works on https sites';
-
-// this is ok if it's purged
-const globals = {
-  speedMapByTab: {},
-};
+// todo: display these
+const ZOOMED = 'Video Maximized: click to change speed or undo';
+const UNZOOMED = 'Click to maximize video'
+// todo: ads can reset speed. detect video playing via url and reset speed when it changes?
 
 const logerr = (...args) => {
   if (DEBUG_ENABLED === false) {
@@ -50,18 +52,17 @@ function injectVideoSpeedAdjust(newspeed) {
   const speadNumber = parseFloat(newspeed);
   if (window?._VideoMaxExt?.matchedVideo) {
     const vidElem = window._VideoMaxExt.matchedVideo;
-    vidElem.defaultPlaybackRate = newspeed;
-    vidElem.playbackRate = newspeed;
-    window._VideoMaxExt.playbackSpeed = newspeed;
+    vidElem.defaultPlaybackRate = speadNumber;
+    vidElem.playbackRate = speadNumber;
+    window._VideoMaxExt.playbackSpeed = speadNumber;
   }
 
   // fallback.
   for (const eachVideo of document.querySelectorAll('video')) {
-    eachVideo.defaultPlaybackRate = newspeed;
-    eachVideo.playbackRate = newspeed;
+    eachVideo.defaultPlaybackRate = speadNumber;
+    eachVideo.playbackRate = speadNumber;
   }
 }
-
 
 function injectCssHeader(cssHRef, styleId) {
   try {
@@ -150,10 +151,48 @@ async function unZoom(tabId) {
   });
 }
 
+
+let globalDataLoaded = false;
+let globalData = {};
+
+async function loadGlobalsIfNeeded(){
+  if (globalDataLoaded) {
+    return;
+  }
+  const result = await chrome?.storage?.local?.get(SPEED_DATA_KEY) || {};
+  globalData = {...result[SPEED_DATA_KEY]} || {};
+  globalDataLoaded = true;
+}
+
+async function saveGlobals() {
+  const dataOut = {};
+  const now = new Date().getTime();
+  // remove outdated entries so they don't grow forever
+  for (const [key, value] of Object.entries(globalData)) {
+    if (value.speed !== DEAULT_SPEED && ((now - value?.timestamp) < MAX_AGE_TICKS)) {
+      dataOut[key] = value.speed; // keep entry, update value.
+    }
+  }
+
+  // save it out
+  await chrome?.storage?.local?.set({SPEED_DATA_KEY: dataOut});
+  globalData = dataOut;
+}
+
+async function setTabSpeed(tabId, speed) {
+  const timestamp = new Date().getTime();
+  globalData[tabId] = { timestamp, speed }
+  await saveGlobals();
+}
+
+function getTabSpeed(tabId) {
+  return globalData[tabId] || DEAULT_SPEED;
+}
+
 chrome?.action?.onClicked.addListener(async (tab) => {
   const tabId = tab.id;
   chrome.permissions.request(
-    { permissions: ['activeTab', 'scripting'] },
+    { permissions: ['activeTab', 'scripting', 'storage'] },
     async (granted) => {
       if (!granted) {
         await chrome?.action?.setBadgeText({
@@ -267,26 +306,27 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
 // handle popup messages
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     const cmd = request?.message?.cmd || '';
-    if (sendResponse && cmd === UNZOOM_CMD) {
-      sendResponse({});  // closes the popup to avoid chrome cpu bug.
-    }
     const tabId = parseFloat(request?.message?.tabId || '0');
     if (!tabId) {
       logerr('something wrong with message', request);
       return;
     }
 
-    if (cmd === GET_SPEED_CMD) {
-      const currentSpeed = globals?.speedMapByTab[tabId] || DEAULT_SPEED;
+    if (sendResponse && cmd === GET_SPEED_CMD) {
+      const currentSpeed = getTabSpeed(tabId);
       sendResponse({
         cmd: VAL_SPEED_RESPONSE,
         speed: currentSpeed,
       });  // closes the popup to avoid chrome cpu bug.
       return;
     }
+    if (sendResponse && cmd === UNZOOM_CMD) {
+      sendResponse({});  // closes the popup to avoid chrome cpu bug.
+    }
 
     const speed = (cmd === SET_SPEED_CMD) ? request?.message?.value : DEAULT_SPEED;
-    globals.speedMapByTab[tabId] = speed; // save for next time, ok if it's purged.
+    // forced to save because the extension can be unloaded at any time.
+    await setTabSpeed(tabId, speed);
 
     // "allFrames" is broken unless manifest requests permissions to EVERYTHING. From 2018
     // see https://bugs.chromium.org/p/chromium/issues/detail?id=826433
@@ -304,3 +344,15 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     }
   },
 );
+
+chrome.runtime.onStartup.addListener(async (details) => {
+  await loadGlobalsIfNeeded();
+});
+
+loadGlobalsIfNeeded();
+
+// in theory, it would be nice to save globals on unload, but saving is async and
+// unload doesn't like async operations... the extensions api are such a hot mess.
+// chrome.runtime.onSuspend.addListener(async (details) => {
+//   await saveGlobals();
+// });
