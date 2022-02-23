@@ -70,7 +70,9 @@ chrome.browserAction.onClicked.addListener(async (tab) => {
     logerr('Need refresh to run');
     return;
   } else {
-    if (!(tab?.url?.startsWith('https://') || tab?.url?.startsWith('http://'))) {
+    if (!(tab?.url?.startsWith('https://')
+          || tab?.url?.startsWith('http://')
+          || tab?.url?.startsWith('file:'))) { // apparently some ppl use with local files
       // do not run on chrome: or about: urls.
       return;
     }
