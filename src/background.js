@@ -226,7 +226,8 @@ chrome?.action?.onClicked.addListener(async (tab) => {
       }
 
       if (!(tab?.url?.startsWith('https://')
-            || tab?.url?.startsWith('http://'))) {
+            || tab?.url?.startsWith('http://')
+            || tab?.url?.startsWith('file:'))) {
         // do not run on chrome: or about: urls.
         await chrome?.action?.setBadgeText({
           tabId,
