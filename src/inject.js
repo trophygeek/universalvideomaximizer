@@ -1341,6 +1341,8 @@ try { // scope and prevent errors from leaking out to page.
         }
       });
 
+      window.scroll({ top: 0, left: 0 });
+
       videomaxGlobals.isMaximized = true;
       return true;  // stop retrying
     });
