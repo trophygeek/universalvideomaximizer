@@ -28,6 +28,8 @@ body::-webkit-scrollbar {
     visibility: visible !important;
     display: block !important;
     transform: revert !important;
+    /* added 17April22 */
+    overflow: visible !important;
 }
 
 .videomax-ext-hide {

@@ -55,6 +55,12 @@ try { // scope and prevent errors from leaking out to page.
     }
   };
 
+  // partial version, modules don't really work well in extension v3
+  const videomaxGlobals = window._VideoMaxExt ? window._VideoMaxExt : {
+    playbackSpeed: 1.0,
+    isMaximized: false,
+  };
+
   if (DEBUG_ENABLED) {
     // eslint-disable-next-line no-debugger
     debugger;
@@ -68,25 +74,6 @@ try { // scope and prevent errors from leaking out to page.
   function isElem(nodeOrElem) {
     // return (nodeOrElem.nodeType === Node.ELEMENT_NODE);
     return (nodeOrElem instanceof HTMLElement);
-  }
-
-  function main() {
-    setTimeout(() => {
-      try {
-        undoAll(document);
-        recurseIFrameUndoAll(document);
-        // remove the video "located" attribute.
-        const videoelem = document.querySelector(
-          `[${VIDEO_MAX_ATTRIB_FIND}=${VIDEO_MAX_ATTRIB_ID}]`,
-        );
-        if (videoelem && videoelem.removeAttribute) {
-          videoelem.removeAttribute(VIDEO_MAX_ATTRIB_FIND);
-        }
-        forceRefresh(document);
-      } catch (ex) {
-        logerr(ex);
-      }
-    }, 1);
   }
 
   /**
@@ -232,7 +219,31 @@ try { // scope and prevent errors from leaking out to page.
     }, 50);
   }
 
-  main();
+
+  function mainVideoMaxInjectRestore() {
+    setTimeout(() => {
+      try {
+        undoAll(document);
+        recurseIFrameUndoAll(document);
+        // remove the video "located" attribute.
+        const videoelem = document.querySelector(
+          `[${VIDEO_MAX_ATTRIB_FIND}=${VIDEO_MAX_ATTRIB_ID}]`,
+        );
+        if (videoelem && videoelem.removeAttribute) {
+          videoelem.removeAttribute(VIDEO_MAX_ATTRIB_FIND);
+        }
+        videomaxGlobals.playbackSpeed = 1.0;
+        videomaxGlobals.isMaximized = false;
+
+        forceRefresh(document);
+      } catch (ex) {
+        logerr(ex);
+      }
+    }, 1);
+  }
+
+
+  mainVideoMaxInjectRestore();
 } catch (err) {
   // eslint-disable-next-line no-console
   console.error('videomax extension error', err, err.stack);

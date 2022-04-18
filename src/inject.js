@@ -1,6 +1,6 @@
 try { // scope and prevent errors from leaking out to page.
-  const DEBUG_ENABLED = false;
-  const TRACE_ENABLED = false;
+  const DEBUG_ENABLED = true;
+  const TRACE_ENABLED = true;
   const ERR_BREAK_ENABLED = false;
 
   /* these are sites that are already zoomed, but playback speed is kind of nice
@@ -70,11 +70,7 @@ try { // scope and prevent errors from leaking out to page.
     }
   };
 
-  if (window._VideoMaxExt) {
-    trace('Found globals from prior run', window._VideoMaxExt);
-  }
-
-  const videomaxGlobals = window._VideoMaxExt ? window._VideoMaxExt : {
+  const videomaxGlobals = {
     elemMatcher: null,
     foundOverlapping: false,
     /** @var {HTMLElement || Node} * */
@@ -86,10 +82,9 @@ try { // scope and prevent errors from leaking out to page.
     findVideoRetry: null,
 
     hideEverythingTimer: null,
-  };
 
-  // experimental. save prior run into window if zooming/unzooming
-  window._VideoMaxExt = videomaxGlobals;
+    isMaximized: false,
+  };
 
   /**
    *
@@ -694,6 +689,12 @@ try { // scope and prevent errors from leaking out to page.
       const hasSliderRole = hasSliderRoleChild(each_sib);
 
       let handled = false;
+      if (isSpecialCaseAlwaysHide(each_sib)) { // last ditch special case check
+        trace('special case item always hide', each_sib);
+        each_sib.classList?.add(HIDDEN_CSS_CLASS);    // may be Node
+        handled = true;
+      }
+
       if (!(bounded || bottomDocked || hasSliderRole || parentIsVideo
             || parentIsMaximized)) {
         // each_elem.style.setProperty("display", "none", "important");
@@ -990,6 +991,24 @@ try { // scope and prevent errors from leaking out to page.
       );
     }
     return result;
+  }
+
+  /**
+   *  role="slider"
+   * @param elem {Node || HTMLElement}
+   * @return {boolean}
+   */
+  function isSpecialCaseAlwaysHide(elem) {
+    if (!isElem(elem)) {
+      return false;
+    }
+    const nodeName = elem.nodeName.toUpperCase();
+    if (nodeName === 'FOOTER') {
+      return true;
+    }
+    // fragile. Special case for soap2day site
+    return ((elem.id === 't1' && elem.classList.contains('player-title-bar')) ||
+            (elem.id === 't2' && elem.classList.contains('player-status-bar')));
   }
 
   /**
@@ -1299,6 +1318,8 @@ try { // scope and prevent errors from leaking out to page.
     }
 
     trace('Final Best Matched Element: ', bestMatch.nodeName, bestMatch);
+
+    // this timer will hide everything
     videomaxGlobals.hideEverythingTimer.startTimer(() => {
       // BBC has some special css with lots of !importants
       hideCSS('screen-css');
@@ -1310,13 +1331,25 @@ try { // scope and prevent errors from leaking out to page.
       } else {
         forceRefresh(videomaxGlobals.matchedVideo);
       }
+
+      // this will allow "escape key" undo the zoom.
+      document.addEventListener("keydown", function onPress(event) {
+        trace('window keypressed');
+        if (event.keyCode === 27) { // esc key
+          // unzoom here!
+          videomaxGlobals.isMaximized = false;
+        }
+      });
+
+      videomaxGlobals.isMaximized = true;
       return true;  // stop retrying
     });
 
+    videomaxGlobals.isMaximized = true;
     return true; // stop retrying
   }
 
-  function main() {
+  function mainVideoMaxInject() {
     trace('running main');
     if (hasInjectedAlready()) {
       trace('detected already injected. something is off?');
@@ -1331,7 +1364,7 @@ try { // scope and prevent errors from leaking out to page.
     videomaxGlobals.findVideoRetry.startTimer(mainFixPage);
   }
 
-  main();
+  mainVideoMaxInject();
 } catch
   (err) {
   // eslint-disable-next-line no-console

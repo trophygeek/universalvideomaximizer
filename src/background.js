@@ -189,7 +189,7 @@ function getTabSpeed(tabId) {
   return globalData[tabId] || DEAULT_SPEED;
 }
 
-chrome?.action?.onClicked.addListener(async (tab) => {
+chrome?.action?.onClicked?.addListener(async (tab) => {
   const tabId = tab.id;
   chrome.permissions.request(
     { permissions: ['activeTab', 'scripting', 'storage'] },
@@ -289,7 +289,7 @@ chrome?.action?.onClicked.addListener(async (tab) => {
     });
 });
 
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
+chrome?.tabs?.onUpdated?.addListener(async (tabId, changeInfo) => {
   if (tabId && changeInfo?.status === 'loading' && changeInfo?.url) {
     const tabText = await chrome?.action?.getBadgeText({ tabId }) || '';
     if (tabText === BADGE_TEXT) {
@@ -305,7 +305,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
 });
 
 // handle popup messages
-chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+chrome?.runtime?.onMessage?.addListener(async (request, sender, sendResponse) => {
     const cmd = request?.message?.cmd || '';
     const tabId = parseFloat(request?.message?.tabId || '0');
     if (!tabId) {
@@ -346,7 +346,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   },
 );
 
-chrome.runtime.onStartup.addListener(async (details) => {
+chrome?.runtime?.onStartup?.addListener(async (details) => {
   await loadGlobalsIfNeeded();
 });
 
