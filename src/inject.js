@@ -148,7 +148,7 @@ try {   // scope and prevent errors from leaking out to page.
       // for html5 floating controls.
       hideCSS('screen-css');
       hideEverythingThatIsntLargestVideo();
-
+      window.scroll({ top: 0, left: 0 });
       if (!reinstall) {
         // with no element parameter, then the whole doc is "touched"
         forceRefresh();
