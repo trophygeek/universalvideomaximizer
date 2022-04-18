@@ -369,7 +369,8 @@ try {   // scope and prevent errors from leaking out to page.
     let saftyLoops = 1000;
     while (elemUp?.parentNode && saftyLoops--) {
       try {
-        if (elemUp.nodeName.toUpperCase() !== 'SCRIPT') {
+        const nodeName = elemUp.nodeName.toUpperCase();
+        if (nodeName !== 'SCRIPT') {
           addMaximizeClassToElem(elemUp);
         }
         hideSiblings(elemUp, boundingclientrect);
@@ -724,6 +725,12 @@ try {   // scope and prevent errors from leaking out to page.
       const hasSliderRole = hasSliderRoleChild(each_sib);
 
       let handled = false;
+      if (isSpecialCaseAlwaysHide(each_sib)) { // last ditch special case check
+        trace('special case item always hide', each_sib);
+        each_sib.classList?.add(HIDDEN_CSS_CLASS);    // may be Node
+        handled = true;
+      }
+
       if (!(bounded || bottomDocked || hasSliderRole || parentIsVideo ||
             parentIsMaximized)) {
         // each_elem.style.setProperty("display", "none", "important");
@@ -1014,6 +1021,24 @@ try {   // scope and prevent errors from leaking out to page.
           elem);
     }
     return result;
+  }
+
+  /**
+   *  role="slider"
+   * @param elem {Node || HTMLElement}
+   * @return {boolean}
+   */
+  function isSpecialCaseAlwaysHide(elem) {
+    if (!isElem(elem)) {
+      return false;
+    }
+    const nodeName = elem.nodeName.toUpperCase();
+    if (nodeName === 'FOOTER') {
+      return true;
+    }
+    // fragile. Special case for soap2day site
+    return ((elem.id === 't1' && elem.classList.contains('player-title-bar')) ||
+            (elem.id === 't2' && elem.classList.contains('player-status-bar')));
   }
 
   /**

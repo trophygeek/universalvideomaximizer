@@ -51,55 +51,74 @@ function getBadgeTextAsync(tabId) {
   });
 }
 
-chrome.browserAction.onClicked.addListener(async (tab) => {
-  const tabId = tab.id;
-  if (!tab?.url) {
-    // until we get permissions, we won't get the tab url
-    const granted = await chromePermissionsRequestAsync(['activeTab']);
-    if (!granted) {
-      await chrome.browserAction.setBadgeText({tabId, text: WARNING_TEXT});
-      await chrome.browserAction.setTitle({tabId, title: SECURITY_CHECK_FAILED});
-      logerr('permissions to run were denied, so extension is not injecting');
+chrome?.browserAction?.onClicked?.addListener(async (tab) => {
+  try {
+    const tabId = tab.id;
+    if (!tab?.url) {
+      // until we get permissions, we won't get the tab url
+      const granted = await chromePermissionsRequestAsync(['activeTab']);
+      if (!granted) {
+        await chrome.browserAction.setBadgeText({
+          tabId,
+          text: WARNING_TEXT
+        });
+        await chrome.browserAction.setTitle({
+          tabId,
+          title: SECURITY_CHECK_FAILED
+        });
+        logerr('permissions to run were denied, so extension is not injecting');
+        return;
+      }
+
+      // now we have to go back and get the url since it wasn't passed to us
+      // simple thing is to ask the user to click the button again.
+      await chrome.browserAction.setBadgeText({
+        tabId,
+        text: REFRESH_TEXT
+      });
+      await chrome.browserAction.setTitle({
+        tabId,
+        title: REFRESH_NEEDED_TEXT
+      });
+      logerr('Need refresh to run');
+      return;
+    } else {
+      if (!(tab?.url?.startsWith('https://')
+            || tab?.url?.startsWith('http://')
+            || tab?.url?.startsWith('file:'))) { // apparently some ppl use with local files
+        // do not run on chrome: or about: urls.
+        return;
+      }
+    }
+
+    const tabText = await getBadgeTextAsync(tabId);
+    if (tabText !== BADGE_TEXT) {
+      // zoom
+      await chrome.browserAction.setBadgeText({
+        tabId,
+        text: BADGE_TEXT
+      });
+      await chrome.tabs.executeScript(tabId, {
+        'file': 'inject.js',
+        'runAt': 'document_idle',
+        frameId: 0,
+      });
       return;
     }
 
-    // now we have to go back and get the url since it wasn't passed to us
-    // simple thing is to ask the user to click the button again.
-    await chrome.browserAction.setBadgeText({tabId, text: REFRESH_TEXT});
-    await chrome.browserAction.setTitle({tabId, title: REFRESH_NEEDED_TEXT});
-    logerr('Need refresh to run');
-    return;
-  } else {
-    if (!(tab?.url?.startsWith('https://')
-          || tab?.url?.startsWith('http://')
-          || tab?.url?.startsWith('file:'))) { // apparently some ppl use with local files
-      // do not run on chrome: or about: urls.
-      return;
-    }
-  }
-
-  const tabText = await getBadgeTextAsync(tabId);
-  if (tabText !== BADGE_TEXT) {
-    // zoom
-    await chrome.browserAction.setBadgeText({tabId, text: BADGE_TEXT});
+    // unzoom
+    await chrome.browserAction.setBadgeText({ tabId });  // remove
     await chrome.tabs.executeScript(tabId, {
-      'file': 'inject.js',
+      'file': 'inject_undo.js',
       'runAt': 'document_idle',
       frameId: 0,
     });
-    return;
+  } catch (err) {
+    logerr(err);
   }
-
-  // unzoom
-  await chrome.browserAction.setBadgeText({tabId});  // remove
-  await chrome.tabs.executeScript(tabId, {
-    'file': 'inject_undo.js',
-    'runAt': 'document_idle',
-    frameId: 0,
-  });
 });
 
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
+chrome?.tabs?.onUpdated?.addListener(async (tabId, changeInfo) => {
   // the changeInfo will include a url if it's a navigation.
   // We don't need to know the url, just that it's changed. Would be nice to have a
   // urlSha256 or page navigated event or _something_ for better privacy.

@@ -29,6 +29,8 @@ body::-webkit-scrollbar {
     visibility: visible !important;
     display: block !important;
     transform: revert !important;
+    /* added 17April2022 */
+    overflow: visible !important;
 }
 
 .videomax-ext-hide {
