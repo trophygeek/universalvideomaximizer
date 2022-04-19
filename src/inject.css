@@ -1,8 +1,7 @@
 
 body.videomax-ext-max {
-    overflow-y: hidden; /* Hide vertical scrollbar */
-    overflow-x: hidden; /* Hide horizontal scrollbar */
-
+    overflow-y: hidden !important; /* Hide vertical scrollbar */
+    overflow-x: hidden !important; /* Hide horizontal scrollbar */
     -ms-overflow-style: none; /* IE and Edge */
     scrollbar-width: none; /* Firefox */
 }
@@ -29,7 +28,7 @@ body::-webkit-scrollbar {
     visibility: visible !important;
     display: block !important;
     transform: revert !important;
-    /* added 17April2022 */
+    /* added 17April22 */
     overflow: visible !important;
 }
 

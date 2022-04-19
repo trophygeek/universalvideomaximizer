@@ -967,6 +967,14 @@ try {   // scope and prevent errors from leaking out to page.
             (inner.left >= outer.left) && (inner.left <= outer.right) &&
             (inner.right >= outer.left) && (inner.right <= outer.right));
   }
+  function isOverlappingBottomRect(outer, inner) {
+    if (isEqualRect(outer, inner)) {
+      trace('isOverlappingRect exact match. probably preview image.');
+      return false;
+    }
+    // the top bounds of "inner" is inside outter
+    return (inner.top > outer.bottom) && (inner.top < outer.top);
+  }
 
   /**
    *
@@ -977,11 +985,17 @@ try {   // scope and prevent errors from leaking out to page.
   function getBoundingClientRectWhole(node) {
     if (!isElem(node)) {  //todo: verify
       trace('getBoundingClientRectWhole failed, returning empty clientRect');
-      return {top: 0, left: 0, bottom: 0, right: 0, width: 0, height: 0};
-    } else {
+      return {
+        top: 0,
+        left: 0,
+        bottom: 0,
+        right: 0,
+        width: 0,
+        height: 0,
+      };
+    }
       return wholeClientRect(node.getBoundingClientRect());
     }
-  }
 
   /**
    *
@@ -996,10 +1010,13 @@ try {   // scope and prevent errors from leaking out to page.
       return false;
     }
     // must be same width and top must be touching bottom of parent
-    let closeWidths = Math.abs(targetClientRect.width - parentClientRect.width); // widths can be real numbers (122.4)
-    let result = (closeWidths < 4 && targetClientRect.top >=
-                  parentClientRect.top && targetClientRect.top <=
-                  parentClientRect.bottom + 5); // fudge
+    const closeWidths = Math.abs(
+      targetClientRect.width - parentClientRect.width,
+    ); // widths can be real
+    const overlaps = isOverlappingBottomRect(parentClientRect, targetClientRect);
+
+    // numbers (122.4)
+    const result = (closeWidths < 4 && overlaps);
     if (result) {
       trace('found bottom docked element');
     }
