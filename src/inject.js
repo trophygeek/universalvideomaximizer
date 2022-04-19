@@ -1,6 +1,6 @@
 try { // scope and prevent errors from leaking out to page.
-  const DEBUG_ENABLED = true;
-  const TRACE_ENABLED = true;
+  const DEBUG_ENABLED = false;
+  const TRACE_ENABLED = false;
   const ERR_BREAK_ENABLED = false;
 
   /* these are sites that are already zoomed, but playback speed is kind of nice
@@ -927,6 +927,15 @@ try { // scope and prevent errors from leaking out to page.
             && (inner.right >= outer.left) && (inner.right <= outer.right));
   }
 
+  function isOverlappingBottomRect(outer, inner) {
+    if (isEqualRect(outer, inner)) {
+      trace('isOverlappingRect exact match. probably preview image.');
+      return false;
+    }
+    // the top bounds of "inner" is inside outter
+    return (inner.top > outer.bottom) && (inner.top < outer.top);
+  }
+
   /**
    *
    * @param node {Node || HTMLElement}
@@ -964,10 +973,10 @@ try { // scope and prevent errors from leaking out to page.
     const closeWidths = Math.abs(
       targetClientRect.width - parentClientRect.width,
     ); // widths can be real
+    const overlaps = isOverlappingBottomRect(parentClientRect, targetClientRect);
+
     // numbers (122.4)
-    const result = (closeWidths < 4 && targetClientRect.top
-                    >= parentClientRect.top && targetClientRect.top
-                    <= parentClientRect.bottom + 5); // fudge
+    const result = (closeWidths < 4 && overlaps);
     if (result) {
       trace('found bottom docked element');
     }
