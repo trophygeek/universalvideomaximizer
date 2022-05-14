@@ -3,7 +3,7 @@ try { // scope and prevent errors from leaking out to page.
   const TRACE_ENABLED = false;
   const ERR_BREAK_ENABLED = false;
 
-  const STYLE_ID = 'maximizier-css-inject';
+  const CSS_STYLE_HEADER_ID = 'maximizier-css-inject';
 
   const VIDEO_MAX_DATA_ATTRIB_UNDO = 'data-videomax-saved';
   const VIDEO_MAX_ATTRIB_FIND = 'data-videomax-target';
@@ -33,8 +33,8 @@ try { // scope and prevent errors from leaking out to page.
     }
     // eslint-disable-next-line no-console
     console.trace(
-      '%c VideoMax Undo ',
-      'color: white; font-weight: bold; background-color: blue',
+      '%c VideoMax Undo ERROR',
+      'color: white; font-weight: bold; background-color: red',
       ...args,
     );
     if (ERR_BREAK_ENABLED) {
@@ -48,7 +48,7 @@ try { // scope and prevent errors from leaking out to page.
       // blue color , no break
       // eslint-disable-next-line no-console
       console.log(
-        '%c VideoMax ',
+        '%c VideoMax Undo',
         'color: white; font-weight: bold; background-color: blue',
         ...args,
       );
@@ -121,7 +121,7 @@ try { // scope and prevent errors from leaking out to page.
    */
   function undoStyleSheetChanges(doc) {
     try {
-      const cssNode = doc.getElementById(STYLE_ID);
+      const cssNode = doc.getElementById(CSS_STYLE_HEADER_ID);
       if (cssNode?.parentNode?.removeChild()) {
         cssNode.parentNode.removeChild(cssNode);
       }

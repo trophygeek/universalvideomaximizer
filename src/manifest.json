@@ -1,6 +1,6 @@
 {
   "name": "Universal Video Maximizer BETA v3",
-  "version": "3.0.27",
+  "version": "3.0.29",
   "manifest_version": 3,
   "description": "Zoom videos and theater mode on most websites WITHOUT requiring permissions to every site.",
   "homepage_url": "https://chrome.google.com/webstore/support/cdnlfphfngnfhjcnoikfhaomaaflaiie",
@@ -16,17 +16,23 @@
   "background": {
     "service_worker": "background.js"
   },
+  "options_page": "options.html",
+  "permissions": [
+  ],
   "optional_permissions": [
     "activeTab",
     "scripting",
-    "storage"
+    "storage",
+    "tabs"
   ],
   "web_accessible_resources": [
     {
       "resources": [
         "inject.css"
       ],
-      "matches": [ "<all_urls>" ],
+      "matches": [
+        "<all_urls>"
+      ],
       "extension_ids": []
     }
   ]

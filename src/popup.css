@@ -1,12 +1,22 @@
-html, body {
-    height: 2.5em;
+:root {
+    --main-height: 2em;
+    /*--main-width: 26.3em;*/
 }
+
+html, body {
+    height: var(--main-height);
+    width: max-content;
+}
+
 body {
+    padding: 0;
+    border: 0;
     display: flex;
     align-items: stretch;
     background-color: black;
     overflow: hidden;
     user-select: none;
+    margin: 0;
 }
 
 .videomax-ext-speed-control-container {
@@ -15,15 +25,13 @@ body {
     color: white;
     background-color: black;
     font-family: "Open Sans", sans-serif;
-    top: -1px;
-    /*width: 100vw;*/
-    opacity: 90%; /* fade in on hover */
+    position: relative;
+    top: 0;
+    left: 0;
+    height: max-content;
+    width: available;
 }
 
-.videomax-ext-speed-control-container:hover {
-    opacity: 100%;
-    transition:opacity 100ms;
-}
 
 .videomax-ext-speed-control-radio-button {
     position: absolute;
@@ -33,13 +41,16 @@ body {
 
 .videomax-ext-speed-control-radio-button + label {
     float: left;
-    padding: 0.4em 0.5em;
+    padding: 0.5em 0.5em 0.1em 0.5em;
+    line-height: 1.5em;
+    vertical-align: center;
     cursor: pointer;
     border: 1px solid #28608f;
     margin-right: -1px;
     color: #fff;
     background-color: #428bca;
     white-space: nowrap;
+    opacity: 90%; /* fade in on hover */
 }
 
 .videomax-ext-speed-control-radio-button + label:first-of-type {
@@ -51,4 +62,17 @@ body {
 }
 .videomax-ext-speed-control-radio-button:checked + label {
     background-color: #3277b3;
+}
+
+.videomax-ext-speed-control-radio-button + label:hover,
+.videomax-ext-speed-control-radio-button + label:focus {
+    opacity: 100%;
+    transition:opacity 100ms;
+    font-weight: bolder;
+}
+
+
+.closeicon {
+    padding-top: 0.05em;
+    width: 1.5em;
 }
