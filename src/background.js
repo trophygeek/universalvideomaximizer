@@ -426,13 +426,11 @@ const getSettingOldToggleBehavior = async () => {
 
 const getSettingBetaIntroAlreadyShown = async () => {
   try {
-    const settings = await chrome.storage.local.get(SETTINGS_STORAGE_KEY) || {};
-    const version  = settings[BETA_UPDATE_NOTIFICATION] || '';
-    const result   = (BETA_UPDATE_NOTIFICATION_VERISON === version);
+    const data = await chrome.storage.local.get(BETA_UPDATE_NOTIFICATION) || {};
+    const result   = (BETA_UPDATE_NOTIFICATION_VERISON === data[BETA_UPDATE_NOTIFICATION]);
 
     // now update it to expected version
-    settings[BETA_UPDATE_NOTIFICATION] = BETA_UPDATE_NOTIFICATION_VERISON;
-    await chrome.storage.local.set(settings);
+    await chrome.storage.local.set({[BETA_UPDATE_NOTIFICATION]:  BETA_UPDATE_NOTIFICATION_VERISON});
 
     return result;
   } catch (err) {
@@ -448,7 +446,7 @@ async function showUpgradePageIfNeeded() {
   try {
     trace('chrome.runtime.onInstalled');
     // checked saved state and see if we've opened the page about v3 update.
-    const shown = await getSettingBetaIntroAlreadyShown(BETA_UPDATE_NOTIFICATION_VERISON);
+    const shown = await getSettingBetaIntroAlreadyShown();
     if (shown) {
       return;
     }
@@ -521,7 +519,6 @@ chrome.action.onClicked.addListener(async (tab) => {
         const oldToggleBehavior = await getSettingOldToggleBehavior();
         if (oldToggleBehavior) {
           // toggle
-          debugger;
           await unZoom(tabId);
           return;
         }
