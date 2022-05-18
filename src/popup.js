@@ -97,7 +97,7 @@ try {
     });
 
     parent.innerHTML = htmlArr.join('\n');
-    parent.className = 'videomax-ext-speed-control-container';
+    parent.classList.add('videomax-ext-speed-control-container');
     parent.addEventListener('click', async (evt) => {
       if (!evt?.target?.value) {
         // user clicked on a child and we ignore that

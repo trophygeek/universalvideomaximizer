@@ -1,8 +1,6 @@
-const DEBUG_ENABLED            = false;
-const TRACE_ENABLED            = false;
-const ERR_BREAK_ENABLED        = false;
-// feature flags
-const FEATURE_SHOW_SPEED_POPUP = true;
+const DEBUG_ENABLED            = true;
+const TRACE_ENABLED            = true;
+const ERR_BREAK_ENABLED        = true;
 
 const UNZOOM_CMD    = 'UNZOOM';
 const SET_SPEED_CMD = 'SET_SPEED';
@@ -88,6 +86,7 @@ function injectVideoSpeedAdjust(newspeed) {
   const PLAYBACK_SPEED_ATTR = 'data-videomax-playbackspeed';
 
   const _loadStart = (event) => {
+    const video_elem = event?.target;
     const playbackSpeed = video_elem?.getAttribute(PLAYBACK_SPEED_ATTR);
     if (playbackSpeed) {
       const speedNumber = parseFloat(playbackSpeed);
@@ -247,6 +246,7 @@ async function DoInjectJS(tabId) {
         tabId,
         allFrames: true,
       },
+//      world: 'MAIN',  // this breaks dailymotion
       files:  [`inject.js`],
     });
   } catch (err) {
@@ -265,7 +265,7 @@ async function DoInjectCSS(tabId) {
       },
       func:   injectCssHeader,
       args:   [cssFilePath, CSS_STYLE_HEADER_ID],
-      world:  'MAIN',
+      // world:  'MAIN',
     });
     return injectionresult[0]?.result || false;
   } catch (err) {
@@ -283,7 +283,7 @@ async function UndoInjectCSS(tabId) {
       },
       func:   uninjectCssHeader,
       args:   [CSS_STYLE_HEADER_ID],
-      world:  'MAIN',
+      // world:  'MAIN',
     });
   } catch (err) {
     logerr(err);
@@ -362,7 +362,7 @@ async function zoom(tabId, url) {
       await DoInjectJS(tabId);
       await DoInjectCSS(tabId);
     } else {
-      trace(`zooming, excluded_zoom for ${url}`);
+      trace(`EXCLUDED_ZOOM for site '${url}'`);
     }
     await setTabSpeed(tabId, DEAULT_SPEED);
   } catch (err) {
@@ -385,6 +385,7 @@ async function setTabSpeed(tabId, speed = DEAULT_SPEED) {
         tabId,
         allFrames: true,
       },
+//      world: 'MAIN',  // this breaks dailymotion
       func:   injectVideoSpeedAdjust,
       args:   [speed],
     });

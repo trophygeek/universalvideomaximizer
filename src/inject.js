@@ -1,13 +1,17 @@
 try { // scope and prevent errors from leaking out to page.
-  const DEBUG_ENABLED     = false;
-  const TRACE_ENABLED     = false;
-  const ERR_BREAK_ENABLED = false;
+  const DEBUG_ENABLED     = true;
+  const TRACE_ENABLED     = true;
+  const ERR_BREAK_ENABLED = true;
+  const EMBED_SCORES      = true;   // this will put add the score as an attribute for elements
+                                    // across revisions, the zoomed page's html can be diffed
 
   const VIDEO_MAX_DATA_ATTRIB_UNDO = 'data-videomax-saved';
   const VIDEO_MAX_ATTRIB_FIND      = 'data-videomax-target';
   const VIDEO_MAX_ATTRIB_ID        = 'zoomed-video';
 
-  const OBJ_TAGS = ['object', 'embed', 'video'];
+  const VIDEO_NODES = ['OBJECT', 'EMBED', 'VIDEO', 'IFRAME'];
+  const IGNORE_NODES = ['NOSCRIPT', 'SCRIPT'];
+  const ALWAYS_HIDE_NODES = ['FOOTER', 'HEADER'];
 
   const CSS_STYLE_HEADER_ID = 'maximizier-css-inject';
 
@@ -18,12 +22,15 @@ try { // scope and prevent errors from leaking out to page.
   const MAX_CSS_CLASS                = `${PREFIX_CSS_CLASS}-max`;
   const PLAYBACK_CNTLS_CSS_CLASS     = `${PREFIX_CSS_CLASS}-playback-controls`;
   const PLAYBACK_VIDEO_MATCHED_CLASS = `${PREFIX_CSS_CLASS}-video-matched`;
+  const EMBEDED_SCORES               = `${PREFIX_CSS_CLASS}-scores`;
+
   // eslint-disable-next-line no-unused-vars
   const ALL_CLASSNAMES               = [OVERLAP_CSS_CLASS,
                                         HIDDEN_CSS_CLASS,
                                         MAX_CSS_CLASS,
                                         PLAYBACK_CNTLS_CSS_CLASS,
-                                        PLAYBACK_VIDEO_MATCHED_CLASS];
+                                        PLAYBACK_VIDEO_MATCHED_CLASS,
+                                        EMBEDED_SCORES];
 
   const SPEED_CONTROLS     = `${PREFIX_CSS_CLASS}-speed-control`;
   const SCALESTRING_WIDTH  = '100%'; // "calc(100vw)";
@@ -34,8 +41,9 @@ try { // scope and prevent errors from leaking out to page.
     if (DEBUG_ENABLED === false) {
       return;
     }
+    const inIFrame = (window!==window.parent) ? 'iframe' : '';
     // eslint-disable-next-line no-console
-    console.trace('%c VideoMax Inject ERROR',
+    console.trace(`%c VideoMax Inject ${inIFrame} ERROR`,
       'color: white; font-weight: bold; background-color: red', ...args);
     if (ERR_BREAK_ENABLED) {
       // eslint-disable-next-line no-debugger
@@ -45,15 +53,17 @@ try { // scope and prevent errors from leaking out to page.
 
   const trace = (...args) => {
     if (TRACE_ENABLED) {
+      const inIFrame = (window!==window.parent) ? 'iframe' : '';
       // blue color , no break
       // eslint-disable-next-line no-console
-      console.log('%c VideoMax Inject', 'color: white; font-weight: bold; background-color: blue',
+      console.log(`%c VideoMax Inject ${inIFrame}`, 'color: white; font-weight: bold; background-color: blue',
         ...args);
     }
   };
 
 
-  const videomaxGlobals = window._VideoMaxExt ? window._VideoMaxExt : {
+  // const videomaxGlobals = window._VideoMaxExt ? window._VideoMaxExt : {
+  const videomaxGlobals = {
     elemMatcher:      null,
     foundOverlapping: false,
     /** @var {HTMLElement || Node} * */
@@ -71,26 +81,22 @@ try { // scope and prevent errors from leaking out to page.
     onlyspeedadjust: false,
   };
 
-  window._VideoMaxExt = videomaxGlobals;
 
   /**
    *
    * @param id {string}
    * @return {HTMLElement}
    */
-  function $(id) {
-    return document.getElementById(id);
-  }
-
+  const $ = (id) => document.getElementById(id);
+  const documentLoaded = () => ['complete','interactive'].includes(document.readyState);
+  const isInIFrame = () => window!==window.parent;
   /**
    * Node does not have getAttributes or classList. Elements do
    * @param nodeOrElem {Node || HTMLElement}
    * @return {boolean}
    */
-  function isElem(nodeOrElem) {
-    // return (nodeOrElem.nodeType === Node.ELEMENT_NODE);
-    return (nodeOrElem instanceof HTMLElement);
-  }
+  const isElem = (nodeOrElem) => (nodeOrElem instanceof HTMLElement);
+  // or is it (nodeOrElem.nodeType === Node.ELEMENT_NODE)?
 
   /// / finding video logic. this code is a bit of a mess.
   /**
@@ -132,7 +138,7 @@ try { // scope and prevent errors from leaking out to page.
       return false;
     }
     let matchedNew = false;
-    for (const tagname of OBJ_TAGS.reverse()) {
+    for (const tagname of VIDEO_NODES.reverse()) {
       try {
         const elemSearch = [...doc.getElementsByTagName(tagname)];
         if (elemSearch) {
@@ -156,6 +162,11 @@ try { // scope and prevent errors from leaking out to page.
     return document.defaultView;
   }
 
+  /**
+   *
+   * @param node
+   * @returns {CSSStyleDeclaration}
+   */
   function getElemComputedStyle(node) {
     const view = getElemsDocumentView(node);
     return view.getComputedStyle(node, null);
@@ -224,11 +235,11 @@ try { // scope and prevent errors from leaking out to page.
 
   function findLargestVideoOld(doc, iframeTree, level = 0) {
     if (iframeTree.length > 8) {
-      trace('hit max iframe depth, returning');
+      trace(`hit max iframe depth, returning ${iframeTree.length}`);
       return false;
     }
     if (typeof (doc?.getElementsByTagName) !== 'function') {
-      trace('getElementsByTagName is not function, bailing');
+      trace('getElementsByTagName is not function for sub doc, bailing', doc);
       return false;
     }
     trace(`findLargestVideoOld Depth: ${level} length: ${iframeTree.length}`);
@@ -405,7 +416,7 @@ try { // scope and prevent errors from leaking out to page.
           const attrValue = eachnode.getAttribute('value');
 
           trace(`  FixUpAttribs found param '${attrName}': '${attrValue}'`);
-          if (['flashlets', 'data'].includes(attrName.toLowerCase())) {
+          if (['FLASHLETS', 'DATA'].includes(attrName.toUpperCase())) {
             newParams[attrName] = grepFlashlets(attrValue);
           } else {
             // we might override below.
@@ -607,11 +618,11 @@ try { // scope and prevent errors from leaking out to page.
     if (!elemParent) {
       return;
     }
-    if (elemParent.nodeName === 'HEAD') {
-      trace('hideSiblings() parent is HEAD, stopping');
-      // hit the top
-      return;
-    }
+    // if (elemParent.nodeName === 'HEAD') {
+    //   trace('hideSiblings() parent is HEAD, stopping');
+    //   // hit the top
+    //   return;
+    // }
 
     // could also use node.contains(elemIn) where node is the matched video?
     const parentIsVideo     = elemIn.nodeName === 'VIDEO' || elemParent.nodeName === 'VIDEO';
@@ -625,7 +636,8 @@ try { // scope and prevent errors from leaking out to page.
     for (const each_sib of sibs.reverse()) {
       // if the element is inside the video's rect, then they are probably
       // controls. don't touch them. we are looking for elements that overlap.
-      if (each_sib.isEqualNode(elemIn) || each_sib.nodeName.toUpperCase() === 'SCRIPT') {
+      if (each_sib.isEqualNode(elemIn) ||
+          IGNORE_NODES.includes(each_sib.nodeName.toUpperCase())) {
         continue;
       }
       if (!isElem(each_sib)) {
@@ -753,10 +765,11 @@ try { // scope and prevent errors from leaking out to page.
 
   /**
    * @constructor
+   * @param debugname {string} handy for debugging.
    * @param delay {number}
    * @param maxretries {number}
    */
-  function RetryTimeoutClass(debugname = '', delay = 500, maxretries = 4) {
+  function RetryTimeoutClass(debugname = '', delay = 250, maxretries = 8) {
     this.timerid = 0;
     this.delay   = delay; // + (Math.round((0.5 - Math.random()) * delay) / 10); //  +/-
 
@@ -946,10 +959,13 @@ try { // scope and prevent errors from leaking out to page.
     if (!isElem(elem)) {
       return false;
     }
-    const nodeName = elem.nodeName.toUpperCase();
-    if (nodeName === 'FOOTER') {
+
+    const nodename = elem?.nodeName?.toUpperCase();
+    if ( ALWAYS_HIDE_NODES.includes(nodename)) {
+      trace(`always hide node ${nodename}`);
       return true;
     }
+
     // fragile. Special case for soap2day site
     return ((elem.id === 't1' && elem.classList.contains('player-title-bar')) ||
             (elem.id === 't2' && elem.classList.contains('player-status-bar')));
@@ -962,6 +978,7 @@ try { // scope and prevent errors from leaking out to page.
    */
   function shouldUseParentDivForDockedCheckYoutube(videoElem) {
     if (videoElem.nodeName === 'VIDEO') {
+      // use `parent.className.contains` ?
       if (videoElem.className?.match(/html5-main-video/i) !== null) {
         const parent = videoElem.parentNode;
         if (parent && parent.className.match(/html5-video-container/i) != null) {
@@ -979,7 +996,8 @@ try { // scope and prevent errors from leaking out to page.
     this.largestElem  = null;
     // let g_LargestVideoClientRect = null;
     this.largestScore = 0; // width x height
-    this.matchCount   = 1;
+    this.matchCount   = 0;
+
     /**
      *
      * @param elem {HTMLElement}
@@ -995,6 +1013,10 @@ try { // scope and prevent errors from leaking out to page.
       }
 
       const score = this._getElemMatchScore(elem);
+      if (EMBED_SCORES) {
+          elem.setAttribute(EMBEDED_SCORES, score);
+      }
+
       if (score === 0) {
         return false;
       }
@@ -1010,7 +1032,7 @@ try { // scope and prevent errors from leaking out to page.
       }
 
       if (score === this.largestScore) {
-        trace(`setting new best DUP!: score: ${score}, count: ${this.matchCount} elem: `, elem);
+        trace(`same score: ${score}, favoring on that came first. Total count: ${this.matchCount} elem: `, elem);
         this.matchCount++;
         return true;
       }
@@ -1019,7 +1041,6 @@ try { // scope and prevent errors from leaking out to page.
     this.nestedFrameTree = [];
 
     this.getBestMatch = () => this.largestElem;
-
     this.getBestMatchCount = () => this.matchCount; // should be 1 for most case
 
     this.setNestedFrameTree = (iframeTree) => {
@@ -1032,10 +1053,10 @@ try { // scope and prevent errors from leaking out to page.
      *   weight for videos that are the right ratios!
      *   16:9 == 1.77_  4:3 == 1.33_  3:2 == 1.50
      * @param elem {HTMLElement}
-     * @return {number}
+     * @return {{width: number, height: number, compstyle: CSSStyleDeclaration}}
      * @private
      */
-    this._getElemMatchScore = (elem) => {
+    this._getElemDimensions = (elem) => {
       if (!elem) {
         logerr('empty element gets score of zero');
         return 0;
@@ -1044,32 +1065,38 @@ try { // scope and prevent errors from leaking out to page.
       let height      = 0;
       const compstyle = getElemComputedStyle(elem);
 
-      if (!compstyle?.width || compstyle?.height) {
+      if (!compstyle?.width || !compstyle?.height) {
         logerr('Could NOT load computed style for element so score is zero', elem);
-        return 0;
+        return {
+          width:  0,
+          height: 0,
+        };
       }
 
       // make sure the ratio is reasonable for a video.
       width  = safeParseInt(compstyle.width);
       height = safeParseInt(compstyle.height);
       if (!width || !height) {
-        logerr('width or height zero so no score', elem);
-        return 0;
+        trace('width or height zero. likely hidden element', elem);
+        return {
+          width:  0,
+          height: 0,
+        };
       }
 
       if (width < 100 || height < 75) {
-        logerr('width or height too small so no score', elem);
-        return 0;
+        trace('width or height too small so no score', elem);
+        return {
+          width:  0,
+          height: 0,
+        };
       }
 
-      // this test can fall for sites that make the width match the width of the page.
-      // const ratio = width / height;
-      // if (ratio < 1.3 || ratio > 3.5) {
-      //   logerr(`Video ratio (${ratio}) is too small or too big, likely ad, score is zero`, elem);
-      //   return 0;
-      // }
-      trace(`Found good ratio for.\t Ratio is: width=${width} height=${height}`);
-      return width * height;
+      trace(`Found width/height for elem. width=${width}px height=${height}px`, elem);
+      return {
+        width,
+        height,
+      };
     };
 
     /**
@@ -1097,95 +1124,90 @@ try { // scope and prevent errors from leaking out to page.
       // const MAX_R_THRESHOLD = 0.15;
       // const MAX_R_ADJUST = 0.8;
 
-      let width       = 0;
-      let height      = 0;
-      const compstyle = getElemComputedStyle(elem);
-      if (compstyle && compstyle.width && compstyle.height) {
-        // make sure the ratio is reasonable for a video.
-        width  = safeParseInt(compstyle.width);
-        height = safeParseInt(compstyle.height);
+      const {
+              width,
+              height,
+              compstyle,
+            } = this._getElemDimensions(elem);
 
-        if (width > 0 && height > 0) {
-          trace(`\tWidth:\t${width}\tHeight:\t${height}\tRatio:\t${width / height}`, elem);
-        }
-
-        // twitch allows videos to be any random size. If the width & height of
-        // the window are too short, then we can't find the video.
-        if (elem.id === 'live_site_player_flash') {
-          trace('Matched twitch video. Returning high score.');
-          return 300000;
-        }
-
-        if (width <= 100 || height <= 75) { // Min size
-          trace('\tToo small, skipping');
-          return 0;
-        }
-
-        const ratio = width / height;
-
-        // which ever is smaller is better (closer to one of the magic ratios)
-        const distances = Object.values(VIDEO_RATIOS)
-          .map((v) => Math.abs(v - ratio));
-        trace('distances', ...distances);
-        const bestRatioComp = Math.min(...distances) + 0.00001; // +0.00001; prevents div-by-zero
-
-        // inverse distance
-        const inverseDist = 1.0 / Math.pow(bestRatioComp, 2.0);
-
-        // weight that by multiplying it by the total volume (better is better)
-        let weight = inverseDist * width * height;
-
-        // try to figure out if iframe src looks like a video link.
-        // frame shaped like videos?
-        // todo: make a single grep?
-        if (elem.nodeName.toUpperCase() === 'IFRAME') {
-          const src = elem.getAttribute('src') || '';
-          if (src.match(/\.facebook\.com/i)) {
-            trace(`demoting facebook plugin iframe. \tOld weight=${weight}\tNew Weight=0`);
-            weight = 0;
-          } else if (src.match(/javascript:/i)) {
-            trace(`demoting :javascript iframe. \tOld weight=${weight}\tNew Weight=0`);
-            weight = 0;
-          } else if (src.match(/platform\.tumblr\.com/i)) {
-            trace(`demoting platform.tumbr.com \tOld weight=${weight}\tNew Weight=0`);
-            weight = 0;
-          }
-          if (weight === 0) {
-            trace('\tweight=0 skipping');
-            return 0;
-          }
-        }
-
-        // todo: now we need to figure in z-order? but we don't want to
-        // overweight it.
-        trace(`Found good ratio weight:${weight}\t Ratio is: width=${width} height=${height} for `,
-          elem);
-
-        if ((compstyle.visibility && compstyle.visibility === 'hidden') ||
-            ((compstyle.display && compstyle.display === 'none'))) {
-          // Vimeo hides video before it starts playing (replacing it with a
-          // static image), so we cannot ignore hidden. But UStream's homepage
-          // has a large hidden flash that isn't a video.
-          trace(' Hidden item. Reducing score by 50% ', elem);
-          weight *= 0.5;
-        }
-
-        const tabindex = elem?.getAttribute('tabindex') || -1;
-        if (tabindex !== -1) {
-          // this is a newer thing for accessibility, it's a good indicator
-          trace('tabindex = -1 increasing weight');
-          weight *= 1.25;
-        }
-
-        if (elem.nodeName.toUpperCase() === 'VIDEO') {
-          weight *= 1.50;
-        }
-
-        return weight;
+      if (width === 0 && height === 0) {
+        trace(`\tWidth or height not great, skipping other checks`, elem);
+        return 0;
       }
 
-      trace(`Ratio is wrong:\t width:${width}px\t height=${height}px`);
-      return 0;
+      const ratio = width / height;
+      trace(`\tWidth:\t${width}\tHeight:\t${height}\tRatio:\t${ratio}`, elem);
+
+      // twitch allows videos to be any random size. If the width & height of
+      // the window are too short, then we can't find the video.
+      if (elem.id === 'live_site_player_flash') {
+        trace('Matched twitch video. Returning high score.');
+        return 3000000;
+      }
+
+      // which ever is smaller is better (closer to one of the magic ratios)
+      const distances = Object.values(VIDEO_RATIOS)
+        .map((v) => Math.abs(v - ratio));
+      trace('distances', ...distances);
+      const bestRatioComp = Math.min(...distances) + 0.00001; // +0.00001; prevents div-by-zero
+
+      // inverse distance
+      const inverseDist = 1.0 / Math.pow(bestRatioComp, 2.0);
+
+      // weight that by multiplying it by the total volume (better is better)
+      let weight = inverseDist * width * height;
+
+      // try to figure out if iframe src looks like a video link.
+      // frame shaped like videos?
+      // todo: make a single grep?
+      if (elem.nodeName.toUpperCase() === 'IFRAME') {
+        const src = elem.getAttribute('src') || '';
+        if (src.match(/\.facebook\.com/i)) {
+          trace(`demoting facebook plugin iframe. \tOld weight=${weight}\tNew Weight=0`);
+          return 0;
+        }
+        if (src.match(/javascript:/i)) {
+          trace(`demoting :javascript iframe. \tOld weight=${weight}\tNew Weight=0`);
+          return 0
+        }
+        if (src.match(/platform\.tumblr\.com/i)) {
+          trace(`demoting platform.tumbr.com \tOld weight=${weight}\tNew Weight=0`);
+          return 0;
+        }
+      }
+
+      weight = Math.round(weight);
+
+      // todo: now we need to figure in z-order? but we don't want to
+      // overweight it.
+      trace(`Found good ratio weight:${weight}
+                  Ratio is: width=${width} height=${height}`);
+
+      if (compstyle?.visibility.toUpperCase() === 'HIDDEN' ||
+          compstyle?.display.toUpperCase() === 'NONE') {
+        // Vimeo hides video before it starts playing (replacing it with a
+        // static image), so we cannot ignore hidden. But UStream's homepage
+        // has a large hidden flash that isn't a video.
+        trace(' Hidden item. weight - .5x', elem);
+        weight *= 0.5;
+      }
+
+      const tabindex = elem?.getAttribute('tabindex') || -1;
+      if (tabindex !== -1) {
+        // this is a newer thing for accessibility, it's a good indicator
+        trace('tabindex is set. weight + 1.25x');
+        weight *= 1.25;
+      }
+
+      if (elem.nodeName.toUpperCase() === 'VIDEO') {
+        trace(`node is 'video'. weight + 2x`);
+        weight *= 2.0;
+      }
+
+      weight = Math.round(weight);
+      trace(`### 
+        Final weight is ${weight} for `, elem);
+      return weight;
     };
   }
 
@@ -1197,7 +1219,7 @@ try { // scope and prevent errors from leaking out to page.
   }
 
   function hideEverythingThatIsntLargestVideo() {
-    if (document.readyState !== 'complete') {
+    if (!documentLoaded()) {
       return false;
     }
     const videoMatchElem = videomaxGlobals.matchedVideo;
@@ -1254,7 +1276,7 @@ try { // scope and prevent errors from leaking out to page.
       return false;
     }
 
-    if (document.readyState !== 'complete') { //  || document.readyState == "interactive"
+    if (!documentLoaded()) {
       trace(`document state not complete: '${document.readyState}'`);
       return false;
     }
@@ -1265,12 +1287,14 @@ try { // scope and prevent errors from leaking out to page.
     const foundVideoNewAlgo = findLargestVideoNew(document);
     const foundVideoOldAlgo = findLargestVideoOld(document, []);
 
-    const bestMatch = videomaxGlobals.elementMatcher.getBestMatch();
-    if (!bestMatch) {
-      logerr(`no video found, will try again, 
+    const getBestMatchCount = videomaxGlobals.elementMatcher.getBestMatchCount();
+    if (getBestMatchCount === 0) {
+      logerr(`No video found, will try again. 
         foundVideoNewAlg=${foundVideoNewAlgo} foundVideoOldAlgo=${foundVideoOldAlgo}`);
       return false; // keep trying
     }
+
+    const bestMatch = videomaxGlobals.elementMatcher.getBestMatch();
     trace('video found', bestMatch);
 
     // mark it with a class. Not really used for anything other than
@@ -1289,11 +1313,15 @@ try { // scope and prevent errors from leaking out to page.
 
     trace('Final Best Matched Element: ', bestMatch.nodeName, bestMatch);
 
+    window._VideoMaxExt = videomaxGlobals;  // undozoom uses
+
     // this timer will hide everything
     videomaxGlobals.hideEverythingTimer.startTimer(() => {
       // BBC has some special css with lots of !importants
       hideCSS('screen-css');
-      hideEverythingThatIsntLargestVideo();
+      if (!hideEverythingThatIsntLargestVideo()) {
+        return false;
+      }
 
       if (!reinstall) {
         // with no element parameter, then the whole doc is "touched"
@@ -1322,11 +1350,11 @@ try { // scope and prevent errors from leaking out to page.
       return;
     }
 
+    const retries = isInIFrame() ? 2 : 8;
     videomaxGlobals.elementMatcher = new ElemMatcherClass();
+    videomaxGlobals.hideEverythingTimer = new RetryTimeoutClass('hideEverythingTimer', 250, retries);
 
-    videomaxGlobals.hideEverythingTimer = new RetryTimeoutClass('hideEverythingTimer');
-
-    videomaxGlobals.findVideoRetry = new RetryTimeoutClass('hideEverythingTimer', 1000);
+    videomaxGlobals.findVideoRetry = new RetryTimeoutClass('hideEverythingTimer', 500, retries);
     videomaxGlobals.findVideoRetry.startTimer(mainFixPage);
   }
 
