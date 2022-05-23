@@ -1,6 +1,6 @@
-const DEBUG_ENABLED            = true;
-const TRACE_ENABLED            = true;
-const ERR_BREAK_ENABLED        = true;
+const DEBUG_ENABLED     = false;
+const TRACE_ENABLED     = false;
+const ERR_BREAK_ENABLED = false;
 
 const UNZOOM_CMD    = 'UNZOOM';
 const SET_SPEED_CMD = 'SET_SPEED';
@@ -54,7 +54,10 @@ const ZOOM_EXCLUSION_LIST = ['amazon.com',
                              'disneyplus.com',
                              'hulu.com',
                              'netflix.com',
-                             'tv.youtube.com'];
+                             'tv.youtube.com',
+                             'youku.com',
+                             'bet.plus',
+                             'tv.apple.com'];
 
 const logerr = (...args) => {
   if (DEBUG_ENABLED === false) {
@@ -86,7 +89,7 @@ function injectVideoSpeedAdjust(newspeed) {
   const PLAYBACK_SPEED_ATTR = 'data-videomax-playbackspeed';
 
   const _loadStart = (event) => {
-    const video_elem = event?.target;
+    const video_elem    = event?.target;
     const playbackSpeed = video_elem?.getAttribute(PLAYBACK_SPEED_ATTR);
     if (playbackSpeed) {
       const speedNumber = parseFloat(playbackSpeed);
@@ -245,8 +248,7 @@ async function DoInjectJS(tabId) {
       target: {
         tabId,
         allFrames: true,
-      },
-//      world: 'MAIN',  // this breaks dailymotion
+      }, //      world: 'MAIN',  // this breaks dailymotion
       files:  [`inject.js`],
     });
   } catch (err) {
@@ -264,8 +266,7 @@ async function DoInjectCSS(tabId) {
         allFrames: true,
       },
       func:   injectCssHeader,
-      args:   [cssFilePath, CSS_STYLE_HEADER_ID],
-      // world:  'MAIN',
+      args:   [cssFilePath, CSS_STYLE_HEADER_ID], // world:  'MAIN',
     });
     return injectionresult[0]?.result || false;
   } catch (err) {
@@ -282,8 +283,7 @@ async function UndoInjectCSS(tabId) {
         frameIds: [0],
       },
       func:   uninjectCssHeader,
-      args:   [CSS_STYLE_HEADER_ID],
-      // world:  'MAIN',
+      args:   [CSS_STYLE_HEADER_ID], // world:  'MAIN',
     });
   } catch (err) {
     logerr(err);
@@ -384,8 +384,7 @@ async function setTabSpeed(tabId, speed = DEAULT_SPEED) {
       target: {
         tabId,
         allFrames: true,
-      },
-//      world: 'MAIN',  // this breaks dailymotion
+      }, //      world: 'MAIN',  // this breaks dailymotion
       func:   injectVideoSpeedAdjust,
       args:   [speed],
     });
@@ -427,11 +426,12 @@ const getSettingOldToggleBehavior = async () => {
 
 const getSettingBetaIntroAlreadyShown = async () => {
   try {
-    const data = await chrome.storage.local.get(BETA_UPDATE_NOTIFICATION) || {};
-    const result   = (BETA_UPDATE_NOTIFICATION_VERISON === data[BETA_UPDATE_NOTIFICATION]);
+    const data   = await chrome.storage.local.get(BETA_UPDATE_NOTIFICATION) || {};
+    const result = (BETA_UPDATE_NOTIFICATION_VERISON === data[BETA_UPDATE_NOTIFICATION]);
 
     // now update it to expected version
-    await chrome.storage.local.set({[BETA_UPDATE_NOTIFICATION]:  BETA_UPDATE_NOTIFICATION_VERISON});
+    await chrome.storage.local.set(
+      { [BETA_UPDATE_NOTIFICATION]: BETA_UPDATE_NOTIFICATION_VERISON });
 
     return result;
   } catch (err) {

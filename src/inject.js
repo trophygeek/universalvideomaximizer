@@ -1,16 +1,16 @@
 try { // scope and prevent errors from leaking out to page.
-  const DEBUG_ENABLED     = true;
-  const TRACE_ENABLED     = true;
-  const ERR_BREAK_ENABLED = true;
-  const EMBED_SCORES      = true;   // this will put add the score as an attribute for elements
+  const DEBUG_ENABLED     = false;
+  const TRACE_ENABLED     = false;
+  const ERR_BREAK_ENABLED = false;
+  const EMBED_SCORES      = false;   // this will put add the score as an attribute for elements
                                     // across revisions, the zoomed page's html can be diffed
 
   const VIDEO_MAX_DATA_ATTRIB_UNDO = 'data-videomax-saved';
   const VIDEO_MAX_ATTRIB_FIND      = 'data-videomax-target';
   const VIDEO_MAX_ATTRIB_ID        = 'zoomed-video';
 
-  const VIDEO_NODES = ['OBJECT', 'EMBED', 'VIDEO', 'IFRAME'];
-  const IGNORE_NODES = ['NOSCRIPT', 'SCRIPT'];
+  const VIDEO_NODES       = ['OBJECT', 'EMBED', 'VIDEO', 'IFRAME'];
+  const IGNORE_NODES      = ['NOSCRIPT', 'SCRIPT', 'HEAD', 'HTML'];
   const ALWAYS_HIDE_NODES = ['FOOTER', 'HEADER'];
 
   const CSS_STYLE_HEADER_ID = 'maximizier-css-inject';
@@ -25,12 +25,12 @@ try { // scope and prevent errors from leaking out to page.
   const EMBEDED_SCORES               = `${PREFIX_CSS_CLASS}-scores`;
 
   // eslint-disable-next-line no-unused-vars
-  const ALL_CLASSNAMES               = [OVERLAP_CSS_CLASS,
-                                        HIDDEN_CSS_CLASS,
-                                        MAX_CSS_CLASS,
-                                        PLAYBACK_CNTLS_CSS_CLASS,
-                                        PLAYBACK_VIDEO_MATCHED_CLASS,
-                                        EMBEDED_SCORES];
+  const ALL_CLASSNAMES = [OVERLAP_CSS_CLASS,
+                          HIDDEN_CSS_CLASS,
+                          MAX_CSS_CLASS,
+                          PLAYBACK_CNTLS_CSS_CLASS,
+                          PLAYBACK_VIDEO_MATCHED_CLASS,
+                          EMBEDED_SCORES];
 
   const SPEED_CONTROLS     = `${PREFIX_CSS_CLASS}-speed-control`;
   const SCALESTRING_WIDTH  = '100%'; // "calc(100vw)";
@@ -41,7 +41,7 @@ try { // scope and prevent errors from leaking out to page.
     if (DEBUG_ENABLED === false) {
       return;
     }
-    const inIFrame = (window!==window.parent) ? 'iframe' : '';
+    const inIFrame = (window !== window.parent) ? 'iframe' : '';
     // eslint-disable-next-line no-console
     console.trace(`%c VideoMax Inject ${inIFrame} ERROR`,
       'color: white; font-weight: bold; background-color: red', ...args);
@@ -53,11 +53,11 @@ try { // scope and prevent errors from leaking out to page.
 
   const trace = (...args) => {
     if (TRACE_ENABLED) {
-      const inIFrame = (window!==window.parent) ? 'iframe' : '';
+      const inIFrame = (window !== window.parent) ? 'iframe' : 'main';
       // blue color , no break
       // eslint-disable-next-line no-console
-      console.log(`%c VideoMax Inject ${inIFrame}`, 'color: white; font-weight: bold; background-color: blue',
-        ...args);
+      console.log(`%c VideoMax Inject ${inIFrame}`,
+        'color: white; font-weight: bold; background-color: blue', ...args);
     }
   };
 
@@ -87,9 +87,26 @@ try { // scope and prevent errors from leaking out to page.
    * @param id {string}
    * @return {HTMLElement}
    */
-  const $ = (id) => document.getElementById(id);
-  const documentLoaded = () => ['complete','interactive'].includes(document.readyState);
-  const isInIFrame = () => window!==window.parent;
+  const $              = (id) => document.getElementById(id);
+  const documentLoaded = () => ['complete', 'interactive'].includes(document.readyState);
+  const isInIFrame     = () => window !== window.parent;
+
+  /**
+   *
+   * @param matchstr {string}
+   * @param arr {string[]}
+   * @returns {boolean}
+   */
+  const isSubstrOfArray = (matchstr, arr) => {
+    for (const str of arr) {
+      if (str.indexOf(matchstr) >= 0) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+
   /**
    * Node does not have getAttributes or classList. Elements do
    * @param nodeOrElem {Node || HTMLElement}
@@ -97,6 +114,37 @@ try { // scope and prevent errors from leaking out to page.
    */
   const isElem = (nodeOrElem) => (nodeOrElem instanceof HTMLElement);
   // or is it (nodeOrElem.nodeType === Node.ELEMENT_NODE)?
+
+  /**
+   *
+   * @param elem {Node || HTMLElement}
+   * @param attr {string}
+   * return {string}
+   */
+  const safeGetAttribute = (elem, attr) => {
+    try {
+      return elem?.getAttribute(attr) || '';
+    } catch (err) {
+      return '';
+    }
+  }
+
+  /**
+   *
+   * @param elem {Node || HTMLElement}
+   * @param attr {string}
+   * @param value {string}
+   */
+  const safeSetAttribute = (elem, attr, value) => {
+    try {
+      if (elem && elem.setAttribute) {
+        elem.setAttribute(attr, value);
+      }
+    } catch(err) {
+      logerr(`error setting attribute ${attr}`, elem, err);
+    }
+  }
+
 
   /// / finding video logic. this code is a bit of a mess.
   /**
@@ -116,12 +164,27 @@ try { // scope and prevent errors from leaking out to page.
       // now go into frames
       for (const frame of doc.querySelectorAll('iframe')) {
         try {
+          // frame.src available?
+          const framesrc = (frame?.src || '').toLowerCase();
+
+          // if (isSubstrOfArray(framesrc, IGNORE_FRAMES_URLS)) {
+          //   trace(`Iframe src='${framesrc}' skipping`);
+          //   continue;
+          // }
+
+          videomaxGlobals.elementMatcher.checkIfBest(frame);
+
           const allvideos = frame?.contentWindow?.document.querySelectorAll('video');
           for (const eachvido of allvideos) {
             videomaxGlobals.elementMatcher.checkIfBest(eachvido);
           }
         } catch (err) {
-          trace(err);
+          if (err.toString().toLowerCase()
+                .indexOf('blocked a frame') !== -1) {
+            trace(`iframe security blocked cross domain - expected`);
+          } else {
+            trace(err);
+          }
         }
       }
 
@@ -316,7 +379,7 @@ try { // scope and prevent errors from leaking out to page.
     // this may not be an Element, but we still want to walk children below
     if (isElem(node)) {
       // set the data-videomax-id = "zoomed" so undo can find it.
-      node.setAttribute(`${VIDEO_MAX_ATTRIB_FIND}`, VIDEO_MAX_ATTRIB_ID);
+      safeSetAttribute(node,`${VIDEO_MAX_ATTRIB_FIND}`, VIDEO_MAX_ATTRIB_ID);
       const attribs = node.attributes;
 
       trace(`attrib count = ${attribs.length}`);
@@ -324,7 +387,7 @@ try { // scope and prevent errors from leaking out to page.
         try {
           const { name } = eachattrib;
           const orgValue = eachattrib.value;
-          let newValue   = null;
+          let newValue   = '';
 
           trace(`FixUpAttribs found attrib '${name}': '${orgValue}'`);
           switch (name.toLowerCase()) {
@@ -375,11 +438,11 @@ try { // scope and prevent errors from leaking out to page.
               break;
 
             case 'controls':
-              newValue = 1;
+              newValue = '1';
               break;
 
             case 'disablepictureinpicture':
-              newValue = 0;
+              newValue = '0';
               break;
 
             default:
@@ -387,12 +450,12 @@ try { // scope and prevent errors from leaking out to page.
           }
 
           // replace only if set and not different
-          if (newValue && newValue !== orgValue) {
+          if (newValue !== '' && newValue !== orgValue) {
             trace(`FixUpAttribs changing attribute: '${name}'
             old: '${orgValue}'
             new: '${newValue}'`, node);
             saveAttribute(node, name);
-            node.setAttribute(name, newValue);
+            safeSetAttribute(node, name, newValue);
           }
         } catch (ex) {
           logerr('exception in looping over properties: ', ex);
@@ -409,11 +472,11 @@ try { // scope and prevent errors from leaking out to page.
           if (eachnode.nodeName.toUpperCase() !== 'PARAM') {
             continue;
           }
-          if (!isElem(eachnode.setAttribute)) {
+          if (!isElem(eachnode)) {  // 22May2022 fixed risky
             continue;
           }
-          const attrName  = eachnode.getAttribute('name');
-          const attrValue = eachnode.getAttribute('value');
+          const attrName  = safeGetAttribute(eachnode, 'name');
+          const attrValue = safeGetAttribute(eachnode,'value');
 
           trace(`  FixUpAttribs found param '${attrName}': '${attrValue}'`);
           if (['FLASHLETS', 'DATA'].includes(attrName.toUpperCase())) {
@@ -442,8 +505,8 @@ try { // scope and prevent errors from leaking out to page.
         if (eachnode.nodeName.toUpperCase() !== 'PARAM') {
           continue;
         }
-        const name     = eachnode.getAttribute('name');
-        const orgValue = eachnode.getAttribute('value');
+        const name     = safeGetAttribute(eachnode,'name');
+        const orgValue = safeGetAttribute(eachnode,'value');
 
         if (Object.prototype.hasOwnProperty.call(newParams, name)) { // is this one we care about?
           trace(`FixUpAttribs changing child param '${name}'
@@ -451,7 +514,7 @@ try { // scope and prevent errors from leaking out to page.
             new: '${newParams[name]}'`);
 
           saveAttribute(eachnode, name);
-          eachnode.setAttribute(name, newParams[name]);
+          safeSetAttribute(eachnode, name, newParams[name])
         }
       }
     }
@@ -555,13 +618,13 @@ try { // scope and prevent errors from leaking out to page.
       return false;
     }
     const attributeNameLower = attributeName.toLowerCase();
-    const orgValue           = node.getAttribute(attributeNameLower) || '';
+    const orgValue           = safeGetAttribute(node, attributeNameLower) || '';
     if (!orgValue.length) {
       // nothing to save
       trace(`saveAttribute '${attributeNameLower}' empty, nothing to save`, node);
       return false;
     }
-    const startingdata = node.getAttribute(VIDEO_MAX_DATA_ATTRIB_UNDO);
+    const startingdata = safeGetAttribute(node, VIDEO_MAX_DATA_ATTRIB_UNDO);
     const jsondata     = JSON.parse(startingdata || '{}');
     if (Object.keys(jsondata)
       .includes(attributeNameLower)) {
@@ -573,7 +636,7 @@ try { // scope and prevent errors from leaking out to page.
 
     // ok merge in and save
     jsondata[attributeNameLower] = orgValue;
-    node.setAttribute(VIDEO_MAX_DATA_ATTRIB_UNDO, JSON.stringify(jsondata));
+    safeSetAttribute(node, VIDEO_MAX_DATA_ATTRIB_UNDO, JSON.stringify(jsondata));
     trace(`saveAttribute '${attributeNameLower}' old value ${orgValue}`, node);
     return true;
   }
@@ -595,6 +658,9 @@ try { // scope and prevent errors from leaking out to page.
         // undo works.
         saveAttribute(node, 'style');
         node?.classList.add(MAX_CSS_CLASS);
+
+        // some sites muck with the style
+        safeSetAttribute(node, 'style', '');
       }
     } catch (ex) {
       logerr('EXCEPTION ajustElem exception: ', ex);
@@ -636,8 +702,7 @@ try { // scope and prevent errors from leaking out to page.
     for (const each_sib of sibs.reverse()) {
       // if the element is inside the video's rect, then they are probably
       // controls. don't touch them. we are looking for elements that overlap.
-      if (each_sib.isEqualNode(elemIn) ||
-          IGNORE_NODES.includes(each_sib.nodeName.toUpperCase())) {
+      if (each_sib.isEqualNode(elemIn) || IGNORE_NODES.includes(each_sib.nodeName.toUpperCase())) {
         continue;
       }
       if (!isElem(each_sib)) {
@@ -961,7 +1026,7 @@ try { // scope and prevent errors from leaking out to page.
     }
 
     const nodename = elem?.nodeName?.toUpperCase();
-    if ( ALWAYS_HIDE_NODES.includes(nodename)) {
+    if (ALWAYS_HIDE_NODES.includes(nodename)) {
       trace(`always hide node ${nodename}`);
       return true;
     }
@@ -981,7 +1046,7 @@ try { // scope and prevent errors from leaking out to page.
       // use `parent.className.contains` ?
       if (videoElem.className?.match(/html5-main-video/i) !== null) {
         const parent = videoElem.parentNode;
-        if (parent && parent.className.match(/html5-video-container/i) != null) {
+        if (parent && parent.className.match(/html5-video-container/i) !== null) {
           return true;
         }
       }
@@ -1012,9 +1077,21 @@ try { // scope and prevent errors from leaking out to page.
         trace('Matched element same as parent.');
       }
 
+      const arialabel = safeGetAttribute('aria-label');
+      if (arialabel.match(/^adver/i)) {
+        trace(`matched aria-label for ad? '${arialabel}'. skipping`);
+        return false;
+      }
+      const title = safeGetAttribute(elem,'title');
+      if (title.match(/^adver/i)) {
+        trace(`matched title for ad? '${title}'. skipping`);
+        return false;
+      }
+
+
       const score = this._getElemMatchScore(elem);
       if (EMBED_SCORES) {
-          elem.setAttribute(EMBEDED_SCORES, score);
+        safeSetAttribute(elem, EMBEDED_SCORES, score.toString());
       }
 
       if (score === 0) {
@@ -1032,15 +1109,18 @@ try { // scope and prevent errors from leaking out to page.
       }
 
       if (score === this.largestScore) {
-        trace(`same score: ${score}, favoring on that came first. Total count: ${this.matchCount} elem: `, elem);
+        trace(
+          `same score: ${score}, favoring on that came first. Total count: ${this.matchCount} elem: `,
+          elem);
         this.matchCount++;
         return true;
       }
     };
 
+
     this.nestedFrameTree = [];
 
-    this.getBestMatch = () => this.largestElem;
+    this.getBestMatch      = () => this.largestElem;
     this.getBestMatchCount = () => this.matchCount; // should be 1 for most case
 
     this.setNestedFrameTree = (iframeTree) => {
@@ -1117,8 +1197,8 @@ try { // scope and prevent errors from leaking out to page.
         4_3:  (4.0 / 3.0),
         3_2:  (3.0 / 2.0),
         240:  (2.40 / 1.0), // portrait ( < 1)
-        4_5:  (4 / 5),
-        9_16: (9 / 16),
+        // 4_5:  (4 / 5),
+        // 9_16: (9 / 16),
       };
 
       // const MAX_R_THRESHOLD = 0.15;
@@ -1168,7 +1248,7 @@ try { // scope and prevent errors from leaking out to page.
         }
         if (src.match(/javascript:/i)) {
           trace(`demoting :javascript iframe. \tOld weight=${weight}\tNew Weight=0`);
-          return 0
+          return 0;
         }
         if (src.match(/platform\.tumblr\.com/i)) {
           trace(`demoting platform.tumbr.com \tOld weight=${weight}\tNew Weight=0`);
@@ -1183,8 +1263,8 @@ try { // scope and prevent errors from leaking out to page.
       trace(`Found good ratio weight:${weight}
                   Ratio is: width=${width} height=${height}`);
 
-      if (compstyle?.visibility.toUpperCase() === 'HIDDEN' ||
-          compstyle?.display.toUpperCase() === 'NONE') {
+      if (compstyle?.visibility.toUpperCase() === 'HIDDEN' || compstyle?.display.toUpperCase() ===
+          'NONE') {
         // Vimeo hides video before it starts playing (replacing it with a
         // static image), so we cannot ignore hidden. But UStream's homepage
         // has a large hidden flash that isn't a video.
@@ -1192,16 +1272,16 @@ try { // scope and prevent errors from leaking out to page.
         weight *= 0.5;
       }
 
-      const tabindex = elem?.getAttribute('tabindex') || -1;
-      if (tabindex !== -1) {
+      const tabindex = safeGetAttribute(elem,'tabindex');
+      if (tabindex !== '') {
         // this is a newer thing for accessibility, it's a good indicator
         trace('tabindex is set. weight + 1.25x');
         weight *= 1.25;
       }
 
       if (elem.nodeName.toUpperCase() === 'VIDEO') {
-        trace(`node is 'video'. weight + 2x`);
-        weight *= 2.0;
+        trace(`node is 'video'. weight + 1.1x`);
+        weight *= 1.1;
       }
 
       weight = Math.round(weight);
@@ -1296,6 +1376,7 @@ try { // scope and prevent errors from leaking out to page.
 
     const bestMatch = videomaxGlobals.elementMatcher.getBestMatch();
     trace('video found', bestMatch);
+    bestMatch?.scrollIntoView(true);
 
     // mark it with a class. Not really used for anything other than
     // debugging problems, but might be useful?
@@ -1350,9 +1431,10 @@ try { // scope and prevent errors from leaking out to page.
       return;
     }
 
-    const retries = isInIFrame() ? 2 : 8;
-    videomaxGlobals.elementMatcher = new ElemMatcherClass();
-    videomaxGlobals.hideEverythingTimer = new RetryTimeoutClass('hideEverythingTimer', 250, retries);
+    const retries                       = isInIFrame() ? 2 : 8;
+    videomaxGlobals.elementMatcher      = new ElemMatcherClass();
+    videomaxGlobals.hideEverythingTimer = new RetryTimeoutClass('hideEverythingTimer', 250,
+      retries);
 
     videomaxGlobals.findVideoRetry = new RetryTimeoutClass('hideEverythingTimer', 500, retries);
     videomaxGlobals.findVideoRetry.startTimer(mainFixPage);
