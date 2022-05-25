@@ -248,6 +248,9 @@ async function setState(tabId, state, speed = DEAULT_SPEED) {
 const getDomain = (url) => (new URL(url)).host.toLowerCase();
 
 const isPageExcluded = (url) => {
+  if (!url) {
+    return false;
+  }
   const domain = getDomain(url);
   for (const elem of ZOOM_EXCLUSION_LIST) {
     if (domain.indexOf(elem) >= 0) {
@@ -369,7 +372,7 @@ async function unZoom(tabId, uninject = true) {
   }
 }
 
-async function zoom(tabId, url) {
+async function Zoom(tabId, url) {
   try {
     const excluded_zoom = isPageExcluded(url);
     if (!excluded_zoom) {
@@ -549,7 +552,7 @@ chrome.action.onClicked.addListener(async (tab) => {
 
         const state = await getTabCurrentState(tabId);
         if (!ACTIVE_STATES.includes(state)) {
-          await zoom(tabId, tab?.url);
+          await Zoom(tabId, tab?.url);
           return;
         }
 
@@ -611,7 +614,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
           const zoomed = await getIsCurrentlyZoomed(tabId);
           if (!zoomed) {
             // a full zoom isn't needed, just the css reinjected.
-            await DoInjectCSS(tabId);
+            await Zoom(tabId);
             await setState(tabId, STATES.ZOOMING, speed);
             await setTabSpeed(tabId, speed);
           }

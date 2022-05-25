@@ -1,5 +1,5 @@
 try { // scope and prevent errors from leaking out to page.
-  const FULL_DEBUG        = true;
+  const FULL_DEBUG        = false;
   const DEBUG_ENABLED     = FULL_DEBUG;
   const TRACE_ENABLED     = FULL_DEBUG;
   const ERR_BREAK_ENABLED = FULL_DEBUG;
@@ -1340,20 +1340,17 @@ try { // scope and prevent errors from leaking out to page.
 
   function updateEventListeners(video_elem) {
     const _onPress = (event) => {
-      trace('window keypressed');
-      if (event.keyCode === 27) { // esc key
-        // unzoom here!
-        videomaxGlobals.isMaximized = false;
-        // quick and dump undo, just remove our style sheet
-        // ANY more complex needs to message the background page which has
-        // requires extra security permissions
-        const cssHeaderNode = document.getElementById(CSS_STYLE_HEADER_ID);
-        cssHeaderNode?.parentNode?.removeChild(cssHeaderNode);
-
-        // try to change the speed back
-        if (video_elem?.playbackRate) {
-          video_elem.playbackRate = 1.0;
+      try {
+        trace('window keypressed');
+        if (event.keyCode === 27) { // esc key
+          // unzoom here!
+          videomaxGlobals.isMaximized = false;
+          video_elem.playbackRate     = 1.0;
+          UndoZoom.mainUnzoom();
+          event.stopPropagation();
         }
+      } catch(err) {
+        logerr(err);
       }
     };
 

@@ -1,38 +1,44 @@
 <!Doctype html>
 <html lang="en">
 <head>
-  <title>Universal Video Maximizer</title>
+  <title>Universal Video Maximizer - Help</title>
   <meta charset="utf-8">
   <link rel="stylesheet" type="text/css" href="chota.css">
 </head>
 <body class="dark">
 
 <div class="container">
-  <h1><img class="logo" src="/icons/icon128.png">Universal Video Maximizer - version 3.0</h1>
+  <h1><img class="logo" src="icons/icon128.png">Universal Video Maximizer - version 3.0 Help</h1>
+  <h2>
+    Welcome to version 3.0!
+  </h2>
+
   <p>
-    Welcome to version 3.0.
+    You will only see this message after updating or after installing.
   </p>
 
   <p>
-    This is a major rewrite that is <span class="emphasis">required</span> by the Google Chrome store upgrade to their
-    latest API. Their goal is to improve security but there are still stability issues with this API.
+    This is a major rewrite and is <span class="emphasis">required</span> by the Google Chrome store upgrade to their
+    latest API.
   </p>
 
   <p>
-    You will only see this help message the first time you use the extension after it updates or installs.
-  </p>
-
-  <p>
+    As always, this extension is:
   <ul>
-    <li>This extension is <span class="emphasis bold">FREE</span> and <a
-        href="https://github.com/trophygeek/universalvideomaximizer" target="_blank" rel="noreferrer">
-      Open Source</a></li>
-    <li>It requires minimal permissions to increase security.</li>
-    <li>Privacy is important. <span class="emphasis">NO DATA is ever collected</span>. The extension is also open
-      sourced for transparency.
+    <li><span class="emphasis bold">FREE</span>
+
+    <li>requires minimal permissions to increase security
+    </li>
+
+    <li><span class="emphasis">NEVER collects data</span><br>Privacy is important
+    </li>
+
+    <li><a href="https://github.com/trophygeek/universalvideomaximizer/" target="_blank"
+           rel="noreferrer">open-sourced</a> for transparency.
     </li>
   </ul>
   </p>
+
 
   <p>
     Any problems should be reported here via a
@@ -40,100 +46,93 @@
       issue</a>.
   </p>
 
-  <p>
+
   <hr/>
-  </p>
+
 
   <h3>New Playback Speed option</h3>
-  <p>
-    Changing the Playback Speed from 1/4x - 16x on sites that support it.
-  </p>
-
-  <p>
+  <p class="padding-3">
+    <img class="illustration" src="img/speed_change_yes.png" alt="screen shot">
     Playback speed cannot work on pages where videos are actually hosted on a different site. (e.g. youtube videos not
-    on the youtube site). This is a limitation of the Chrome browser itself.
+    on the youtube site). This is a limitation of the Chrome browser itself.<br><br>
+    When a site looks like it supports speed control, the toolbar icon will display a <img alt="playback indicator icon" src="img/playback_indicator.png"> overlay
   </p>
 
-  <p>
+
+  <p class="padding-5">
+    <img class="illustration" src="img/new_speed_control_bar.png" alt="screen shot">
+    Now when clicked, the option so change playback speed will appear.
+  </p>
+
+
+
+  <p class="padding-3">
+    <img class="illustration" src="img/speed_change_no.png" alt="screen shot">
+    When any site loads their videos from a different site (e.g. a youtube video embedded in a non youtube site), then
+    the speed control feature will not work and is disabled. Video Maximizer will fall back to the classic toggle
+    behavior.<br><br>
+    When I site doesn't support zooming, then a <img alt="zoom indicator icon" src="img/zoom_only_indicator.png"> overlay will be displayed.
+  </p>
+
+
   <hr/>
-  <h4>
+
+  <h3>
     Hard-to-discover shortcuts
-  </h4>
+  </h3>
+
+  <p class="padding-1">
+    <img class="illustration" src="img/tips3.png">
+  <ol>
+    <li>The Unzoom function can be accessed by <span class="bold">clicking</span> this icon (or the Spacebar after
+      opening)
+    </li>
+    <li>Clicking the speed-change button a second time toggles it back to normal speed.</li>
+  </ol>
+  <ul>
+    <li><span class="text-success">TIP:</span> ⭐⭐ <span class="emphasis">Escape key</span> on the page UNZOOMS. ⭐⭐
+    <li><span class="text-success">TIP:</span> Pressing escape in the Speed Control window closes it.</li>
+    </li>
+    <li><span class="text-success">NOTE: </span> Speed changing <span class="emphasis">will not work </span> on
+      sites hosting videos from other sites. This is just a limitiation of the Chrome APIs.<br>
+    </li>
+    <li><span class="text-success">NOTE: </span> there is an <span class="emphasis">option to disable</span> the Speed
+      Controls completely (see Options below)
+    </li>
+  </ul>
   </p>
 
-
-  <div class="row">
-    <div class="col-7-md"><img src="img/tips3.png"></div>
-    <div class="col-5-md">
-
-      <p>
-      <ol>
-        <li>The Unzoom function can be accessed by <span class="bold">clicking</span> this icon (or the Spacebar after
-          opening)
-        </li>
-        <li>Clicking the speed-change button a second time toggles it back to normal speed.</li>
-      </ol>
-      <ul>
-        <li><span class="text-success">Keyboard:</span> Pressing escape in the Speed Control window closes it.</li>
-        <li><span class="text-success">Keyboard</span> Pressing escape in the Zoomed Video on the Page unzooms it.</li>
-        <li><span class="text-success">Warning</span> Speed changing <span class="emphasis">will not work </span> on sites hosting videos
-          from other sites.<br/>
-          This is a limitiation of the Chrome APIs.<br>
-          Note: there is an <span class="emphasis">option to disable</span> (see Options below)
-        </li>
-      </ul>
-      </p>
-    </div>
-  </div>
-
-  <p>
   <hr/>
-  </p>
 
-  <h3>Video Maximizer - Universal Tips</h3>
-
-  <p>
-  <hr/>
-  <h4>
+  <h3>
     Pinning the extension to the toolbar makes it easier to use.
-  </h4>
+  </h3>
+
+  <p class="padding-14">
+    <img class="illustration"  src="img/tips1.png">
+  <ol>
+    <li>To pin, first click on the Extensions puzzle piece icon</li>
+    <li>Click the Pin icon</li>
+  </ol>
   </p>
 
-  <div class="row">
-    <div class="col-5-md"><img src="img/tips1.png"></div>
-    <div class="col-7-md">
-      <p>
-      <ol>
-        <li>To pin, first click on the Extensions puzzle piece icon</li>
-        <li>Click the Pin icon</li>
-      </ol>
-      </p>
-    </div>
-  </div>
-
-
-  <p>
   <hr/>
-  <h4>
+
+  <h3>
     Changing options
-  </h4>
+  </h3>
+
+  <p class="padding-7">
+    <img class="illustration" src="img/tips2.png">
+  <ol>
+    <li><span class="bold">Right-click</span> the icon</li>
+    <li>Select Option from the dropdown menu. You can disable the speed controls and revert the behavior back to
+      the classic toggle
+    </li>
+  </ol>
   </p>
 
-  <div class="row">
-    <div class="col-5-md">
-      <p>
-      <ol>
-        <li><span class="bold">Right-click</span> the icon</li>
-        <li>Select Option from the dropdown menu. You can disable the speed controls and revert the behavior back to
-          the classic toggle
-        </li>
-      </ol>
-      </p>
-    </div>
-    <div class="col-7-md"><img src="img/tips2.png"></div>
-  </div>
 </div>
-
 
 </body>
 </html>
