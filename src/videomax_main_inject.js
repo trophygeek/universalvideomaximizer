@@ -7,7 +7,6 @@ try { // scope and prevent errors from leaking out to page.
                                           // elements across revisions, the zoomed page's html can
                                           // be diffed
 
-  debugger;
   const VIDEO_MAX_DATA_ATTRIB_UNDO = 'data-videomax-saved';
   const VIDEO_MAX_ATTRIB_FIND      = 'data-videomax-target';
   const VIDEO_MAX_ATTRIB_ID        = 'zoomed-video';
@@ -730,14 +729,14 @@ try { // scope and prevent errors from leaking out to page.
       let handled = false;
       if (isSpecialCaseAlwaysHide(each_sib)) { // last ditch special case check
         trace('special case item always hide', each_sib);
-        each_sib.classList?.add(HIDDEN_CSS_CLASS);    // may be Node
+        each_sib?.classList?.add(HIDDEN_CSS_CLASS);    // may be Node
         handled = true;
       }
 
       if (!(bounded || bottomDocked || hasSliderRole || parentIsVideo || parentIsMaximized)) {
         // each_elem.style.setProperty("display", "none", "important");
         trace(`  Add HIDDEN_CSS_CLASS overlapping elem ${each_sib.nodeName}`, each_sib);
-        each_sib.classList?.add(HIDDEN_CSS_CLASS); // may be Node
+        each_sib?.classList?.add(HIDDEN_CSS_CLASS); // may be Node
         handled = true;
       }
 
@@ -767,13 +766,13 @@ try { // scope and prevent errors from leaking out to page.
           trace(`  Add PLAYBACK_CNTLS_CSS_CLASS ${each_sib.nodeName} `, each_sib);
           // we're going to assume it contains the playback controls and are
           // going to max with it.
-          each_sib.classList?.add(PLAYBACK_CNTLS_CSS_CLASS);
+          each_sib?.classList?.add(PLAYBACK_CNTLS_CSS_CLASS);
           // todo: we don't undo this modification yet.
           // each_sib.setAttribute ? each_sib.setAttribute('width',
           // 'calc(100vw)') : '';
         } else {
           trace(`  Add HIDDEN_CSS_CLASS overlapping elem ${each_sib.nodeName}`, each_sib);
-          each_sib.classList?.add(HIDDEN_CSS_CLASS);
+          each_sib?.classList?.add(HIDDEN_CSS_CLASS);
           handled = true;
         }
       }
@@ -1048,7 +1047,7 @@ try { // scope and prevent errors from leaking out to page.
   function shouldUseParentDivForDockedCheckYoutube(videoElem) {
     if (videoElem.nodeName === 'VIDEO') {
       // use `parent.className.contains` ?
-      if (videoElem.className?.match(/html5-main-video/i) !== null) {
+      if (videoElem?.className?.match(/html5-main-video/i) !== null) {
         const parent = videoElem.parentNode;
         if (parent && parent.className.match(/html5-video-container/i) !== null) {
           return true;
@@ -1081,7 +1080,7 @@ try { // scope and prevent errors from leaking out to page.
         trace('Matched element same as parent.');
       }
 
-      const arialabel = safeGetAttribute('aria-label');
+      const arialabel = safeGetAttribute(elem, 'aria-label');
       if (arialabel.match(/^adver/i)) {
         trace(`matched aria-label for ad? '${arialabel}'. skipping`);
         return false;
@@ -1143,7 +1142,11 @@ try { // scope and prevent errors from leaking out to page.
     this._getElemDimensions = (elem) => {
       if (!elem) {
         logerr('empty element gets score of zero');
-        return 0;
+        return {
+          width:     0,
+          height:    0,
+          compstyle: null,
+        };
       }
       let width       = 0;
       let height      = 0;
@@ -1152,8 +1155,9 @@ try { // scope and prevent errors from leaking out to page.
       if (!compstyle?.width || !compstyle?.height) {
         logerr('Could NOT load computed style for element so score is zero', elem);
         return {
-          width:  0,
-          height: 0,
+          width,
+          height,
+          compstyle,
         };
       }
 
@@ -1165,6 +1169,7 @@ try { // scope and prevent errors from leaking out to page.
         return {
           width:  0,
           height: 0,
+          compstyle,
         };
       }
 
@@ -1173,6 +1178,7 @@ try { // scope and prevent errors from leaking out to page.
         return {
           width:  0,
           height: 0,
+          compstyle,
         };
       }
 
@@ -1180,6 +1186,7 @@ try { // scope and prevent errors from leaking out to page.
       return {
         width,
         height,
+        compstyle,
       };
     };
 
@@ -1404,6 +1411,7 @@ try { // scope and prevent errors from leaking out to page.
     trace('Final Best Matched Element: ', bestMatch.nodeName, bestMatch);
 
     window._VideoMaxExt = videomaxGlobals;  // undozoom uses
+
     // this timer will hide everything
     videomaxGlobals.hideEverythingTimer.startTimer(() => {
       // BBC has some special css with lots of !importants
@@ -1432,7 +1440,7 @@ try { // scope and prevent errors from leaking out to page.
     return true; // stop retrying
   }
 
-  function mainVideoMaxInject() {
+  function mainZoom() {
     trace('running mainVideoMaxInject');
     if (hasInjectedAlready()) {
       trace('detected already injected. something is off?');
@@ -1448,7 +1456,176 @@ try { // scope and prevent errors from leaking out to page.
     videomaxGlobals.findVideoRetry.startTimer(mainFixPage);
   }
 
-  mainVideoMaxInject();
+
+  class UndoZoom {
+    /**
+     * @param doc {Document}
+     */
+    static recurseIFrameUndoAll(doc) {
+      try {
+        const allIFrames = doc.querySelectorAll('iframe');
+        for (const frame of allIFrames) {
+          try {
+            const framedoc = frame.contentDocument;
+            if (!framedoc) {
+              continue;
+            }
+            setTimeout(UndoZoom.undoAll, 1, framedoc);
+            UndoZoom.recurseIFrameUndoAll(framedoc);
+          } catch (err) {
+            // probably security related
+          }
+        }
+      } catch (err) {
+        // probably security related
+      }
+    }
+
+    /**
+     * @param doc {Document}
+     */
+    static removeAllClassStyles(doc) {
+      const allElementsToFix = doc.querySelectorAll(`[class*="${PREFIX_CSS_CLASS}"]`);
+      for (const elem of allElementsToFix) {
+        elem.classList.remove(...ALL_CLASSNAMES); // the '...' turns the array
+        // into a bunch of individual
+        // params
+        if (elem.getAttribute('class') === '') {
+          elem.removeAttribute('class');
+        }
+      }
+    }
+
+    /**
+     *
+     * @param doc {Document}
+     */
+    static undoStyleSheetChanges(doc) {
+      try {
+        const cssNode = doc.getElementById(CSS_STYLE_HEADER_ID);
+        if (cssNode?.parentNode?.removeChild) {
+          cssNode.parentNode.removeChild(cssNode);
+        }
+
+        const externcsss = doc.getElementsByTagName('link');
+        for (const elem of externcsss) {
+          if (elem.getAttribute('media') === '_all') {
+            elem.setAttribute('media', 'all');
+          }
+        }
+      } catch (ex) {
+        logerr(ex);
+      }
+    }
+
+    /**
+     *
+     * @param elem {Node | HTMLElement}
+     */
+    static restoreAllSavedAttribute(elem) {
+      if (!isElem(elem)) {
+        return;
+      }
+      const savedAttribsJson = JSON.parse(elem.getAttribute(VIDEO_MAX_DATA_ATTRIB_UNDO) || '{}');
+      trace('restoreAllSavedAttribute for ', elem);
+      for (const [key, value] of Object.entries(savedAttribsJson)) {
+        trace(`  ${key}='${value}' `, elem);
+        elem.setAttribute(key, String(value));
+      }
+      elem.removeAttribute(VIDEO_MAX_DATA_ATTRIB_UNDO);
+      trace('  final restored elem:\' ', elem);
+    }
+
+    /**
+     *
+     * @param doc {Document}
+     */
+    static undoAttribChange(doc) {
+      try {
+        for (const elem of doc.querySelectorAll(`[${VIDEO_MAX_DATA_ATTRIB_UNDO}]`)) {
+          UndoZoom.restoreAllSavedAttribute(elem);
+          //  try and make the element realizes it needs to redraw. Fixes
+          // progress bar
+          elem.dispatchEvent(new Event('resize'));
+        }
+      } catch (ex) {
+        logerr(ex);
+      }
+    }
+
+    static undoSpeedControls(doc) {
+      try {
+        const elem = document.getElementById(SPEED_CONTROLS);
+        elem?.parentElement?.removeChild(elem);
+      } catch (ex) {
+        logerr(ex);
+      }
+    }
+
+    /**
+     * @param doc {Document}
+     */
+    static undoAll(doc) {
+      if (!doc) {
+        return;
+      }
+      UndoZoom.undoSpeedControls(doc);
+      UndoZoom.removeAllClassStyles(doc);
+      UndoZoom.undoAttribChange(doc);
+      UndoZoom.undoStyleSheetChanges(doc);
+    }
+
+    static touchDocBodyToTriggerUpdate() {
+      document.body.width = '99%';
+      setTimeout(() => {
+        document.body.width = '100%';
+      }, 1);
+    }
+
+    static forceRefresh(optionalElem) {
+      // we now need to force the flash to reload by resizing... easy thing is to
+      // adjust the body
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+        window.dispatchEvent(new Event('visabilitychange'));
+        if (optionalElem) {
+          optionalElem?.dispatchEvent(new Event('visabilitychange'));
+        } else {
+          UndoZoom.touchDocBodyToTriggerUpdate();
+        }
+      }, 50);
+    }
+
+
+    static mainUnzoom() {
+      setTimeout(() => {
+        try {
+          UndoZoom.undoAll(document);
+          UndoZoom.recurseIFrameUndoAll(document);
+          // remove the video "located" attribute.
+          const videoelem = document.querySelector(
+            `[${VIDEO_MAX_ATTRIB_FIND}=${VIDEO_MAX_ATTRIB_ID}]`);
+          if (videoelem && videoelem.removeAttribute) {
+            videoelem.removeAttribute(VIDEO_MAX_ATTRIB_FIND);
+          }
+          videomaxGlobals.playbackSpeed = 1.0;
+          videomaxGlobals.isMaximized   = false;
+
+          UndoZoom.forceRefresh(document);
+        } catch (ex) {
+          logerr(ex);
+        }
+      }, 1);
+    }
+  }
+
+  // look at the command set by the first injected file
+  if (window.videmax_cmd === 'unzoom') {
+    UndoZoom.mainUnzoom();
+  } else {
+    mainZoom();
+  }
+  window.videmax_cmd = '';    // clear it.
 } catch (err) {
   // eslint-disable-next-line no-console
   console.error('videomax extension error', err, err.stack);

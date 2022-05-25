@@ -1,6 +1,7 @@
-const DEBUG_ENABLED     = false;
-const TRACE_ENABLED     = false;
-const ERR_BREAK_ENABLED = false;
+const FULL_DEBUG        = true;
+const DEBUG_ENABLED     = FULL_DEBUG;
+const TRACE_ENABLED     = FULL_DEBUG;
+const ERR_BREAK_ENABLED = FULL_DEBUG;
 
 const UNZOOM_CMD    = 'UNZOOM';
 const SET_SPEED_CMD = 'SET_SPEED';
@@ -20,29 +21,31 @@ const BETA_UPDATE_NOTIFICATION         = 'beta_notification';
 const BETA_UPDATE_NOTIFICATION_VERISON = '3.0.29';
 
 const BADGES = {
-  NONE:      '',
-  ZOOMED:    '←  →',
-  SPEEDONLY: '▶️',
-  REFRESH:   '⟳',
-  WARNING:   '⚠',
+  NONE:    '',
+  ZOOMED:  '←  →',
+  SPEED:   '▶️',
+  REFRESH: '⟳',
+  WARNING: '⚠',
 };
 
 const STATES = {
-  RESET:     'RESET',
-  ZOOMED:    'ZOOMED',
-  SPEEDONLY: 'SPEEDONLY',
-  REFRESH:   'REFRESH',
-  WARNING:   'WARNING',
+  RESET:          'RESET',
+  ZOOMING:        'ZOOMING',
+  ZOOMED_NOSPEED: 'ZOOMED_NOSPEED',
+  ZOOMED_SPEED:   'ZOOMED_SPEED',
+  REFRESH:        'REFRESH',
+  WARNING:        'WARNING',
 };
 
-const ACTIVE_BADGES = [BADGES.ZOOMED, BADGES.SPEEDONLY];
+const ACTIVE_STATES = [STATES.ZOOMING, STATES.ZOOMED_NOSPEED, STATES.ZOOMED_SPEED];
 
 // todo: move to localize
 const TOOLTIP = {
-  ZOOMED:                'Video Maximized: click to change speed or undo',
-  UNZOOMED:              'Click to maximize video',
-  SPEEDONLY:             'Site cannot be zoomed, but Speed controls available',
-  REFRESH:               'Permissions check complete. Try again.',
+  ZOOMED:                'Click to zoom video',
+  CANNOT_SPEED_CHANGE:   'Click ot unzoom\nNo speed change allowed by this site.',
+  SPEED_CHANGE:          'Click to change speed or unzoom',
+  SPEED:                 'Click to change speed',
+  REFRESH:               'Permissions check complete. Click again.',
   SECURITY_CHECK_FAILED: 'Permission denied by user',
   UNSUPPORTED_URL:       'Extension only works on https sites',
 };
@@ -88,17 +91,19 @@ const trace = (...args) => {
 function injectVideoSpeedAdjust(newspeed) {
   const PLAYBACK_SPEED_ATTR = 'data-videomax-playbackspeed';
 
+  /** nested local function **/
   const _loadStart = (event) => {
     const video_elem    = event?.target;
     const playbackSpeed = video_elem?.getAttribute(PLAYBACK_SPEED_ATTR);
     if (playbackSpeed) {
       const speedNumber = parseFloat(playbackSpeed);
       if (video_elem?.playbackRate !== speedNumber) {
-        // auto-playing next video can reset speed. So annoying.
+        // auto-playing next video can reset speed. Need to hook into content change
         video_elem.playbackRate = speedNumber;
       }
     }
   };
+  /** nested local function **/
 
   const speadNumber = parseFloat(newspeed);
   let result        = false;
@@ -146,8 +151,9 @@ function isCssHeaderInjected(styleId) {
   return (document.getElementById(styleId) !== null);
 }
 
-function isVideoFoundInject() {
-  return document.querySelectorAll('video').length > 0;
+function supportsSpeedChange() {
+  const matched = document.querySelectorAll('video[class*="videomax-ext-video-matched"]');
+  return matched.length > 0;
 }
 
 /**
@@ -159,44 +165,54 @@ function isVideoFoundInject() {
  */
 async function setState(tabId, state, speed = DEAULT_SPEED) {
   try {
-    const featureShowSpeedPopup = (await getSettingOldToggleBehavior()) === false;
 
-    // some states need to know if the video is in an iframe
-    const videofound = [STATES.ZOOMED, STATES.SPEEDONLY].includes(state) ?
-                       await CheckVideoFound(tabId) :
-                       0;
-
+    // map state to another state
+    switch (state) {
+      case STATES.ZOOMING:
+        const featureShowSpeedPopup = (await getSettingOldToggleBehavior()) === false;
+        if (featureShowSpeedPopup) {
+          const supportsSpeedChange = await CheckSupportsSpeedChange(tabId);
+          if (supportsSpeedChange) {
+            state = STATES.ZOOMED_SPEED;
+          } else {
+            state = STATES.ZOOMED_NOSPEED;
+          }
+        }
+        break;
+    }
 
     const States = {
-      [STATES.RESET]:     {
+      [STATES.RESET]:          {
         text:   BADGES.NONE,   // badge text
-        title:  TOOLTIP.UNZOOMED,    // tooltip
+        title:  TOOLTIP.ZOOMED,    // tooltip
         popup:  '',
         zoomed: false,
       },
-      [STATES.ZOOMED]:    {
+      [STATES.ZOOMING]:        {
         text:   BADGES.ZOOMED,
         title:  TOOLTIP.ZOOMED,
-        popup:  featureShowSpeedPopup ?
-                `popup.html#tabId=${tabId}&speed=${speed}&videofound=${videofound}` :
-                '',
+        popup:  '',
         zoomed: true,
       },
-      [STATES.SPEEDONLY]: {
-        text:   (speed === DEAULT_SPEED) ? BADGES.ZOOMED : BADGES.SPEEDONLY,
-        title:  TOOLTIP.SPEEDONLY,
-        popup:  featureShowSpeedPopup ?
-                `popup.html#tabId=${tabId}&speed=${speed}&videofound=${videofound}` :
-                '',
+      [STATES.ZOOMED_SPEED]:   {
+        text:   BADGES.SPEED,
+        title:  TOOLTIP.SPEED_CHANGE,
+        popup:  `popup.html#tabId=${tabId}&speed=${speed}`,
         zoomed: true,
       },
-      [STATES.REFRESH]:   {
+      [STATES.ZOOMED_NOSPEED]: {
+        text:   BADGES.ZOOMED,
+        title:  TOOLTIP.CANNOT_SPEED_CHANGE,
+        popup:  '',
+        zoomed: true,
+      },
+      [STATES.REFRESH]:        {
         text:   BADGES.REFRESH,
         title:  TOOLTIP.REFRESH,
         popup:  '',
         zoomed: false,
       },
-      [STATES.WARNING]:   {
+      [STATES.WARNING]:        {
         text:   BADGES.WARNING,
         title:  TOOLTIP.SECURITY_CHECK_FAILED,
         popup:  '',
@@ -249,7 +265,7 @@ async function DoInjectJS(tabId) {
         tabId,
         allFrames: true,
       }, //      world: 'MAIN',  // this breaks dailymotion
-      files:  [`inject.js`],
+      files:  [`cmd_zoom_inject.js`,`videomax_main_inject.js`],
     });
   } catch (err) {
     logerr(err);
@@ -308,21 +324,19 @@ async function CheckCSSInjected(tabId) {
   }
 }
 
-async function CheckVideoFound(tabId) {
+async function CheckSupportsSpeedChange(tabId) {
   try {
     const injectionresult /* :InjectionResult[] */ = await chrome.scripting.executeScript({
       target: {
         tabId,
         frameIds: [0],
       },
-      func:   isVideoFoundInject,
+      func:   supportsSpeedChange,
       args:   [],
       world:  'MAIN',
     });
 
-    const result = injectionresult[0]?.result ? 1 : 0;
-    trace(`CheckVideoFound: ${result}`);
-    return result;
+    return injectionresult[0]?.result;
   } catch (err) {
     logerr(err);
     return false;
@@ -346,9 +360,10 @@ async function unZoom(tabId, uninject = true) {
           tabId:     tabId,
           allFrames: true,
         },
-        files:  ['inject_undo.js'],
+        files:  [`cmd_unzoom_inject.js`,`videomax_main_inject.js`],
       });
     }
+    await setTabSpeed(tabId, DEAULT_SPEED);
   } catch (err) {
     logerr(err);
   }
@@ -357,14 +372,15 @@ async function unZoom(tabId, uninject = true) {
 async function zoom(tabId, url) {
   try {
     const excluded_zoom = isPageExcluded(url);
-    await setState(tabId, STATES.ZOOMED);
     if (!excluded_zoom) {
       await DoInjectJS(tabId);
       await DoInjectCSS(tabId);
     } else {
       trace(`EXCLUDED_ZOOM for site '${url}'`);
     }
-    await setTabSpeed(tabId, DEAULT_SPEED);
+
+    await setState(tabId, STATES.ZOOMING); // will check if page can speed up and refresh state
+    // await setTabSpeed(tabId, DEAULT_SPEED);
   } catch (err) {
     logerr(err);
   }
@@ -396,22 +412,41 @@ async function setTabSpeed(tabId, speed = DEAULT_SPEED) {
   }
 }
 
-async function getTabIsZoomed(tabId) {
+/**
+ *
+ * @param tabId {number}
+ * @returns {Promise<STATES>}
+ */
+async function getTabCurrentState(tabId) {
   try {
-    const tabText = await chrome.action.getBadgeText({ tabId });
-    if (!ACTIVE_BADGES.includes(tabText)) {
-      trace(`getTabIsZoomed false`);
-      return false;
+    const badgeText = await chrome.action.getBadgeText({ tabId });
+    // map badgeText back to state
+    const state     = {
+                        [BADGES.NONE]:    STATES.RESET,
+                        [BADGES.ZOOMED]:  STATES.ZOOMED_NOSPEED,
+                        [BADGES.SPEED]:   STATES.ZOOMED_SPEED,
+                        [BADGES.REFRESH]: STATES.REFRESH,
+                        [BADGES.WARNING]: STATES.WARNING,
+                      }[badgeText] || STATES.RESET;
+
+    if (ACTIVE_STATES.includes(state)) {
+      // user may have hit escape key to unzoom so we're in a weird state.
+      // by reinjecting the CSS, we rezoom.
+      await CheckCSSInjected(tabId);
     }
-    // user may have hit escape key to unzoom. check that.
-    const injectedHeader = await CheckCSSInjected(tabId);
-    trace(`getTabIsZoomed ${injectedHeader}`);
-    return injectedHeader;
+
+    return state;
   } catch (err) {
     logerr(err);
-    return false;
+    return STATES.RESET;
   }
 }
+
+const getIsCurrentlyZoomed = async () => {
+  const state = await getTabCurrentState();
+  return ACTIVE_STATES.includes(state);
+}
+
 
 const getSettingOldToggleBehavior = async () => {
   try {
@@ -512,19 +547,17 @@ chrome.action.onClicked.addListener(async (tab) => {
         //   lame_global_test.frameIds = filtered;
         // }
 
-        const zoomed = await getTabIsZoomed(tabId);
-        if (!zoomed) {
+        const state = await getTabCurrentState(tabId);
+        if (!ACTIVE_STATES.includes(state)) {
           await zoom(tabId, tab?.url);
           return;
         }
-        const oldToggleBehavior = await getSettingOldToggleBehavior();
-        if (oldToggleBehavior) {
-          // toggle
+
+        // we are zoomed
+        if (state === STATES.ZOOMED_NOSPEED) {  // toggle behavior otherwise message unzooms
           await unZoom(tabId);
-          return;
         }
 
-        await setState(tabId, STATES.ZOOMED);
       } catch (err) {
         logerr(err);
       }
@@ -534,8 +567,8 @@ chrome.action.onClicked.addListener(async (tab) => {
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
   try {
     if (tabId && changeInfo?.status === 'loading') {
-      trace('chrome.tabs.onUpdated loading');
-      if (await getTabIsZoomed(tabId)) {
+      trace('chrome.tabs.onUpdated loading so starting unzoom. likely SPA nav');
+      if (await getIsCurrentlyZoomed(tabId)) {
         // some SPA won't do a clean refetch, we need to uninstall.
         await unZoom(tabId, false);
       }
@@ -564,22 +597,22 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
       switch (cmd) {
         case UNZOOM_CMD:
           await unZoom(tabId);
-          await setTabSpeed(tabId, speed);
+          // await setTabSpeed(tabId, speed);
           break;
 
         case SET_SPEED_CMD:
-          await setState(tabId, STATES.SPEEDONLY, speed);
+          await setState(tabId, STATES.ZOOMED_SPEED, speed);
           await setTabSpeed(tabId, speed);
           break;
 
         case REZOOM_CMD:
           // the popup is about to display and thinks the page is zoomed, but it's may not be
           // if escape key was pressed.
-          const zoomed = await getTabIsZoomed(tabId);
+          const zoomed = await getIsCurrentlyZoomed(tabId);
           if (!zoomed) {
             // a full zoom isn't needed, just the css reinjected.
             await DoInjectCSS(tabId);
-            await setState(tabId, STATES.SPEEDONLY, speed);
+            await setState(tabId, STATES.ZOOMING, speed);
             await setTabSpeed(tabId, speed);
           }
           break;
