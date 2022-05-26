@@ -1048,7 +1048,7 @@ h1 {
     page-break-before: always;
     border-radius: 0.5em;
     margin: 1.5em;
-    box-shadow: 0 0 0.25em 0.25em var(--bg-secondary-color), 0 0 1em;
+    box-shadow: 0 0 1em .5em var(--bg-secondary-color), 0 0 2em;
 }
 
 .padding-1 {

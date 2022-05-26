@@ -1,4 +1,4 @@
-const FULL_DEBUG        = true;
+const FULL_DEBUG        = false;
 const DEBUG_ENABLED     = FULL_DEBUG;
 const TRACE_ENABLED     = FULL_DEBUG;
 const ERR_BREAK_ENABLED = FULL_DEBUG;
