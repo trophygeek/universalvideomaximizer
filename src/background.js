@@ -1,4 +1,4 @@
-const FULL_DEBUG        = true;
+const FULL_DEBUG        = false;
 const DEBUG_ENABLED     = FULL_DEBUG;
 const TRACE_ENABLED     = FULL_DEBUG;
 const ERR_BREAK_ENABLED = FULL_DEBUG;
@@ -18,7 +18,7 @@ const DEFAULT_OLD_TOGGLE_ZOOM_BEHAVIOR = false;
 
 const BETA_UPDATE_NOTIFICATION         = 'beta_notification';
 // bumping this will cause the notification to show again. keep it pinned unless some major feature
-const BETA_UPDATE_NOTIFICATION_VERISON = '3.0.29';
+const BETA_UPDATE_NOTIFICATION_VERISON = '3.0.40';
 
 const BADGES = {
   NONE:    '',

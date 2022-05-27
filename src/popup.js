@@ -1,7 +1,8 @@
 try {
-  const DEBUG_ENABLED            = false;
-  const TRACE_ENABLED            = false;
-  const ERR_BREAK_ENABLED        = false;
+  const FULL_DEBUG        = false;
+  const DEBUG_ENABLED     = FULL_DEBUG;
+  const TRACE_ENABLED     = FULL_DEBUG;
+  const ERR_BREAK_ENABLED = FULL_DEBUG;
 
   const logerr = (...args) => {
     if (DEBUG_ENABLED === false) {
@@ -162,7 +163,7 @@ try {
       chrome.runtime.sendMessage({
         message: {
           cmd:   REZOOM_CMD,
-          value: currentSpeed,
+          speed: currentSpeed,
           tabId: tabId,
         },
       }, (response) => {

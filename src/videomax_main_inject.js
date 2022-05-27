@@ -1,5 +1,5 @@
 try { // scope and prevent errors from leaking out to page.
-  const FULL_DEBUG        = true;
+  const FULL_DEBUG        = false;
   const DEBUG_ENABLED     = FULL_DEBUG;
   const TRACE_ENABLED     = FULL_DEBUG;
   const ERR_BREAK_ENABLED = FULL_DEBUG;
@@ -1343,11 +1343,15 @@ try { // scope and prevent errors from leaking out to page.
       try {
         trace('window keypressed');
         if (event.keyCode === 27) { // esc key
+          trace(`esc key press detected, unzoomin`);
           // unzoom here!
           videomaxGlobals.isMaximized = false;
           video_elem.playbackRate     = 1.0;
           UndoZoom.mainUnzoom();
+          trace(`trying to stop default event handler`);
           event.stopPropagation();
+          event.preventDefault();
+          return true;
         }
       } catch (err) {
         logerr(err);
@@ -1602,24 +1606,22 @@ try { // scope and prevent errors from leaking out to page.
 
 
     static mainUnzoom() {
-      setTimeout(() => {
-        try {
-          UndoZoom.undoAll(document);
-          UndoZoom.recurseIFrameUndoAll(document);
-          // remove the video "located" attribute.
-          const videoelem = document.querySelector(
-            `[${VIDEO_MAX_ATTRIB_FIND}=${VIDEO_MAX_ATTRIB_ID}]`);
-          if (videoelem && videoelem.removeAttribute) {
-            videoelem.removeAttribute(VIDEO_MAX_ATTRIB_FIND);
-          }
-          videomaxGlobals.playbackSpeed = 1.0;
-          videomaxGlobals.isMaximized   = false;
-
-          UndoZoom.forceRefresh(document);
-        } catch (ex) {
-          logerr(ex);
+      try {
+        UndoZoom.undoAll(document);
+        UndoZoom.recurseIFrameUndoAll(document);
+        // remove the video "located" attribute.
+        const videoelem = document.querySelector(
+          `[${VIDEO_MAX_ATTRIB_FIND}=${VIDEO_MAX_ATTRIB_ID}]`);
+        if (videoelem && videoelem.removeAttribute) {
+          videoelem.removeAttribute(VIDEO_MAX_ATTRIB_FIND);
         }
-      }, 1);
+        videomaxGlobals.playbackSpeed = 1.0;
+        videomaxGlobals.isMaximized   = false;
+
+        UndoZoom.forceRefresh(document);
+      } catch (ex) {
+        logerr(ex);
+      }
     }
   }
 
