@@ -1,5 +1,5 @@
 try { // scope and prevent errors from leaking out to page.
-  const FULL_DEBUG        = false;
+  const FULL_DEBUG        = true;
   const DEBUG_ENABLED     = FULL_DEBUG;
   const TRACE_ENABLED     = FULL_DEBUG;
   const ERR_BREAK_ENABLED = FULL_DEBUG;
@@ -80,7 +80,7 @@ try { // scope and prevent errors from leaking out to page.
 
     isMaximized: false,
 
-    onlyspeedadjust: false,
+    tagonly: false,
   };
 
 
@@ -1349,7 +1349,7 @@ try { // scope and prevent errors from leaking out to page.
           UndoZoom.mainUnzoom();
           event.stopPropagation();
         }
-      } catch(err) {
+      } catch (err) {
         logerr(err);
       }
     };
@@ -1404,56 +1404,63 @@ try { // scope and prevent errors from leaking out to page.
     }
 
     updateEventListeners(bestMatch);
-
     trace('Final Best Matched Element: ', bestMatch.nodeName, bestMatch);
 
     window._VideoMaxExt = videomaxGlobals;  // undozoom uses
 
     // this timer will hide everything
-    videomaxGlobals.hideEverythingTimer.startTimer(() => {
-      // BBC has some special css with lots of !importants
-      hideCSS('screen-css');
-      if (!hideEverythingThatIsntLargestVideo()) {
-        return false;
-      }
+    if (!videomaxGlobals.tagonly) {
+      videomaxGlobals?.hideEverythingTimer?.startTimer(() => {
+        // BBC has some special css with lots of !importants
+        hideCSS('screen-css');
+        if (!hideEverythingThatIsntLargestVideo()) {
+          return false;
+        }
 
-      if (!reinstall) {
-        // with no element parameter, then the whole doc is "touched"
-        forceRefresh();
-      } else {
-        forceRefresh(videomaxGlobals.matchedVideo);
-      }
+        if (!reinstall) {
+          // with no element parameter, then the whole doc is "touched"
+          forceRefresh();
+        } else {
+          forceRefresh(videomaxGlobals.matchedVideo);
+        }
 
-      window.scroll({
-        top:  0,
-        left: 0,
+        window.scroll({
+          top:  0,
+          left: 0,
+        });
+
+        videomaxGlobals.isMaximized = true;
+        return true;  // stop retrying
       });
-
-      videomaxGlobals.isMaximized = true;
-      return true;  // stop retrying
-    });
+    } else {
+      trace(`Tag only is set. Will not modify page to zoom video`);
+    }
 
     videomaxGlobals.isMaximized = true;
     return true; // stop retrying
   }
 
-  function mainZoom() {
+  function mainZoom(tagonly = false) {
     trace('running mainVideoMaxInject');
     if (hasInjectedAlready()) {
       trace('detected already injected. something is off?');
       return;
     }
 
-    const retries                       = isInIFrame() ? 2 : 8;
-    videomaxGlobals.elementMatcher      = new ElemMatcherClass();
-    videomaxGlobals.hideEverythingTimer = new RetryTimeoutClass('hideEverythingTimer', 250,
-      retries);
+    const retries                  = isInIFrame() ? 2 : 8;
+    videomaxGlobals.elementMatcher = new ElemMatcherClass();
 
-    videomaxGlobals.findVideoRetry = new RetryTimeoutClass('hideEverythingTimer', 500, retries);
+    if (!tagonly) {
+      videomaxGlobals.hideEverythingTimer = new RetryTimeoutClass('hideEverythingTimer', 250,
+        retries);
+    }
+
+    videomaxGlobals.tagonly        = tagonly;
+    videomaxGlobals.findVideoRetry = new RetryTimeoutClass('mainFixPage', 500, retries);
     videomaxGlobals.findVideoRetry.startTimer(mainFixPage);
   }
 
-
+  // <editor-fold defaultstate="collapsed" desc="UndoZoom">
   class UndoZoom {
     /**
      * @param doc {Document}
@@ -1616,11 +1623,22 @@ try { // scope and prevent errors from leaking out to page.
     }
   }
 
+  // </editor-fold>
+
   // look at the command set by the first injected file
-  if (window.videmax_cmd === 'unzoom') {
-    UndoZoom.mainUnzoom();
-  } else {
-    mainZoom();
+  trace(`videmax_cmd: '${window.videmax_cmd}'`);
+  switch (window.videmax_cmd) {
+    case 'unzoom':
+      UndoZoom.mainUnzoom();
+      break;
+
+    case 'tagonly':
+      mainZoom(tagonly = true);
+      break;
+
+    default:
+      mainZoom();
+      break;
   }
   window.videmax_cmd = '';    // clear it.
 } catch (err) {

@@ -1,4 +1,4 @@
-const FULL_DEBUG        = false;
+const FULL_DEBUG        = true;
 const DEBUG_ENABLED     = FULL_DEBUG;
 const TRACE_ENABLED     = FULL_DEBUG;
 const ERR_BREAK_ENABLED = FULL_DEBUG;
@@ -171,6 +171,7 @@ async function setState(tabId, state, speed = DEAULT_SPEED) {
       case STATES.ZOOMING:
         const featureShowSpeedPopup = (await getSettingOldToggleBehavior()) === false;
         if (featureShowSpeedPopup) {
+          // we have a case where "speed only" the check will fail.
           const supportsSpeedChange = await CheckSupportsSpeedChange(tabId);
           if (supportsSpeedChange) {
             state = STATES.ZOOMED_SPEED;
@@ -260,8 +261,7 @@ const isPageExcluded = (url) => {
   return false;
 };
 
-
-async function DoInjectJS(tabId) {
+async function DoInjectZoomJS(tabId) {
   try {
     await chrome.scripting.executeScript({
       target: {
@@ -275,7 +275,21 @@ async function DoInjectJS(tabId) {
   }
 }
 
-async function DoInjectCSS(tabId) {
+async function DoInjectTagOnlyJS(tabId) {
+  try {
+    await chrome.scripting.executeScript({
+      target: {
+        tabId,
+        allFrames: true,
+      }, //      world: 'MAIN',  // this breaks dailymotion
+      files:  [`cmd_tagonly_inject.js`,`videomax_main_inject.js`],
+    });
+  } catch (err) {
+    logerr(err);
+  }
+}
+
+async function DoInjectZoomCSS(tabId) {
   try {
     const cssFilePath     = chrome.runtime.getURL(CSS_FILE);
     // we inject this way because we can undo it by deleting the element.
@@ -376,10 +390,11 @@ async function Zoom(tabId, url) {
   try {
     const excluded_zoom = isPageExcluded(url);
     if (!excluded_zoom) {
-      await DoInjectJS(tabId);
-      await DoInjectCSS(tabId);
+      await DoInjectZoomJS(tabId);
+      await DoInjectZoomCSS(tabId);
     } else {
       trace(`EXCLUDED_ZOOM for site '${url}'`);
+      await DoInjectTagOnlyJS(tabId);
     }
 
     await setState(tabId, STATES.ZOOMING); // will check if page can speed up and refresh state
