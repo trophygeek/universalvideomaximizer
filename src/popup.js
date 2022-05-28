@@ -9,8 +9,8 @@ try {
       return;
     }
     // eslint-disable-next-line no-console
-    console.trace('%c VideoMax Popup ERROR', 'color: white; font-weight: bold; background-color: red',
-      ...args);
+    console.trace('%c VideoMax Popup ERROR',
+      'color: white; font-weight: bold; background-color: red', ...args);
     if (ERR_BREAK_ENABLED) {
       // eslint-disable-next-line no-debugger
       debugger;
@@ -20,7 +20,8 @@ try {
   const trace = (...args) => {
     if (TRACE_ENABLED) {
       // eslint-disable-next-line no-console
-      console.log('%c VideoMax Popup ', 'color: white; font-weight: bold; background-color: blue', ...args);
+      console.log('%c VideoMax Popup ', 'color: white; font-weight: bold; background-color: blue',
+        ...args);
     }
   };
 
@@ -145,25 +146,26 @@ try {
 
   document.addEventListener('DOMContentLoaded', async () => {
     try {
-      const params       = new URLSearchParams(url.hash.replace('#', ''));
-      const tabId        = params.get('tabId');
-      const currentSpeed = params.get('speed');
-      const videofound   = params.get('videofound');
-      const container    = window.document.getElementById('speedBtnGroup');
-      trace(`DOMContentLoaded params tabId:'${tabId}' currentSpeed:'${currentSpeed}' videofound:'${videofound}'`);
+      const params     = new URLSearchParams(url.hash.replace('#', ''));
+      const tabId      = params.get('tabId');
+      const videofound = params.get('videofound');
+      g_currentSpeed   = params.get('speed');
+      const container  = window.document.getElementById('speedBtnGroup');
+      trace(
+        `DOMContentLoaded params tabId:'${tabId}' currentSpeed:'${g_currentSpeed}' videofound:'${videofound}'`);
 
-      addSpeedControlUI(window.document, container, tabId, currentSpeed);
+      addSpeedControlUI(window.document, container, tabId, g_currentSpeed);
 
       // update the selected checkbox
       for (const eachElem of container.children) {
-        eachElem.checked = (eachElem.value === currentSpeed);
+        eachElem.checked = (eachElem.value === g_currentSpeed);
       }
 
       // The page could have been UNZOOMED by the escape key and everything could be out of sync
       chrome.runtime.sendMessage({
         message: {
           cmd:   REZOOM_CMD,
-          speed: currentSpeed,
+          speed: g_currentSpeed,
           tabId: tabId,
         },
       }, (response) => {

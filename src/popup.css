@@ -45,10 +45,10 @@ body {
     line-height: 1.5em;
     vertical-align: center;
     cursor: pointer;
-    border: 1px solid #28608f;
+    border: 1px solid #173652;
     margin-right: -1px;
     color: #fff;
-    background-color: #428bca;
+    background-color: #2b5981;
     white-space: nowrap;
     opacity: 90%; /* fade in on hover */
 }
@@ -61,13 +61,11 @@ body {
     border-radius: 0 0.7em 0.7em 0;
 }
 .videomax-ext-speed-control-radio-button:checked + label {
-    background-color: #3277b3;
+    background-color: #1b4060;
 }
 
 .videomax-ext-speed-control-radio-button + label:hover,
 .videomax-ext-speed-control-radio-button + label:focus {
-    opacity: 100%;
-    transition:opacity 100ms;
     font-weight: bolder;
 }
 
