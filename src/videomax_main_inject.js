@@ -1,11 +1,12 @@
 try { // scope and prevent errors from leaking out to page.
-  const FULL_DEBUG        = false;
-  const DEBUG_ENABLED     = FULL_DEBUG;
-  const TRACE_ENABLED     = FULL_DEBUG;
-  const ERR_BREAK_ENABLED = FULL_DEBUG;
-  const EMBED_SCORES      = FULL_DEBUG;   // this will put add the score as an attribute for
-                                          // elements across revisions, the zoomed page's html can
-                                          // be diffed
+  const FULL_DEBUG          = false;
+  const DEBUG_ENABLED       = FULL_DEBUG;
+  const TRACE_ENABLED       = FULL_DEBUG;
+  const ERR_BREAK_ENABLED   = FULL_DEBUG;
+  const BREAK_ON_BEST_MATCH = FULL_DEBUG;
+  const EMBED_SCORES        = true;         // this will put add the score as an attribute for
+                                            // elements across revisions, the zoomed page's html can
+                                            // be diffed
 
   const VIDEO_MAX_DATA_ATTRIB_UNDO = 'data-videomax-saved';
   const VIDEO_MAX_ATTRIB_FIND      = 'data-videomax-target';
@@ -896,7 +897,8 @@ try { // scope and prevent errors from leaking out to page.
   }
 
   function hasInjectedAlready() {
-    return videomaxGlobals.isMaximized;
+    const matched = document.querySelectorAll(`video[class*="${PLAYBACK_VIDEO_MATCHED_CLASS}"]`);
+    return matched.length > 0;
   }
 
   function arrayClone(arr) {
@@ -1102,6 +1104,9 @@ try { // scope and prevent errors from leaking out to page.
       }
 
       if (score > this.largestScore) {
+        if (BREAK_ON_BEST_MATCH) {
+          debugger;
+        }
         trace(`setting new best: score: ${score}, elem: `, elem);
         this.largestScore = score;
         this.largestElem  = elem;
@@ -1378,22 +1383,31 @@ try { // scope and prevent errors from leaking out to page.
       return false;
     }
 
-    trace(`mainFixPage readystate = ${document.readyState}`);
     const reinstall = hasInjectedAlready();
+    trace(`mainFixPage readystate = ${document.readyState}  reinstall=${reinstall}`);
 
     const foundVideoNewAlgo = findLargestVideoNew(document);
     const foundVideoOldAlgo = findLargestVideoOld(document, []);
 
     const getBestMatchCount = videomaxGlobals.elementMatcher.getBestMatchCount();
     if (getBestMatchCount === 0) {
-      logerr(`No video found, will try again. 
+      if (DEBUG_ENABLED && !isInIFrame()) {
+        logerr(`No video found on Main thread`);
+      } else {
+        trace(`No video found, will try again. 
         foundVideoNewAlg=${foundVideoNewAlgo} foundVideoOldAlgo=${foundVideoOldAlgo}`);
+
+      }
       return false; // keep trying
     }
 
     const bestMatch = videomaxGlobals.elementMatcher.getBestMatch();
     trace('video found', bestMatch);
-    bestMatch?.scrollIntoView(true);
+
+    bestMatch?.scrollIntoView({
+      block:  'center',
+      inline: 'center',
+    });
 
     // mark it with a class. Not really used for anything other than
     // debugging problems, but might be useful?
@@ -1628,8 +1642,9 @@ try { // scope and prevent errors from leaking out to page.
   // </editor-fold>
 
   // look at the command set by the first injected file
-  trace(`videmax_cmd: '${window.videmax_cmd}'`);
-  switch (window.videmax_cmd) {
+  trace(
+    `videmax_cmd: window.videmax_cmd:'${window.videmax_cmd}'  document.videmax_cmd:'${document.videmax_cmd}'`);
+  switch (window.videmax_cmd || document.videmax_cmd) {
     case 'unzoom':
       UndoZoom.mainUnzoom();
       break;
@@ -1642,7 +1657,8 @@ try { // scope and prevent errors from leaking out to page.
       mainZoom();
       break;
   }
-  window.videmax_cmd = '';    // clear it.
+  window.videmax_cmd   = '';    // clear it.
+  document.videmax_cmd = '';
 } catch (err) {
   // eslint-disable-next-line no-console
   console.error('videomax extension error', err, err.stack);

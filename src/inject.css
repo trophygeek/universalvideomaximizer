@@ -34,7 +34,7 @@ body::-webkit-scrollbar {
 
 .videomax-ext-hide {
     display: none !important;
-    width: 100% !important;
+    visibility: hidden !important;
 }
 
 /* make it inherit style of parent*/

@@ -92,7 +92,7 @@ function injectVideoSpeedAdjust(newspeed) {
   const PLAYBACK_SPEED_ATTR = 'data-videomax-playbackspeed';
 
   /** nested local function **/
-  const _loadStart = (event) => {
+  const _loadStart  = (event) => {
     const video_elem    = event?.target;
     const playbackSpeed = video_elem?.getAttribute(PLAYBACK_SPEED_ATTR);
     if (playbackSpeed) {
@@ -115,8 +115,6 @@ function injectVideoSpeedAdjust(newspeed) {
     eachVideo.setAttribute(PLAYBACK_SPEED_ATTR, newspeed);
     eachVideo.removeEventListener('loadstart', _loadStart);
     eachVideo.addEventListener('loadstart', _loadStart);
-
-    result = true;
   }
   return result;
 }
@@ -124,6 +122,7 @@ function injectVideoSpeedAdjust(newspeed) {
 function injectCssHeader(cssHRef, styleId) {
   try {
     if (document.getElementById(styleId)) {
+      console.log(`VideoMax Native Inject. Style header already injected`);
       return;
     }
     let styleLink   = document.createElement('link');
@@ -135,7 +134,9 @@ function injectCssHeader(cssHRef, styleId) {
     document.getElementsByTagName('head')[0].appendChild(styleLink);
     return (document.getElementById(styleId) !== null);
   } catch (err) {
-    console.error('Injecting style header failed. CSP?', err);
+    console.error(`****** VideoMax ERROR Native Inject
+        Injecting style header failed. CSP?
+        ******`, err);
     return false;
   }
 }
@@ -263,12 +264,13 @@ const isPageExcluded = (url) => {
 
 async function DoInjectZoomJS(tabId) {
   try {
-    await chrome.scripting.executeScript({
+    // The script will be run at document_end
+    return chrome.scripting.executeScript({
       target: {
         tabId,
         allFrames: true,
       }, //      world: 'MAIN',  // this breaks dailymotion
-      files:  [`cmd_zoom_inject.js`,`videomax_main_inject.js`],
+      files:  [`cmd_zoom_inject.js`, `videomax_main_inject.js`],
     });
   } catch (err) {
     logerr(err);
@@ -276,51 +278,39 @@ async function DoInjectZoomJS(tabId) {
 }
 
 async function DoInjectTagOnlyJS(tabId) {
-  try {
-    await chrome.scripting.executeScript({
-      target: {
-        tabId,
-        allFrames: true,
-      }, //      world: 'MAIN',  // this breaks dailymotion
-      files:  [`cmd_tagonly_inject.js`,`videomax_main_inject.js`],
-    });
-  } catch (err) {
-    logerr(err);
-  }
+  // The script will be run at document_end
+  return chrome.scripting.executeScript({
+    target: {
+      tabId,
+      allFrames: true,
+    }, //      world: 'MAIN',  // this breaks dailymotion
+    files:  [`cmd_tagonly_inject.js`, `videomax_main_inject.js`],
+  });
 }
 
 async function DoInjectZoomCSS(tabId) {
-  try {
-    const cssFilePath     = chrome.runtime.getURL(CSS_FILE);
-    // we inject this way because we can undo it by deleting the element.
-    const injectionresult = await chrome.scripting.executeScript({
-      target: {
-        tabId,
-        allFrames: true,
-      },
-      func:   injectCssHeader,
-      args:   [cssFilePath, CSS_STYLE_HEADER_ID], // world:  'MAIN',
-    });
-    return injectionresult[0]?.result || false;
-  } catch (err) {
-    logerr(err);
-    return false;
-  }
+  const cssFilePath = chrome.runtime.getURL(CSS_FILE);
+  // we inject this way because we can undo it by deleting the style element.
+  // The script will be run at document_end
+  return chrome.scripting.executeScript({
+    target: {
+      tabId,
+      allFrames: true,
+    },
+    func:   injectCssHeader,
+    args:   [cssFilePath, CSS_STYLE_HEADER_ID], // world:  'MAIN',
+  });
 }
 
 async function UndoInjectCSS(tabId) {
-  try {
-    await chrome.scripting.executeScript({
-      target: {
-        tabId,
-        frameIds: [0],
-      },
-      func:   uninjectCssHeader,
-      args:   [CSS_STYLE_HEADER_ID], // world:  'MAIN',
-    });
-  } catch (err) {
-    logerr(err);
-  }
+  return chrome.scripting.executeScript({
+    target: {
+      tabId,
+      frameIds: [0],
+    },
+    func:   uninjectCssHeader,
+    args:   [CSS_STYLE_HEADER_ID], // world:  'MAIN',
+  });
 }
 
 async function CheckCSSInjected(tabId) {
@@ -343,17 +333,20 @@ async function CheckCSSInjected(tabId) {
 
 async function CheckSupportsSpeedChange(tabId) {
   try {
-    const injectionresult /* :InjectionResult[] */ = await chrome.scripting.executeScript({
+    const injectionresults /* :InjectionResult[] */ = await chrome.scripting.executeScript({
       target: {
         tabId,
-        frameIds: [0],
+        allFrames: true,
       },
       func:   supportsSpeedChange,
-      args:   [],
-      world:  'MAIN',
     });
 
-    return injectionresult[0]?.result;
+    for (const frameresult of injectionresults) {
+      if (frameresult.result) {
+        return true;
+      }
+    }
+    return false;
   } catch (err) {
     logerr(err);
     return false;
@@ -371,14 +364,15 @@ async function unZoom(tabId, uninject = true) {
     trace('unZoom');
     await setState(tabId, STATES.RESET);
     if (uninject) {
-      await UndoInjectCSS(tabId);
-      await chrome.scripting.executeScript({
+      const promise1 = UndoInjectCSS(tabId);
+      const promise2 = chrome.scripting.executeScript({
         target: {
           tabId:     tabId,
           allFrames: true,
         },
-        files:  [`cmd_unzoom_inject.js`,`videomax_main_inject.js`],
+        files:  [`cmd_unzoom_inject.js`, `videomax_main_inject.js`],
       });
+      await Promise.all([promise1, promise2]);
     }
     await setTabSpeed(tabId, DEAULT_SPEED);
   } catch (err) {
@@ -390,8 +384,9 @@ async function Zoom(tabId, url) {
   try {
     const excluded_zoom = isPageExcluded(url);
     if (!excluded_zoom) {
-      await DoInjectZoomJS(tabId);
-      await DoInjectZoomCSS(tabId);
+      const promise1 = DoInjectZoomJS(tabId);
+      const promise2 = DoInjectZoomCSS(tabId);
+      await Promise.all([promise1, promise2]);
     } else {
       trace(`EXCLUDED_ZOOM for site '${url}'`);
       await DoInjectTagOnlyJS(tabId);
@@ -463,7 +458,7 @@ async function getTabCurrentState(tabId) {
 const getIsCurrentlyZoomed = async () => {
   const state = await getTabCurrentState();
   return ACTIVE_STATES.includes(state);
-}
+};
 
 
 const getSettingOldToggleBehavior = async () => {
