@@ -7,14 +7,15 @@ try { // scope and prevent errors from leaking out to page.
   const EMBED_SCORES        = true;         // this will put add the score as an attribute for
                                             // elements across revisions, the zoomed page's html can
                                             // be diffed
+  const DO_NOT_MATCH_ADS     = true;
 
   const VIDEO_MAX_DATA_ATTRIB_UNDO = 'data-videomax-saved';
   const VIDEO_MAX_ATTRIB_FIND      = 'data-videomax-target';
   const VIDEO_MAX_ATTRIB_ID        = 'zoomed-video';
 
-  const VIDEO_NODES       = ['OBJECT', 'EMBED', 'VIDEO', 'IFRAME'];
-  const IGNORE_NODES      = ['NOSCRIPT', 'SCRIPT', 'HEAD', 'HTML'];
-  const ALWAYS_HIDE_NODES = ['FOOTER', 'HEADER'];
+  const VIDEO_NODES       = ['object', 'embed', 'video', 'iframe'];
+  const IGNORE_NODES      = ['noscript', 'script', 'head', 'html'];
+  const ALWAYS_HIDE_NODES = ['footer', 'header', 'aside'];
 
   const CSS_STYLE_HEADER_ID = 'maximizier-css-inject';
 
@@ -46,7 +47,7 @@ try { // scope and prevent errors from leaking out to page.
     }
     const inIFrame = (window !== window.parent) ? 'iframe' : '';
     // eslint-disable-next-line no-console
-    console.trace(`%c VideoMax Inject ${inIFrame} ERROR`,
+    console.trace(`%c VideoMax ${inIFrame} ERROR`,
       'color: white; font-weight: bold; background-color: red', ...args);
     if (ERR_BREAK_ENABLED) {
       // eslint-disable-next-line no-debugger
@@ -59,7 +60,7 @@ try { // scope and prevent errors from leaking out to page.
       const inIFrame = (window !== window.parent) ? 'iframe' : 'main';
       // blue color , no break
       // eslint-disable-next-line no-console
-      console.log(`%c VideoMax Inject ${inIFrame}`,
+      console.log(`%c VideoMax ${inIFrame}`,
         'color: white; font-weight: bold; background-color: blue', ...args);
     }
   };
@@ -167,14 +168,6 @@ try { // scope and prevent errors from leaking out to page.
       // now go into frames
       for (const frame of doc.querySelectorAll('iframe')) {
         try {
-          // frame.src available?
-          const framesrc = (frame?.src || '').toLowerCase();
-
-          // if (isSubstrOfArray(framesrc, IGNORE_FRAMES_URLS)) {
-          //   trace(`Iframe src='${framesrc}' skipping`);
-          //   continue;
-          // }
-
           videomaxGlobals.elementMatcher.checkIfBest(frame);
 
           const allvideos = frame?.contentWindow?.document.querySelectorAll('video');
@@ -264,6 +257,55 @@ try { // scope and prevent errors from leaking out to page.
       }
     }, 50);
   }
+  //
+  // function monitorAndKeepHidden(elem) {
+  //   try {
+  //     const mo = new MutationObserver(onMutation);
+  //
+  //     // save the observer somewhere we can unhook once we're done.
+  //     window.imgurgeeks = {mutationObserver: mo};
+  //
+  //     // in case the content script was injected after the page is partially loaded
+  //     onMutation([{addedNodes: [document.documentElement]}]);
+  //     observe();
+  //
+  //     function onMutation(mutations) {
+  //       const toRemove = [];
+  //       let body = null;
+  //       for (const {addedNodes} of mutations) {
+  //         for (const n of addedNodes) {
+  //           if (n.tagName) {
+  //             if (n.tagName === 'HTML') {
+  //               mo.disconnect();  // stop recursion while we do stuff
+  //               // replace the page with a simplified DOM.
+  //               n.innerHTML = '<head><title>Loading</title></head><body style="background-color: black"></body>';
+  //               observe();    // go back to watching
+  //             } else
+  //               // we remove everything else until we disable observer in 'document_end'.
+  //               toRemove.push(n);
+  //           }
+  //         }
+  //       }
+  //
+  //       if (toRemove.length) {
+  //         mo.disconnect();  // stop recursion while we remove
+  //         for (const el of toRemove) {
+  //           el.remove();
+  //         }
+  //         observe();    // go back to watching
+  //       }
+  //     }
+  //
+  //     function observe() {
+  //       mo.observe(document, {
+  //         subtree: true,
+  //         childList: true,
+  //       });
+  //     }
+  //   } catch (err) {
+  //     console.log(err, err.stack);
+  //   }
+  // }
 
   /**
    * hiding elements in dom that aren't in tree for this element.
@@ -706,7 +748,7 @@ try { // scope and prevent errors from leaking out to page.
     for (const each_sib of sibs.reverse()) {
       // if the element is inside the video's rect, then they are probably
       // controls. don't touch them. we are looking for elements that overlap.
-      if (each_sib.isEqualNode(elemIn) || IGNORE_NODES.includes(each_sib.nodeName.toUpperCase())) {
+      if (each_sib.isEqualNode(elemIn) || IGNORE_NODES.includes(each_sib.nodeName.toLowerCase())) {
         continue;
       }
       if (!isElem(each_sib)) {
@@ -1030,7 +1072,7 @@ try { // scope and prevent errors from leaking out to page.
       return false;
     }
 
-    const nodename = elem?.nodeName?.toUpperCase();
+    const nodename = elem?.nodeName?.toLowerCase();
     if (ALWAYS_HIDE_NODES.includes(nodename)) {
       trace(`always hide node ${nodename}`);
       return true;
@@ -1047,11 +1089,10 @@ try { // scope and prevent errors from leaking out to page.
    * @return {boolean}
    */
   function shouldUseParentDivForDockedCheckYoutube(videoElem) {
-    if (videoElem.nodeName === 'VIDEO') {
+    if (videoElem?.nodeName === 'VIDEO') {
       // use `parent.className.contains` ?
-      if (videoElem?.className?.match(/html5-main-video/i) !== null) {
-        const parent = videoElem.parentNode;
-        if (parent && parent.className.match(/html5-video-container/i) !== null) {
+      if (videoElem.className?.match(/html5-main-video/i) !== null) {
+        if (videoElem.parentNode?.className?.match(/html5-video-container/i) !== null) {
           return true;
         }
       }
@@ -1064,8 +1105,7 @@ try { // scope and prevent errors from leaking out to page.
    */
   function ElemMatcherClass() {
     this.largestElem  = null;
-    // let g_LargestVideoClientRect = null;
-    this.largestScore = 0; // width x height
+    this.largestScore = 0;
     this.matchCount   = 0;
 
     /**
@@ -1082,17 +1122,19 @@ try { // scope and prevent errors from leaking out to page.
         trace('Matched element same as parent.');
       }
 
-      const arialabel = safeGetAttribute(elem, 'aria-label');
-      if (arialabel.match(/^adver/i)) {
-        trace(`matched aria-label for ad? '${arialabel}'. skipping`);
-        return false;
+      // try to not match ads on the page
+      if (DO_NOT_MATCH_ADS) {
+        const arialabel = safeGetAttribute(elem, 'aria-label');
+        if (arialabel.match(/^adver/i)) {
+          trace(`matched aria-label for ad? '${arialabel}'. skipping`);
+          return false;
+        }
+        const title = safeGetAttribute(elem, 'title');
+        if (title.match(/^adver/i)) {
+          trace(`matched title for ad? '${title}'. skipping`);
+          return false;
+        }
       }
-      const title = safeGetAttribute(elem, 'title');
-      if (title.match(/^adver/i)) {
-        trace(`matched title for ad? '${title}'. skipping`);
-        return false;
-      }
-
 
       const score = this._getElemMatchScore(elem);
       if (EMBED_SCORES) {
@@ -1111,7 +1153,6 @@ try { // scope and prevent errors from leaking out to page.
         this.largestScore = score;
         this.largestElem  = elem;
         this.matchCount   = 1;
-        // g_LargestVideoClientRect = getBoundingClientRectWhole(each_elem);
         trace(`Making item best match: \t${elem.nodeName}\t${elem.className}\t${elem.id}`);
         return true;
       }
@@ -1256,7 +1297,7 @@ try { // scope and prevent errors from leaking out to page.
       // try to figure out if iframe src looks like a video link.
       // frame shaped like videos?
       // todo: make a single grep?
-      if (elem.nodeName.toUpperCase() === 'IFRAME') {
+      if (elem.nodeName.toLowerCase() === 'iframe') {
         const src = elem.getAttribute('src') || '';
         if (src.match(/\.facebook\.com/i)) {
           trace(`demoting facebook plugin iframe. \tOld weight=${weight}\tNew Weight=0`);
@@ -1340,6 +1381,14 @@ try { // scope and prevent errors from leaking out to page.
         FixUpAttribs(frametree);
       }
     }
+
+    // <header><footer>, etc are always hidden.
+    for (const eachtag of ALWAYS_HIDE_NODES) {
+      for (const elem of document.querySelectorAll(eachtag)) {
+        elem?.classList?.add(HIDDEN_CSS_CLASS);    // may be Node
+      }
+    }
+
     return true; // stop retrying
   }
 
@@ -1577,7 +1626,7 @@ try { // scope and prevent errors from leaking out to page.
 
     static undoSpeedControls(doc) {
       try {
-        const elem = document.getElementById(SPEED_CONTROLS);
+        const elem = doc.getElementById(SPEED_CONTROLS);
         elem?.parentElement?.removeChild(elem);
       } catch (ex) {
         logerr(ex);
@@ -1643,7 +1692,10 @@ try { // scope and prevent errors from leaking out to page.
 
   // look at the command set by the first injected file
   trace(
-    `videmax_cmd: window.videmax_cmd:'${window.videmax_cmd}'  document.videmax_cmd:'${document.videmax_cmd}'`);
+    `
+    ***
+    videmax_cmd: window.videmax_cmd:'${window.videmax_cmd}'  document.videmax_cmd:'${document.videmax_cmd}'
+    ***`);
   switch (window.videmax_cmd || document.videmax_cmd) {
     case 'unzoom':
       UndoZoom.mainUnzoom();

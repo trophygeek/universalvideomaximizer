@@ -3,6 +3,8 @@ const DEBUG_ENABLED     = FULL_DEBUG;
 const TRACE_ENABLED     = FULL_DEBUG;
 const ERR_BREAK_ENABLED = FULL_DEBUG;
 
+const ALWAYS_SHOW_SPEED = false;   // forces to always be enabled
+
 const UNZOOM_CMD    = 'UNZOOM';
 const SET_SPEED_CMD = 'SET_SPEED';
 const REZOOM_CMD    = 'REZOOM';
@@ -20,6 +22,10 @@ const BETA_UPDATE_NOTIFICATION         = 'beta_notification';
 // bumping this will cause the notification to show again. keep it pinned unless some major feature
 const BETA_UPDATE_NOTIFICATION_VERISON = '3.0.40';
 
+// Badges show state to user bug are also used to KEEP TRACK OF THE STATE for a given tabId.
+// This approach to state storage is required because v3 extensions are unloaded unexpected.
+// Saving state in localStorage is basically impossible because the storage API is async (used
+// to save off the current state), BUT chrome Unloading message is NOT async friendly.
 const BADGES = {
   NONE:    '',
   ZOOMED:  '←  →',
@@ -333,6 +339,9 @@ async function CheckCSSInjected(tabId) {
 
 async function CheckSupportsSpeedChange(tabId) {
   try {
+    if (ALWAYS_SHOW_SPEED) {
+      return true;
+    }
     const injectionresults /* :InjectionResult[] */ = await chrome.scripting.executeScript({
       target: {
         tabId,
@@ -399,17 +408,18 @@ async function Zoom(tabId, url) {
   }
 }
 
-async function setTabSpeed(tabId, speed = DEAULT_SPEED) {
+ async function setTabSpeed(tabId, speed = DEAULT_SPEED) {
   try {
     trace('setTabSpeed', tabId, speed);
 
     if (typeof parseFloat(speed) !== 'number') {
       logerr(`Speed NOT valid number '${speed}'`);
-      return;
+      return null;
     }
-    // "allFrames" is broken unless manifest requests permissions to EVERYTHING. From 2018
+    // "allFrames" is broken unless manifest requests permissions
+    // to EVERYTHING on every site, all the time!?!
     // see https://bugs.chromium.org/p/chromium/issues/detail?id=826433
-    const injectionresult = await chrome.scripting.executeScript({
+    return chrome.scripting.executeScript({
       target: {
         tabId,
         allFrames: true,
@@ -417,18 +427,16 @@ async function setTabSpeed(tabId, speed = DEAULT_SPEED) {
       func:   injectVideoSpeedAdjust,
       args:   [speed],
     });
-    trace('setTabSpeed result', injectionresult[0]?.result);
-    return injectionresult[0]?.result || false;
   } catch (err) {
     logerr(err);
-    return false;
+    return null;
   }
 }
 
 /**
  *
  * @param tabId {number}
- * @returns {Promise<STATES>}
+ * @returns {Promise<string>}
  */
 async function getTabCurrentState(tabId) {
   try {
@@ -455,8 +463,13 @@ async function getTabCurrentState(tabId) {
   }
 }
 
-const getIsCurrentlyZoomed = async () => {
-  const state = await getTabCurrentState();
+/**
+ *
+ * @param tabId {number}
+ * @returns {Promise<boolean>}
+ */
+const getIsCurrentlyZoomed = async (tabId) => {
+  const state = await getTabCurrentState(tabId);
   return ACTIVE_STATES.includes(state);
 };
 
@@ -505,7 +518,7 @@ async function showUpgradePageIfNeeded() {
       return;
     }
 
-    chrome.tabs.create({
+    await chrome.tabs.create({
       url,
       active: false,
     });
@@ -521,7 +534,7 @@ chrome.action.onClicked.addListener(async (tab) => {
     async (granted) => {
       try {
         if (!granted) {
-          await setState(STATES.REFRESH);
+          await setState(tabId, STATES.REFRESH);
           logerr('permissions to run were denied, so extension is not injecting');
           return;
         }
@@ -577,20 +590,6 @@ chrome.action.onClicked.addListener(async (tab) => {
     });
 });
 
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
-  try {
-    if (tabId && changeInfo?.status === 'loading') {
-      trace('chrome.tabs.onUpdated loading so starting unzoom. likely SPA nav');
-      if (await getIsCurrentlyZoomed(tabId)) {
-        // some SPA won't do a clean refetch, we need to uninstall.
-        await unZoom(tabId, false);
-      }
-    }
-  } catch (err) {
-    logerr(err);
-  }
-});
-
 // handle popup messages
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   const cmd   = request?.message?.cmd || '';
@@ -624,9 +623,10 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
           const zoomed = await getIsCurrentlyZoomed(tabId);
           if (!zoomed) {
             // a full zoom isn't needed, just the css reinjected.
-            await Zoom(tabId);
-            await setState(tabId, STATES.ZOOMING, speed);
-            await setTabSpeed(tabId, speed);
+            const promise1 = Zoom(tabId);
+            const promise2 = setState(tabId, STATES.ZOOMING, speed);
+            const promise3 = setTabSpeed(tabId, speed);
+            await Promise.all([promise1, promise2, promise3]);
           }
           break;
       }
@@ -639,6 +639,23 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   return false;
 });
 
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
+  try {
+    trace(`tabs.onUpdated event tabId=${tabId}
+    changeInfo:`, changeInfo)
+    if (tabId && changeInfo?.status === 'loading') {
+      if (await getIsCurrentlyZoomed(tabId)) {
+        trace('chrome.tabs.onUpdated loading so starting unzoom. likely SPA nav');
+        // some SPA won't do a clean refetch, we need to uninstall.
+        await unZoom(tabId, true);
+      } else {
+        trace(`tabId not currently zoomed ${tabId}`);
+      }
+    }
+  } catch (err) {
+    logerr(err);
+  }
+});
 
 // in theory, it would be nice to save globals onSuspend, and reload onStartup,
 // But the chrome api for saving is async and onSuspend doesn't like async operations...

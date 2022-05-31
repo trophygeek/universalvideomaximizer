@@ -35,6 +35,12 @@ body::-webkit-scrollbar {
 .videomax-ext-hide {
     display: none !important;
     visibility: hidden !important;
+    /* added 30May22 try to stop pop ups blocking video */
+    position: absolute !important;
+    left: -5000em !important;
+    top: -5000em !important;
+    width: 1px !important;
+    height: 1px !important;
 }
 
 /* make it inherit style of parent*/
