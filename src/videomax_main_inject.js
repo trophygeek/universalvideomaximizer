@@ -7,7 +7,7 @@ try { // scope and prevent errors from leaking out to page.
   const EMBED_SCORES        = true;         // this will put add the score as an attribute for
                                             // elements across revisions, the zoomed page's html can
                                             // be diffed
-  const DO_NOT_MATCH_ADS     = true;
+  const DO_NOT_MATCH_ADS = true;
 
   const VIDEO_MAX_DATA_ATTRIB_UNDO = 'data-videomax-saved';
   const VIDEO_MAX_ATTRIB_FIND      = 'data-videomax-target';
@@ -83,6 +83,8 @@ try { // scope and prevent errors from leaking out to page.
     isMaximized: false,
 
     tagonly: false,
+
+    match_counter: 0,
   };
 
 
@@ -257,56 +259,7 @@ try { // scope and prevent errors from leaking out to page.
       }
     }, 50);
   }
-  //
-  // function monitorAndKeepHidden(elem) {
-  //   try {
-  //     const mo = new MutationObserver(onMutation);
-  //
-  //     // save the observer somewhere we can unhook once we're done.
-  //     window.imgurgeeks = {mutationObserver: mo};
-  //
-  //     // in case the content script was injected after the page is partially loaded
-  //     onMutation([{addedNodes: [document.documentElement]}]);
-  //     observe();
-  //
-  //     function onMutation(mutations) {
-  //       const toRemove = [];
-  //       let body = null;
-  //       for (const {addedNodes} of mutations) {
-  //         for (const n of addedNodes) {
-  //           if (n.tagName) {
-  //             if (n.tagName === 'HTML') {
-  //               mo.disconnect();  // stop recursion while we do stuff
-  //               // replace the page with a simplified DOM.
-  //               n.innerHTML = '<head><title>Loading</title></head><body style="background-color: black"></body>';
-  //               observe();    // go back to watching
-  //             } else
-  //               // we remove everything else until we disable observer in 'document_end'.
-  //               toRemove.push(n);
-  //           }
-  //         }
-  //       }
-  //
-  //       if (toRemove.length) {
-  //         mo.disconnect();  // stop recursion while we remove
-  //         for (const el of toRemove) {
-  //           el.remove();
-  //         }
-  //         observe();    // go back to watching
-  //       }
-  //     }
-  //
-  //     function observe() {
-  //       mo.observe(document, {
-  //         subtree: true,
-  //         childList: true,
-  //       });
-  //     }
-  //   } catch (err) {
-  //     console.log(err, err.stack);
-  //   }
-  // }
-
+  
   /**
    * hiding elements in dom that aren't in tree for this element.
    * @param videoElem {Node}
@@ -1272,15 +1225,17 @@ try { // scope and prevent errors from leaking out to page.
         return 0;
       }
 
-      const ratio = width / height;
-      trace(`\tWidth:\t${width}\tHeight:\t${height}\tRatio:\t${ratio}`, elem);
-
       // twitch allows videos to be any random size. If the width & height of
       // the window are too short, then we can't find the video.
       if (elem.id === 'live_site_player_flash') {
         trace('Matched twitch video. Returning high score.');
         return 3000000;
       }
+
+      videomaxGlobals.match_counter++;
+
+      const ratio = width / height;
+      trace(`\tWidth:\t${width}\tHeight:\t${height}\tRatio:\t${ratio}`, elem);
 
       // which ever is smaller is better (closer to one of the magic ratios)
       const distances = Object.values(VIDEO_RATIOS)
@@ -1291,8 +1246,17 @@ try { // scope and prevent errors from leaking out to page.
       // inverse distance
       const inverseDist = 1.0 / Math.pow(bestRatioComp, 2.0);
 
+      const RATIO_WEIGHT             = 3.0;
+      const SIZE_WEIGHT              = 1.1;
+      const ORDER_WEIGHT             = 0.5;
+      const TAB_INDEX_WEIGHT         = 1.5;
+      const VIDEO_OVER_IFRAME_WEIGHT = 1.6;
+
       // weight that by multiplying it by the total volume (better is better)
-      let weight = inverseDist * width * height;
+      let weight = (inverseDist * RATIO_WEIGHT) +     // closeness to ideal ratio is worth more
+                   (width * height * SIZE_WEIGHT) +  // bigger is worth more
+                   (-1 * videomaxGlobals.match_counter * ORDER_WEIGHT);   // further down page is
+                                                                          // worth less
 
       // try to figure out if iframe src looks like a video link.
       // frame shaped like videos?
@@ -1333,12 +1297,12 @@ try { // scope and prevent errors from leaking out to page.
       if (tabindex !== '') {
         // this is a newer thing for accessibility, it's a good indicator
         trace('tabindex is set. weight + 1.25x');
-        weight *= 1.25;
+        weight *= TAB_INDEX_WEIGHT;
       }
 
       if (elem.nodeName.toUpperCase() === 'VIDEO') {
         trace(`node is 'video'. weight + 1.1x`);
-        weight *= 1.1;
+        weight *= VIDEO_OVER_IFRAME_WEIGHT;
       }
 
       weight = Math.round(weight);
@@ -1434,6 +1398,8 @@ try { // scope and prevent errors from leaking out to page.
 
     const reinstall = hasInjectedAlready();
     trace(`mainFixPage readystate = ${document.readyState}  reinstall=${reinstall}`);
+
+    videomaxGlobals.match_counter = 0;
 
     const foundVideoNewAlgo = findLargestVideoNew(document);
     const foundVideoOldAlgo = findLargestVideoOld(document, []);
@@ -1691,8 +1657,7 @@ try { // scope and prevent errors from leaking out to page.
   // </editor-fold>
 
   // look at the command set by the first injected file
-  trace(
-    `
+  trace(`
     ***
     videmax_cmd: window.videmax_cmd:'${window.videmax_cmd}'  document.videmax_cmd:'${document.videmax_cmd}'
     ***`);

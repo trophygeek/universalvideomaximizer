@@ -100,38 +100,42 @@ try {
 
     parent.innerHTML = htmlArr.join('\n');
     parent.classList.add('videomax-ext-speed-control-container');
-    parent.addEventListener('click', async (evt) => {
-      if (!evt?.target?.value) {
-        // user clicked on a child and we ignore that
-        return;
-      }
-
-      let value = evt?.target?.value;
-
-      trace(`click '${value}' currentspeed='${g_currentSpeed}'`);
-      let speed = DEFAULT_SPEED;
-      if (!(value === UNZOOM_CMD ||   // unzoom value
-            value === g_currentSpeed)) {  // toggle speed
-        speed = value;
-      }
-
-      g_currentSpeed = speed;
-
-      for (const eachElem of parent.children) {
-        eachElem.checked = (eachElem?.value === speed);
-      }
-      const cmd = (value === UNZOOM_CMD) ? UNZOOM_CMD : SET_SPEED_CMD;
-      await chrome.runtime.sendMessage({
-        message: {
-          cmd,
-          speed,
-          tabId,
-        },
-      }, (response) => {
-        if (cmd === UNZOOM_CMD) {
-          window.close();
+    parent.addEventListener('click', (evt) => {
+      try {
+        if (!evt?.target?.value) {
+          // user clicked on a child and we ignore that
+          return;
         }
-      });
+
+        let value = evt?.target?.value;
+
+        trace(`click '${value}' currentspeed='${g_currentSpeed}'`);
+        let speed = DEFAULT_SPEED;
+        if (!(value === UNZOOM_CMD ||   // unzoom value
+              value === g_currentSpeed)) {  // toggle speed
+          speed = value;
+        }
+
+        g_currentSpeed = speed;
+
+        for (const eachElem of parent.children) {
+          eachElem.checked = (eachElem?.value === speed);
+        }
+        const cmd = (value === UNZOOM_CMD) ? UNZOOM_CMD : SET_SPEED_CMD;
+        chrome.runtime.sendMessage({
+          message: {
+            cmd,
+            speed,
+            tabId,
+          },
+        }, (response) => {
+          if (cmd === UNZOOM_CMD) {
+            window.close();
+          }
+        });
+      } catch(err) {
+        logerr(err);
+      }
     });
 
     parent.addEventListener('keypress', (evt) => {

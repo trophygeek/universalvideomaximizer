@@ -470,9 +470,10 @@ async function getTabCurrentState(tabId) {
  */
 const getIsCurrentlyZoomed = async (tabId) => {
   const state = await getTabCurrentState(tabId);
-  return ACTIVE_STATES.includes(state);
+  const result = ACTIVE_STATES.includes(state);
+  trace(`getIsCurrentlyZoomed: ${result}`);
+  return result;
 };
-
 
 const getSettingOldToggleBehavior = async () => {
   try {
