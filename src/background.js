@@ -66,7 +66,8 @@ const ZOOM_EXCLUSION_LIST = ['amazon.com',
                              'tv.youtube.com',
                              'youku.com',
                              'bet.plus',
-                             'tv.apple.com'];
+                             'tv.apple.com',
+                             'play.google.com'];
 
 const logerr = (...args) => {
   if (DEBUG_ENABLED === false) {
@@ -231,7 +232,7 @@ async function setState(tabId, state, speed = DEAULT_SPEED) {
             text,
             title,
             popup,
-            zoomed,
+//            zoomed,
           }      = States[state];
 
 
@@ -319,6 +320,12 @@ async function UndoInjectCSS(tabId) {
   });
 }
 
+/**
+ * Deep check to see if page is currently zoomed
+ * @param tabId {number}
+ * @returns {Promise<boolean>}
+ * @constructor
+ */
 async function CheckCSSInjected(tabId) {
   try {
     const injectionresult /* :InjectionResult[] */ = await chrome.scripting.executeScript({
@@ -330,9 +337,11 @@ async function CheckCSSInjected(tabId) {
       args:   [CSS_STYLE_HEADER_ID],
       world:  'MAIN',
     });
-    return injectionresult[0]?.result || false;
+    const result                                   = injectionresult[0]?.result || false;
+    trace(`CheckCSSInjected result: ${result}`);
+    return result;
   } catch (err) {
-    logerr(err);
+    logerr(`CheckCSSInjected failed, returning false`, err);
     return false;
   }
 }
@@ -408,7 +417,7 @@ async function Zoom(tabId, url) {
   }
 }
 
- async function setTabSpeed(tabId, speed = DEAULT_SPEED) {
+async function setTabSpeed(tabId, speed = DEAULT_SPEED) {
   try {
     trace('setTabSpeed', tabId, speed);
 
@@ -469,7 +478,7 @@ async function getTabCurrentState(tabId) {
  * @returns {Promise<boolean>}
  */
 const getIsCurrentlyZoomed = async (tabId) => {
-  const state = await getTabCurrentState(tabId);
+  const state  = await getTabCurrentState(tabId);
   const result = ACTIVE_STATES.includes(state);
   trace(`getIsCurrentlyZoomed: ${result}`);
   return result;
@@ -621,7 +630,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         case REZOOM_CMD:
           // the popup is about to display and thinks the page is zoomed, but it's may not be
           // if escape key was pressed.
-          const zoomed = await getIsCurrentlyZoomed(tabId);
+          const zoomed = await CheckCSSInjected(tabId);
           if (!zoomed) {
             // a full zoom isn't needed, just the css reinjected.
             const promise1 = Zoom(tabId);
@@ -643,7 +652,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
   try {
     trace(`tabs.onUpdated event tabId=${tabId}
-    changeInfo:`, changeInfo)
+    changeInfo:`, changeInfo);
     if (tabId && changeInfo?.status === 'loading') {
       if (await getIsCurrentlyZoomed(tabId)) {
         trace('chrome.tabs.onUpdated loading so starting unzoom. likely SPA nav');

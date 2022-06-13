@@ -3,7 +3,7 @@ try { // scope and prevent errors from leaking out to page.
   const DEBUG_ENABLED       = FULL_DEBUG;
   const TRACE_ENABLED       = FULL_DEBUG;
   const ERR_BREAK_ENABLED   = FULL_DEBUG;
-  const BREAK_ON_BEST_MATCH = FULL_DEBUG;
+  const BREAK_ON_BEST_MATCH = false;
   const EMBED_SCORES        = true;         // this will put add the score as an attribute for
                                             // elements across revisions, the zoomed page's html can
                                             // be diffed
@@ -15,7 +15,7 @@ try { // scope and prevent errors from leaking out to page.
 
   const VIDEO_NODES       = ['object', 'embed', 'video', 'iframe'];
   const IGNORE_NODES      = ['noscript', 'script', 'head', 'html'];
-  const ALWAYS_HIDE_NODES = ['footer', 'header', 'aside'];
+  const ALWAYS_HIDE_NODES = ['aside', 'footer', 'header'];
 
   const CSS_STYLE_HEADER_ID = 'maximizier-css-inject';
 
@@ -96,22 +96,6 @@ try { // scope and prevent errors from leaking out to page.
   const $              = (id) => document.getElementById(id);
   const documentLoaded = () => ['complete', 'interactive'].includes(document.readyState);
   const isInIFrame     = () => window !== window.parent;
-
-  /**
-   *
-   * @param matchstr {string}
-   * @param arr {string[]}
-   * @returns {boolean}
-   */
-  const isSubstrOfArray = (matchstr, arr) => {
-    for (const str of arr) {
-      if (str.indexOf(matchstr) >= 0) {
-        return true;
-      }
-    }
-    return false;
-  };
-
 
   /**
    * Node does not have getAttributes or classList. Elements do
@@ -259,7 +243,7 @@ try { // scope and prevent errors from leaking out to page.
       }
     }, 50);
   }
-  
+
   /**
    * hiding elements in dom that aren't in tree for this element.
    * @param videoElem {Node}
@@ -277,11 +261,10 @@ try { // scope and prevent errors from leaking out to page.
       boundingclientrect = getBoundingClientRectWhole(videoElem.parentNode);
     }
 
-    // todo: fix loop
     let saftyLoops = 1000;
     while (elemUp?.parentNode && saftyLoops--) {
       try {
-        if (elemUp.nodeName.toUpperCase() !== 'SCRIPT') {
+        if (elemUp.nodeName.toLowerCase() !== 'script') {
           addMaximizeClassToElem(elemUp);
         }
         hideSiblings(elemUp, boundingclientrect);
@@ -1196,6 +1179,8 @@ try { // scope and prevent errors from leaking out to page.
      * @private
      */
     this._getElemMatchScore = (elem) => {
+      const fnum = (number) => new Intl.NumberFormat("en-US").format(Math.round(number))
+
       if (!elem) {
         return 0;
       }
@@ -1232,6 +1217,7 @@ try { // scope and prevent errors from leaking out to page.
         return 3000000;
       }
 
+      const traceweights = ['']; // start with blankline. turned into trace message
       videomaxGlobals.match_counter++;
 
       const ratio = width / height;
@@ -1244,19 +1230,35 @@ try { // scope and prevent errors from leaking out to page.
       const bestRatioComp = Math.min(...distances) + 0.00001; // +0.00001; prevents div-by-zero
 
       // inverse distance
-      const inverseDist = 1.0 / Math.pow(bestRatioComp, 2.0);
+      const inverseDist = 1.0 / Math.pow(bestRatioComp, 1.5);
 
-      const RATIO_WEIGHT             = 3.0;
-      const SIZE_WEIGHT              = 1.1;
-      const ORDER_WEIGHT             = 0.5;
+      const START_WEIGHT             = 1000;
+      const RATIO_WEIGHT             = 2.5;
+      const SIZE_WEIGHT              = 0.1;
+      const ORDER_WEIGHT             = 10.0;
       const TAB_INDEX_WEIGHT         = 1.5;
-      const VIDEO_OVER_IFRAME_WEIGHT = 1.6;
+      const VIDEO_OVER_IFRAME_WEIGHT = 3.0;
+      const HIDDEN_VIDEO_WEIGHT      = 0.5;
+      const ZINDEX_WEIGHT            = .90;
 
       // weight that by multiplying it by the total volume (better is better)
-      let weight = (inverseDist * RATIO_WEIGHT) +     // closeness to ideal ratio is worth more
-                   (width * height * SIZE_WEIGHT) +  // bigger is worth more
-                   (-1 * videomaxGlobals.match_counter * ORDER_WEIGHT);   // further down page is
-                                                                          // worth less
+      let weight = (START_WEIGHT * inverseDist * RATIO_WEIGHT) +     // closeness to ideal ratio is worth more
+                   (START_WEIGHT * width * height * SIZE_WEIGHT) +  // bigger is worth more
+                   (START_WEIGHT * -1 * videomaxGlobals.match_counter * ORDER_WEIGHT);   // further
+                                                                                         // down
+      // page is worth
+      // less
+
+      weight = Math.round(weight);
+
+      if (TRACE_ENABLED && EMBED_SCORES) {
+        traceweights.push(`START_WEIGHT: ${START_WEIGHT}`);
+        traceweights.push(`inverseDist: ${fnum(
+          START_WEIGHT * inverseDist * RATIO_WEIGHT)} Wight:${RATIO_WEIGHT}`);
+        traceweights.push(`dimensions: ${fnum(
+          START_WEIGHT * width * height * SIZE_WEIGHT)} Wight:${SIZE_WEIGHT}`);
+        traceweights.push(`sequenceOrder: ${fnum(START_WEIGHT * -1 * videomaxGlobals.match_counter * ORDER_WEIGHT)} Wight:${ORDER_WEIGHT}`);
+      }
 
       // try to figure out if iframe src looks like a video link.
       // frame shaped like videos?
@@ -1277,37 +1279,52 @@ try { // scope and prevent errors from leaking out to page.
         }
       }
 
-      weight = Math.round(weight);
-
       // todo: now we need to figure in z-order? but we don't want to
-      // overweight it.
-      trace(`Found good ratio weight:${weight}
-                  Ratio is: width=${width} height=${height}`);
+      if (compstyle?.zIndex) {
+        const zindex = safeParseInt(compstyle?.zIndex);
+        if (TRACE_ENABLED && EMBED_SCORES) {
+          traceweights.push(
+            `ZIndex: ${fnum(START_WEIGHT * zindex * ZINDEX_WEIGHT)} Wight:${ZINDEX_WEIGHT}`);
+        }
+        weight += (START_WEIGHT * zindex * ZINDEX_WEIGHT);   // zindex is tricky, could be "1" or
+        // "1000000"
+      }
 
-      if (compstyle?.visibility.toUpperCase() === 'HIDDEN' || compstyle?.display.toUpperCase() ===
-          'NONE') {
+      if (compstyle?.visibility.toLowerCase() === 'hidden' || compstyle?.display.toLowerCase() ===
+          'none') {
         // Vimeo hides video before it starts playing (replacing it with a
         // static image), so we cannot ignore hidden. But UStream's homepage
         // has a large hidden flash that isn't a video.
-        trace(' Hidden item. weight - .5x', elem);
-        weight *= 0.5;
+        if (TRACE_ENABLED && EMBED_SCORES) {
+          traceweights.push(`Hidden item: ${fnum(
+            START_WEIGHT * HIDDEN_VIDEO_WEIGHT)} Wight:${HIDDEN_VIDEO_WEIGHT}`);
+        }
+        weight += (START_WEIGHT * HIDDEN_VIDEO_WEIGHT);
       }
 
       const tabindex = safeGetAttribute(elem, 'tabindex');
       if (tabindex !== '') {
         // this is a newer thing for accessibility, it's a good indicator
-        trace('tabindex is set. weight + 1.25x');
-        weight *= TAB_INDEX_WEIGHT;
+        if (TRACE_ENABLED && EMBED_SCORES) {
+          traceweights.push(
+            `tabindex: ${fnum(-1 & START_WEIGHT * TAB_INDEX_WEIGHT)} Wight:${TAB_INDEX_WEIGHT}`);
+        }
+        weight += (-1 * START_WEIGHT * TAB_INDEX_WEIGHT);
       }
 
       if (elem.nodeName.toUpperCase() === 'VIDEO') {
-        trace(`node is 'video'. weight + 1.1x`);
-        weight *= VIDEO_OVER_IFRAME_WEIGHT;
+        if (TRACE_ENABLED && EMBED_SCORES) {
+          traceweights.push(`video vs iframe: ${fnum(
+            START_WEIGHT * VIDEO_OVER_IFRAME_WEIGHT)} Wight:${VIDEO_OVER_IFRAME_WEIGHT}`);
+        }
+        weight += (START_WEIGHT * VIDEO_OVER_IFRAME_WEIGHT);
       }
 
       weight = Math.round(weight);
-      trace(`### 
-        Final weight is ${weight} for `, elem);
+      if (TRACE_ENABLED && EMBED_SCORES) {
+        traceweights.push(`FINAL WEIGHT: ${fnum(weight)}`);
+        trace(`*** weight for element***`, traceweights.join('\n\t'), elem);
+      }
       return weight;
     };
   }
@@ -1348,7 +1365,7 @@ try { // scope and prevent errors from leaking out to page.
 
     // <header><footer>, etc are always hidden.
     for (const eachtag of ALWAYS_HIDE_NODES) {
-      for (const elem of document.querySelectorAll(eachtag)) {
+      for (const elem of document.getElementsByTagName(eachtag)) {
         elem?.classList?.add(HIDDEN_CSS_CLASS);    // may be Node
       }
     }
@@ -1378,8 +1395,10 @@ try { // scope and prevent errors from leaking out to page.
 
     try {
       // this will allow "escape key" undo the zoom.
-      document.removeEventListener('keydown', _onPress);
-      document.addEventListener('keydown', _onPress);
+      trace('updateEventListeners');
+      const doc = window.document || video_elem?.ownerDocument;
+      doc?.removeEventListener('keydown', _onPress);
+      doc?.addEventListener('keydown', _onPress);
     } catch (err) {
       logerr(err);
     }
@@ -1436,7 +1455,12 @@ try { // scope and prevent errors from leaking out to page.
           Couldn't figure out which was the main one. Trying the most likely one`);
     }
 
-    updateEventListeners(bestMatch);
+    if (!isInIFrame()) {
+      // only install from main page once. Because we inject for each iframe, this can
+      // get called multiple times. The listener is on window.document, so it only needs
+      // to be installed once for the main frame.
+      updateEventListeners(bestMatch);
+    }
     trace('Final Best Matched Element: ', bestMatch.nodeName, bestMatch);
 
     window._VideoMaxExt = videomaxGlobals;  // undozoom uses
