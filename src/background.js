@@ -486,9 +486,9 @@ const getIsCurrentlyZoomed = async (tabId) => {
 
 const getSettingOldToggleBehavior = async () => {
   try {
-    const settings = await chrome.storage.local.get(SETTINGS_STORAGE_KEY) || {};
-    trace('getFeatureShowZoomPopup settings:', settings);
-    return settings[OLD_TOGGLE_ZOOM_BEHAVIOR] || DEFAULT_OLD_TOGGLE_ZOOM_BEHAVIOR;
+    const data = await chrome.storage.local.get(SETTINGS_STORAGE_KEY) || {};
+    trace('getFeatureShowZoomPopup settings:', data);
+    return data?.settings[OLD_TOGGLE_ZOOM_BEHAVIOR] || DEFAULT_OLD_TOGGLE_ZOOM_BEHAVIOR;
   } catch (err) {
     logerr(err);
     return DEFAULT_OLD_TOGGLE_ZOOM_BEHAVIOR;
