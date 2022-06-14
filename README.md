@@ -1,12 +1,20 @@
 # universalvideomaximizer
 Chrome extension that finds and enlarges the main video filling browser window.
 
+## Branches
+Because Chrome is going through a major API update (which has some compatiblity issues), there are TWO major branches.
 
-# Configure Webstorm to recognize `chrome.*` calls.
-The package.json includes `@type/chrome` which includes the API calls for chrome extensions. 
+The `main` branch is an older snapshot of the classic extentions. The `v2` branch is fixes to this classic version and
+is currently what's published publically in the Chrome store.
 
-Just added the `./node_modules/@types/chrome` directory. After running `yarn install`
+The `v3` branch uses the new chrome API v3. It's fully functional and can be found in the chrome store here:
+https://chrome.google.com/webstore/detail/implccjhhblakjgebfhbafehkjjhklai?authuser=0&hl=en
 
-<img src="https://user-images.githubusercontent.com/522197/149636567-beee38aa-b386-4a63-8507-84d3b6495bd3.png" width="450px">
+## Decisions about future
+The `v3` Chrome API is going to break a bunch of users who are on Firefox. It would be nice to update the older
+`v2` store listing with and get the almost 5 star rating carried over to the improved extenstion; however, that
+like break a bunch of Firefox users.
 
+Could have competing extensions, but the brand message would be very confusing. 
 
+Would like to create a new Video Maximizer Classic listing, but Google isn't accepting v2 API extentions anymore.
