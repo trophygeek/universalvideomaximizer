@@ -197,13 +197,6 @@ function supportsSpeedChange() {
   return matched.length > 0;
 }
 
-// needed because we cannot include a chrome reference css for a file:// or
-// if the CSP is too strict. Fallback it to inject from background task.
-const didInjectedCssLoad = () => {
-  // loop over all css file to find ours
-
-};
-
 /**
  *
  * @param tabId {Number}
@@ -268,12 +261,12 @@ async function setState(tabId, state, speed = DEAULT_SPEED) {
         zoomed: false,
       },
     };
+
     const {
             text,
             title,
-            popup,
-            // zoomed,
-          }      = States[state];
+            popup, // zoomed,
+          } = States[state];
 
 
     // featureShowSpeedPopup

@@ -3,7 +3,7 @@ try { // scope and prevent errors from leaking out to page.
   const DEBUG_ENABLED       = FULL_DEBUG;
   const TRACE_ENABLED       = FULL_DEBUG;
   const ERR_BREAK_ENABLED   = FULL_DEBUG;
-  const BREAK_ON_BEST_MATCH = true;
+  const BREAK_ON_BEST_MATCH = false;
   const EMBED_SCORES        = true;         // this will put add the score as an attribute for
                                             // elements across revisions, the zoomed page's html can
                                             // be diffed
@@ -1180,7 +1180,7 @@ try { // scope and prevent errors from leaking out to page.
      * @private
      */
     this._getElemMatchScore = (elem) => {
-      const fnum = (number) => new Intl.NumberFormat("en-US").format(Math.round(number))
+      const fnum = (number) => new Intl.NumberFormat('en-US').format(Math.round(number));
 
       if (!elem) {
         return 0;
@@ -1254,11 +1254,12 @@ try { // scope and prevent errors from leaking out to page.
 
       if (TRACE_ENABLED && EMBED_SCORES) {
         traceweights.push(`START_WEIGHT: ${START_WEIGHT}`);
-        traceweights.push(`inverseDist: ${fnum(
-          START_WEIGHT * inverseDist * RATIO_WEIGHT)} Wight:${RATIO_WEIGHT}`);
-        traceweights.push(`dimensions: ${fnum(
-          START_WEIGHT * width * height * SIZE_WEIGHT)} Wight:${SIZE_WEIGHT}`);
-        traceweights.push(`sequenceOrder: ${fnum(START_WEIGHT * -1 * videomaxGlobals.match_counter * ORDER_WEIGHT)} Wight:${ORDER_WEIGHT}`);
+        traceweights.push(
+          `inverseDist: ${fnum(START_WEIGHT * inverseDist * RATIO_WEIGHT)} Wight:${RATIO_WEIGHT}`);
+        traceweights.push(
+          `dimensions: ${fnum(START_WEIGHT * width * height * SIZE_WEIGHT)} Wight:${SIZE_WEIGHT}`);
+        traceweights.push(`sequenceOrder: ${fnum(START_WEIGHT * -1 * videomaxGlobals.match_counter *
+                                                 ORDER_WEIGHT)} Wight:${ORDER_WEIGHT}`);
       }
 
       // try to figure out if iframe src looks like a video link.
@@ -1337,7 +1338,18 @@ try { // scope and prevent errors from leaking out to page.
     trace(...msg);
   }
 
-  function hideEverythingThatIsntLargestVideo() {
+  function alwaysHideSomeElements() {
+    // <header><footer>, etc are always hidden.
+    // Some sites (hclips) will force the header back by re-modifying the class
+    for (const eachtag of ALWAYS_HIDE_NODES) {
+      for (const elem of document.getElementsByTagName(eachtag)) {
+        trace(`ALWAYS_HIDE_NODES ${eachtag}`, elem);
+        elem?.classList?.add(HIDDEN_CSS_CLASS);    // may be Node
+      }
+    }
+  }
+
+  function fixUpPage() {
     if (!documentLoaded()) {
       return false;
     }
@@ -1363,12 +1375,12 @@ try { // scope and prevent errors from leaking out to page.
       }
     }
 
-    // <header><footer>, etc are always hidden.
-    for (const eachtag of ALWAYS_HIDE_NODES) {
-      for (const elem of document.getElementsByTagName(eachtag)) {
-        elem?.classList?.add(HIDDEN_CSS_CLASS);    // may be Node
-      }
-    }
+    alwaysHideSomeElements();
+
+    // some sites re-show these elements (hclips), hide again to be safe
+    setTimeout(() => {
+      alwaysHideSomeElements();
+    }, 250);
 
     return true; // stop retrying
   }
@@ -1469,7 +1481,7 @@ try { // scope and prevent errors from leaking out to page.
       videomaxGlobals?.hideEverythingTimer?.startTimer(() => {
         // BBC has some special css with lots of !importants
         hideCSS('screen-css');
-        if (!hideEverythingThatIsntLargestVideo()) {
+        if (!fixUpPage()) {
           return false;
         }
 

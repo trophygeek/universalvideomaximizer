@@ -4,7 +4,7 @@
 const SETTINGS_STORAGE_KEY             = 'settings';
 const OLD_TOGGLE_ZOOM_BEHAVIOR         = 'use_toggle_zoom_behavior';
 const DEFAULT_OLD_TOGGLE_ZOOM_BEHAVIOR = false;
-const VERSION_ELEMENT_ID = 'version';
+const VERSION_ELEMENT_ID               = 'version';
 
 
 const getManifestVersion = async () => {
@@ -12,12 +12,12 @@ const getManifestVersion = async () => {
     const cssFilePath = chrome?.runtime?.getURL('manifest.json');
     if (cssFilePath !== '') {
       const response = await fetch(cssFilePath);
-      const json = await response.json();
+      const json     = await response.json();
       return json?.version;
     }
   } catch (err) {
   }
-  return "";
+  return '';
 };
 
 // we only have ONE feature, so this logic needs to be generalized to multiple settings
@@ -60,15 +60,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // load settings
     document.getElementById(OLD_TOGGLE_ZOOM_BEHAVIOR).checked = await getFeatureToogleZoom();
-    const manifestVersion = await getManifestVersion() || "[missing manifest version]"
-    const userAgent = navigator?.userAgent || "[missing user-agent]"
-    const versionHtml = `
+    const manifestVersion                                     = await getManifestVersion() ||
+                                                                '[missing manifest version]';
+    const userAgent                                           = navigator?.userAgent ||
+                                                                '[missing user-agent]';
+
+    document.getElementById(VERSION_ELEMENT_ID).innerHTML     = `
     <b>Extension Version:</b><br/>
      v${manifestVersion}<br/><br>
     <b>Browser Version:</b><br/>
     ${userAgent}
     `;
-    document.getElementById(VERSION_ELEMENT_ID).innerHTML = versionHtml;
 
   } catch (err) {
     console.error(err);
