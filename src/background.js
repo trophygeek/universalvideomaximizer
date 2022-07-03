@@ -139,7 +139,7 @@ function injectCssHeader(cssHRef, styleId) {
     styleLink.rel   = 'stylesheet';
     styleLink.media = 'all';
     document.getElementsByTagName('head')[0].appendChild(styleLink);
-    return (document.getElementById(styleId) !== null);
+    return true;
   } catch (err) {
     console.error(`****** VideoMax ERROR Native Inject
         Injecting style header failed. CSP?
@@ -148,21 +148,61 @@ function injectCssHeader(cssHRef, styleId) {
   }
 }
 
+/**
+ * Remove the style element from the header
+ * @param styleId {String}
+ */
 function uninjectCssHeader(styleId) {
   // warning run inside context of page
   const cssHeaderNode = document.getElementById(styleId);
   cssHeaderNode?.parentNode?.removeChild(cssHeaderNode);
 }
 
-function isCssHeaderInjected(styleId) {
+/**
+ * Just check the style element was injected into the header
+ * @param styleId {string}
+ * @returns {boolean}
+ */
+function isCssHeaderInjectedFast(styleId) {
   // warning runs inside context of page
   return (document.getElementById(styleId) !== null);
+}
+
+/**
+ * needed because we cannot include a chrome reference css for a file:// or
+ * if the CSP is too strict. Fallback it to inject from background task.
+ * @param cssHRef {String}
+ * @returns {boolean}
+ */
+function isCssHeaderIsBlocked(cssHRef) {
+  let isBlocked = true; // default to failed.
+
+  for (let ii = document.styleSheets?.length || 0; ii >= 0; ii--) {
+    // we loop backward because our is most likely last.
+    if (document.styleSheets[ii]?.href === cssHRef) {
+      // try to access the rules to see if it loaded correctly
+      try {
+        isBlocked = (document.styleSheets[ii].cssRules?.length) === 0;
+      } catch (err) {
+        console.log('VideoMaxExt css include file blocked.');
+      }
+      break;
+    }
+  }
+  return isBlocked;
 }
 
 function supportsSpeedChange() {
   const matched = document.querySelectorAll('video[class*="videomax-ext-video-matched"]');
   return matched.length > 0;
 }
+
+// needed because we cannot include a chrome reference css for a file:// or
+// if the CSP is too strict. Fallback it to inject from background task.
+const didInjectedCssLoad = () => {
+  // loop over all css file to find ours
+
+};
 
 /**
  *
@@ -232,7 +272,7 @@ async function setState(tabId, state, speed = DEAULT_SPEED) {
             text,
             title,
             popup,
-//            zoomed,
+            // zoomed,
           }      = States[state];
 
 
@@ -295,8 +335,16 @@ async function DoInjectTagOnlyJS(tabId) {
   });
 }
 
-async function DoInjectZoomCSS(tabId) {
-  const cssFilePath = chrome.runtime.getURL(CSS_FILE);
+/**
+ *
+ * @param tabId {number}
+ * @param isDummy {boolean} - for JS only injection (no zoom), we still inject a dummy css header
+ *   as a marker that we injected
+ * @returns {Promise<chrome.scripting.InjectionResult[]>}
+ * @constructor
+ */
+async function DoInjectZoomCSS(tabId, isDummy = false) {
+  const cssFilePath = isDummy ? '' : chrome.runtime.getURL(CSS_FILE);
   // we inject this way because we can undo it by deleting the style element.
   // The script will be run at document_end
   return chrome.scripting.executeScript({
@@ -309,7 +357,7 @@ async function DoInjectZoomCSS(tabId) {
   });
 }
 
-async function UndoInjectCSS(tabId) {
+async function DoUndoInjectCSS(tabId) {
   return chrome.scripting.executeScript({
     target: {
       tabId,
@@ -321,28 +369,61 @@ async function UndoInjectCSS(tabId) {
 }
 
 /**
- * Deep check to see if page is currently zoomed
+ * Deep check to see if page is currently zoomed. Fast because it only checks the ID.
  * @param tabId {number}
  * @returns {Promise<boolean>}
  * @constructor
  */
-async function CheckCSSInjected(tabId) {
+async function DoCheckCSSInjectedFast(tabId) {
   try {
     const injectionresult /* :InjectionResult[] */ = await chrome.scripting.executeScript({
       target: {
         tabId,
         frameIds: [0],
       },
-      func:   isCssHeaderInjected,
+      func:   isCssHeaderInjectedFast,
       args:   [CSS_STYLE_HEADER_ID],
       world:  'MAIN',
     });
-    const result                                   = injectionresult[0]?.result || false;
-    trace(`CheckCSSInjected result: ${result}`);
+
+    const result = injectionresult.map((r) => r?.result === true)
+                     .reduce((r, prev) => r?.result || prev) || false;
+    trace(`DoCheckCSSInjectedFast result: ${result}`, injectionresult);
     return result;
   } catch (err) {
-    logerr(`CheckCSSInjected failed, returning false`, err);
+    logerr(`DoCheckCSSInjectedFast failed, returning false`, err);
     return false;
+  }
+}
+
+/**
+ * The stylesheet may have been injected, but the chrome-extension:// blocked
+ *  This can happen on file:// or if there's a strict CSP.
+ * @param tabId {number}
+ * @returns {Promise<boolean>}  true means it's blocked.
+ * @constructor
+ */
+async function DoCheckCSSInjectedIsBlocked(tabId) {
+  try {
+    const cssFilePath = chrome.runtime.getURL(CSS_FILE);
+
+    const injectionresult /* :InjectionResult[] */ = await chrome.scripting.executeScript({
+      target: {
+        tabId,
+        frameIds: [0],
+      },
+      func:   isCssHeaderIsBlocked,
+      args:   [cssFilePath],
+      world:  'MAIN',
+    });
+
+    const result = injectionresult.map((r) => r?.result === true)
+                     .reduce((r, prev) => r?.result || prev) || false;
+    trace(`DoCheckCSSInjectedIsBlocked result: ${result}`, injectionresult);
+    return result;
+  } catch (err) {
+    logerr(`DoCheckCSSInjectedIsBlocked failed, returning false`, err);
+    return true;
   }
 }
 
@@ -382,7 +463,7 @@ async function unZoom(tabId, uninject = true) {
     trace('unZoom');
     await setState(tabId, STATES.RESET);
     if (uninject) {
-      const promise1 = UndoInjectCSS(tabId);
+      const promise1 = DoUndoInjectCSS(tabId);
       const promise2 = chrome.scripting.executeScript({
         target: {
           tabId:     tabId,
@@ -405,13 +486,29 @@ async function Zoom(tabId, url) {
       const promise1 = DoInjectZoomJS(tabId);
       const promise2 = DoInjectZoomCSS(tabId);
       await Promise.all([promise1, promise2]);
+
+      // now verify the css wasn't blocked by CSP.
+      const isBlocked = await DoCheckCSSInjectedIsBlocked(tabId);
+      if (isBlocked) {
+        trace('css loading file blocked. directly adding css');
+        // ok. we just need to inject in a way that cannot be easily undone.
+        await chrome.scripting.insertCSS({
+          target: {
+            tabId,
+            allFrames: true,
+          }, //      world: 'MAIN',  // this breaks dailymotion
+          origin: 'AUTHOR',
+          files:  [CSS_FILE],
+        });
+      }
     } else {
       trace(`EXCLUDED_ZOOM for site '${url}'`);
-      await DoInjectTagOnlyJS(tabId);
+      const promise1 = DoInjectTagOnlyJS(tabId);
+      const promise2 = DoInjectZoomCSS(tabId, true);
+      await Promise.all([promise1, promise2]);
     }
 
     await setState(tabId, STATES.ZOOMING); // will check if page can speed up and refresh state
-    // await setTabSpeed(tabId, DEAULT_SPEED);
   } catch (err) {
     logerr(err);
   }
@@ -462,7 +559,7 @@ async function getTabCurrentState(tabId) {
     if (ACTIVE_STATES.includes(state)) {
       // user may have hit escape key to unzoom so we're in a weird state.
       // by reinjecting the CSS, we rezoom.
-      await CheckCSSInjected(tabId);
+      await DoCheckCSSInjectedFast(tabId);
     }
 
     return state;
@@ -630,7 +727,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         case REZOOM_CMD:
           // the popup is about to display and thinks the page is zoomed, but it's may not be
           // if escape key was pressed.
-          const zoomed = await CheckCSSInjected(tabId);
+          const zoomed = await DoCheckCSSInjectedFast(tabId);
           if (!zoomed) {
             // a full zoom isn't needed, just the css reinjected.
             const promise1 = Zoom(tabId);

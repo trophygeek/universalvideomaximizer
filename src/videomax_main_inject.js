@@ -3,7 +3,7 @@ try { // scope and prevent errors from leaking out to page.
   const DEBUG_ENABLED       = FULL_DEBUG;
   const TRACE_ENABLED       = FULL_DEBUG;
   const ERR_BREAK_ENABLED   = FULL_DEBUG;
-  const BREAK_ON_BEST_MATCH = false;
+  const BREAK_ON_BEST_MATCH = true;
   const EMBED_SCORES        = true;         // this will put add the score as an attribute for
                                             // elements across revisions, the zoomed page's html can
                                             // be diffed
@@ -13,7 +13,8 @@ try { // scope and prevent errors from leaking out to page.
   const VIDEO_MAX_ATTRIB_FIND      = 'data-videomax-target';
   const VIDEO_MAX_ATTRIB_ID        = 'zoomed-video';
 
-  const VIDEO_NODES       = ['object', 'embed', 'video', 'iframe'];
+  // smp-toucan-player is some random bbc player
+  const VIDEO_NODES       = ['object', 'embed', 'video', 'iframe', 'smp-toucan-player'];
   const IGNORE_NODES      = ['noscript', 'script', 'head', 'html'];
   const ALWAYS_HIDE_NODES = ['aside', 'footer', 'header'];
 
@@ -248,11 +249,11 @@ try { // scope and prevent errors from leaking out to page.
    * hiding elements in dom that aren't in tree for this element.
    * @param videoElem {Node}
    */
-  function hideDomNotInTree(videoElem) {
+  function maximizeVideoDom(videoElem) {
     if (!videoElem) {
       return;
     }
-    trace('hideDomNotInTree');
+    trace('maximizeVideoDom');
     let elemUp = videoElem;
 
     // let compstyle = getElemComputedStyle(videoElem); // used to resize divs
@@ -269,12 +270,12 @@ try { // scope and prevent errors from leaking out to page.
         }
         hideSiblings(elemUp, boundingclientrect);
       } catch (ex) {
-        logerr('hideDomNotInTree exception', ex);
+        logerr('maximizeVideoDom exception', ex);
       }
       elemUp = elemUp.parentNode;
     }
     if (DEBUG_ENABLED && saftyLoops === 0) {
-      logerr('!!! hideDomNotInTree while loop ran too long');
+      logerr('!!! maximizeVideoDom while loop ran too long');
     }
   }
 
@@ -774,7 +775,7 @@ try { // scope and prevent errors from leaking out to page.
       actionFn(elem);
     }
     if (DEBUG_ENABLED && safty === 0) {
-      logerr('!!! hideDomNotInTree while loop ran too long');
+      logerr('!!! maximizeVideoDom while loop ran too long');
     }
   }
 
@@ -1346,8 +1347,7 @@ try { // scope and prevent errors from leaking out to page.
       return false;
     }
 
-    trace('hideEverythingThatIsntLargestVideo');
-    hideDomNotInTree(videoMatchElem);
+    maximizeVideoDom(videoMatchElem);
 
     setTimeout(() => {
       FixUpAttribs(videoMatchElem);
@@ -1358,7 +1358,7 @@ try { // scope and prevent errors from leaking out to page.
       trace(`hiding logic for iframe. number of frames in tree:
       ${embeddedFrameTree.length}`);
       for (const frametree of embeddedFrameTree.reverse()) {
-        hideDomNotInTree(frametree);
+        maximizeVideoDom(frametree);
         FixUpAttribs(frametree);
       }
     }
@@ -1430,7 +1430,6 @@ try { // scope and prevent errors from leaking out to page.
       } else {
         trace(`No video found, will try again. 
         foundVideoNewAlg=${foundVideoNewAlgo} foundVideoOldAlgo=${foundVideoOldAlgo}`);
-
       }
       return false; // keep trying
     }
@@ -1481,10 +1480,10 @@ try { // scope and prevent errors from leaking out to page.
           forceRefresh(videomaxGlobals.matchedVideo);
         }
 
-        window.scroll({
-          top:  0,
-          left: 0,
-        });
+        // window.scroll({
+        //   top:  0,
+        //   left: 0,
+        // });
 
         videomaxGlobals.isMaximized = true;
         return true;  // stop retrying
