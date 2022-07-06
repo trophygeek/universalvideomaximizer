@@ -1,9 +1,9 @@
 {
   "name": "Universal Video Maximizer",
-  "version": "2.0.19",
+  "version": "2.0.20",
   "manifest_version": 2,
   "description": "Zoom videos and theater mode on most websites WITHOUT requiring permissions to every site.",
-  "homepage_url": "https://chrome.google.com/webstore/support/cdnlfphfngnfhjcnoikfhaomaaflaiie",
+  "homepage_url": "https://github.com/trophygeek/universalvideomaximizer",
   "icons": {
     "48": "icons/icon48.png",
     "96": "icons/icon96.png",

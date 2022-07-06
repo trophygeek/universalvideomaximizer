@@ -107,7 +107,7 @@ chrome?.browserAction?.onClicked?.addListener(async (tab) => {
     }
 
     // unzoom
-    await chrome.browserAction.setBadgeText({ tabId });  // remove
+    await chrome.browserAction.setBadgeText({ tabId, text:'' });  // remove
     await chrome.tabs.executeScript(tabId, {
       'file': 'inject_undo.js',
       'runAt': 'document_idle',
