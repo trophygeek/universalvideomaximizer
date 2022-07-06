@@ -60,16 +60,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // load settings
     document.getElementById(OLD_TOGGLE_ZOOM_BEHAVIOR).checked = await getFeatureToogleZoom();
-    const manifestVersion                                     = await getManifestVersion() ||
-                                                                '[missing manifest version]';
-    const userAgent                                           = navigator?.userAgent ||
-                                                                '[missing user-agent]';
 
-    document.getElementById(VERSION_ELEMENT_ID).innerHTML     = `
-    <b>Extension Version:</b><br/>
-     v${manifestVersion}<br/><br>
+    // show debug info
+    const settings        = await chrome?.storage?.local?.get(SETTINGS_STORAGE_KEY) || {};
+    const settingStr     = JSON.stringify(settings, null, 2);
+    const manifestVersion = await getManifestVersion() || '[missing manifest version]';
+    const userAgent       = JSON.stringify(navigator?.userAgentData, null, 2);
+
+    document.getElementById(VERSION_ELEMENT_ID).innerHTML = `
+    <b>Extension Version:</b> v${manifestVersion}<br/>
+    <b>Extension Settings:</b></br/>
+    <pre>${settingStr}</pre><br/>
     <b>Browser Version:</b><br/>
-    ${userAgent}
+    <pre>${userAgent}</pre>
     `;
 
   } catch (err) {

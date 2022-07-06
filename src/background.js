@@ -91,6 +91,25 @@ const trace = (...args) => {
   }
 };
 
+
+/**
+ *
+ * @param injectionResults {InjectionResult[]}
+ * @param defaultVal {boolean}
+ * @returns {boolean}
+ */
+function injectionResultCheck(injectionResults, defaultVal = false) {
+  if ((injectionResults?.length || 0) === 0) {
+    return defaultVal;
+  }
+  for (const frameresult of injectionResults) {
+    if (frameresult.result !== defaultVal) {
+      return frameresult.result;
+    }
+  }
+  return defaultVal;
+}
+
 /**
  *
  * @param newspeed {string}
@@ -176,18 +195,22 @@ function isCssHeaderInjectedFast(styleId) {
  */
 function isCssHeaderIsBlocked(cssHRef) {
   let isBlocked = true; // default to failed.
-
-  for (let ii = document.styleSheets?.length || 0; ii >= 0; ii--) {
-    // we loop backward because our is most likely last.
-    if (document.styleSheets[ii]?.href === cssHRef) {
-      // try to access the rules to see if it loaded correctly
-      try {
-        isBlocked = (document.styleSheets[ii].cssRules?.length) === 0;
-      } catch (err) {
-        console.log('VideoMaxExt css include file blocked.');
+  try {
+    for (let ii = document.styleSheets?.length || 0; ii >= 0; ii--) {
+      // we loop backward because our is most likely last.
+      if (document.styleSheets[ii]?.href === cssHRef) {
+        // try to access the rules to see if it loaded correctly
+        try {
+          isBlocked = (document.styleSheets[ii].cssRules?.length) === 0;
+        } catch (_err) {
+        }
+        break;
       }
-      break;
     }
+  } catch(_err) {
+  }
+  if (isBlocked) {
+    console.log('VideoMaxExt css include file blocked.');
   }
   return isBlocked;
 }
@@ -305,27 +328,35 @@ const isPageExcluded = (url) => {
 async function DoInjectZoomJS(tabId) {
   try {
     // The script will be run at document_end
-    return chrome.scripting.executeScript({
+    trace('DoInjectZoomJS enter');
+    await chrome.scripting.executeScript({
       target: {
         tabId,
         allFrames: true,
       }, //      world: 'MAIN',  // this breaks dailymotion
       files:  [`cmd_zoom_inject.js`, `videomax_main_inject.js`],
     });
+    trace('DoInjectZoomJS enter');
   } catch (err) {
     logerr(err);
   }
 }
 
 async function DoInjectTagOnlyJS(tabId) {
-  // The script will be run at document_end
-  return chrome.scripting.executeScript({
-    target: {
-      tabId,
-      allFrames: true,
-    }, //      world: 'MAIN',  // this breaks dailymotion
-    files:  [`cmd_tagonly_inject.js`, `videomax_main_inject.js`],
-  });
+  try {
+    trace('DoInjectTagOnlyJS enter');
+    // The script will be run at document_end
+    await chrome.scripting.executeScript({
+      target: {
+        tabId,
+        allFrames: true,
+      }, //      world: 'MAIN',  // this breaks dailymotion
+      files:  [`cmd_tagonly_inject.js`, `videomax_main_inject.js`],
+    });
+    trace('DoInjectTagOnlyJS leave');
+  } catch (err) {
+    logerr(err);
+  }
 }
 
 /**
@@ -337,28 +368,40 @@ async function DoInjectTagOnlyJS(tabId) {
  * @constructor
  */
 async function DoInjectZoomCSS(tabId, isDummy = false) {
-  const cssFilePath = isDummy ? '' : chrome.runtime.getURL(CSS_FILE);
-  // we inject this way because we can undo it by deleting the style element.
-  // The script will be run at document_end
-  return chrome.scripting.executeScript({
-    target: {
-      tabId,
-      allFrames: true,
-    },
-    func:   injectCssHeader,
-    args:   [cssFilePath, CSS_STYLE_HEADER_ID], // world:  'MAIN',
-  });
+  try {
+    trace('DoInjectZoomCSS enter');
+    const cssFilePath = isDummy ? '' : chrome.runtime.getURL(CSS_FILE);
+    // we inject this way because we can undo it by deleting the style element.
+    // The script will be run at document_end
+    await chrome.scripting.executeScript({
+      target: {
+        tabId,
+        allFrames: true,
+      },
+      func:   injectCssHeader,
+      args:   [cssFilePath, CSS_STYLE_HEADER_ID], // world:  'MAIN',
+    });
+    trace('DoInjectZoomCSS leave');
+  } catch (err) {
+    logerr(err);
+  }
 }
 
 async function DoUndoInjectCSS(tabId) {
-  return chrome.scripting.executeScript({
-    target: {
-      tabId,
-      frameIds: [0],
-    },
-    func:   uninjectCssHeader,
-    args:   [CSS_STYLE_HEADER_ID], // world:  'MAIN',
-  });
+  try {
+    trace('DoUndoInjectCSS enter');
+    await chrome.scripting.executeScript({
+      target: {
+        tabId,
+        frameIds: [0],
+      },
+      func:   uninjectCssHeader,
+      args:   [CSS_STYLE_HEADER_ID], // world:  'MAIN',
+    });
+    trace('DoUndoInjectCSS leave');
+  } catch(err) {
+    logerr(err);
+  }
 }
 
 /**
@@ -369,6 +412,7 @@ async function DoUndoInjectCSS(tabId) {
  */
 async function DoCheckCSSInjectedFast(tabId) {
   try {
+    trace('DoCheckCSSInjectedFast enter');
     const injectionresult /* :InjectionResult[] */ = await chrome.scripting.executeScript({
       target: {
         tabId,
@@ -379,8 +423,7 @@ async function DoCheckCSSInjectedFast(tabId) {
       world:  'MAIN',
     });
 
-    const result = injectionresult.map((r) => r?.result === true)
-                     .reduce((r, prev) => r?.result || prev) || false;
+    const result = injectionResultCheck(injectionresult);
     trace(`DoCheckCSSInjectedFast result: ${result}`, injectionresult);
     return result;
   } catch (err) {
@@ -398,6 +441,7 @@ async function DoCheckCSSInjectedFast(tabId) {
  */
 async function DoCheckCSSInjectedIsBlocked(tabId) {
   try {
+    trace('DoCheckCSSInjectedIsBlocked enter');
     const cssFilePath = chrome.runtime.getURL(CSS_FILE);
 
     const injectionresult /* :InjectionResult[] */ = await chrome.scripting.executeScript({
@@ -409,9 +453,7 @@ async function DoCheckCSSInjectedIsBlocked(tabId) {
       args:   [cssFilePath],
       world:  'MAIN',
     });
-
-    const result = injectionresult.map((r) => r?.result === true)
-                     .reduce((r, prev) => r?.result || prev) || false;
+    const result = injectionResultCheck(injectionresult);
     trace(`DoCheckCSSInjectedIsBlocked result: ${result}`, injectionresult);
     return result;
   } catch (err) {
@@ -425,7 +467,8 @@ async function CheckSupportsSpeedChange(tabId) {
     if (ALWAYS_SHOW_SPEED) {
       return true;
     }
-    const injectionresults /* :InjectionResult[] */ = await chrome.scripting.executeScript({
+    trace('CheckSupportsSpeedChange enter');
+    const injectionresult /* :InjectionResult[] */ = await chrome.scripting.executeScript({
       target: {
         tabId,
         allFrames: true,
@@ -433,12 +476,9 @@ async function CheckSupportsSpeedChange(tabId) {
       func:   supportsSpeedChange,
     });
 
-    for (const frameresult of injectionresults) {
-      if (frameresult.result) {
-        return true;
-      }
-    }
-    return false;
+    const result = injectionResultCheck(injectionresult);
+    trace(`CheckSupportsSpeedChange result: ${result}`, injectionresult);
+    return result;
   } catch (err) {
     logerr(err);
     return false;
@@ -552,7 +592,8 @@ async function getTabCurrentState(tabId) {
     if (ACTIVE_STATES.includes(state)) {
       // user may have hit escape key to unzoom so we're in a weird state.
       // by reinjecting the CSS, we rezoom.
-      await DoCheckCSSInjectedFast(tabId);
+      trace(`getTabCurrentState reinjecting css just in case`);
+      await DoInjectZoomCSS(tabId);
     }
 
     return state;
@@ -577,8 +618,8 @@ const getIsCurrentlyZoomed = async (tabId) => {
 const getSettingOldToggleBehavior = async () => {
   try {
     const data = await chrome.storage.local.get(SETTINGS_STORAGE_KEY) || {};
-    trace('getFeatureShowZoomPopup settings:', data);
-    return data?.settings[OLD_TOGGLE_ZOOM_BEHAVIOR] || DEFAULT_OLD_TOGGLE_ZOOM_BEHAVIOR;
+    trace('getFeatureShowZoomPopup settings:', JSON.stringify(data, null, 2));
+    return (data?.settings && data?.settings[OLD_TOGGLE_ZOOM_BEHAVIOR]) || DEFAULT_OLD_TOGGLE_ZOOM_BEHAVIOR;
   } catch (err) {
     logerr(err);
     return DEFAULT_OLD_TOGGLE_ZOOM_BEHAVIOR;
@@ -628,7 +669,7 @@ async function showUpgradePageIfNeeded() {
 }
 
 chrome.action.onClicked.addListener(async (tab) => {
-  trace('chrome.action.onClicked');
+  trace('chrome.action.onClicked - checking permissions');
   const tabId = tab.id;
   chrome.permissions.request({ permissions: ['activeTab', 'scripting', 'storage'] },
     async (granted) => {
@@ -638,7 +679,7 @@ chrome.action.onClicked.addListener(async (tab) => {
           logerr('permissions to run were denied, so extension is not injecting');
           return;
         }
-
+        trace('permissions granted');
         await showUpgradePageIfNeeded();
 
         // tab?.url could be null, so we need to query to get the current tab
