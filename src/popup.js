@@ -1,7 +1,7 @@
 try {
-  const FULL_DEBUG        = false;
-  const DEBUG_ENABLED     = FULL_DEBUG;
-  const TRACE_ENABLED     = FULL_DEBUG;
+  const FULL_DEBUG = false;
+  const DEBUG_ENABLED = FULL_DEBUG;
+  const TRACE_ENABLED = FULL_DEBUG;
   const ERR_BREAK_ENABLED = FULL_DEBUG;
 
   const logerr = (...args) => {
@@ -9,8 +9,11 @@ try {
       return;
     }
     // eslint-disable-next-line no-console
-    console.trace('%c VideoMax Popup ERROR',
-      'color: white; font-weight: bold; background-color: red', ...args);
+    console.trace(
+      '%c VideoMax Popup ERROR',
+      'color: white; font-weight: bold; background-color: red',
+      ...args,
+    );
     if (ERR_BREAK_ENABLED) {
       // eslint-disable-next-line no-debugger
       debugger;
@@ -20,18 +23,21 @@ try {
   const trace = (...args) => {
     if (TRACE_ENABLED) {
       // eslint-disable-next-line no-console
-      console.log('%c VideoMax Popup ', 'color: white; font-weight: bold; background-color: blue',
-        ...args);
+      console.log(
+        '%c VideoMax Popup ',
+        'color: white; font-weight: bold; background-color: blue',
+        ...args,
+      );
     }
   };
 
-  const UNZOOM_CMD    = 'UNZOOM';
+  const UNZOOM_CMD = 'UNZOOM';
   const SET_SPEED_CMD = 'SET_SPEED';
-  const REZOOM_CMD    = 'REZOOM';
+  const REZOOM_CMD = 'REZOOM';
   const DEFAULT_SPEED = '1.0';
-  const UNZOOM_LABEL  = '[]';
-  const SVG_ICON      = './icons/icon19undo.png';
-  const MENU          = [{
+  const UNZOOM_LABEL = '[]';
+  const SVG_ICON = './icons/icon19undo.png';
+  const MENU = [{
     label: '🖐️',
     value: '0',
   }, {
@@ -71,7 +77,7 @@ try {
     label: UNZOOM_LABEL,
     value: UNZOOM_CMD,
   }];
-  const url           = new URL(document.location.href);
+  const url = new URL(document.location.href);
 
   let g_currentSpeed = DEFAULT_SPEED;
 
@@ -84,12 +90,12 @@ try {
   const addSpeedControlUI = (doc, parent, tabId, defaultValue) => {
     const htmlArr = [];
     MENU.map((item, ii) => {
-      const id        = `videomax.ext.${ii}`;
+      const id = `videomax.ext.${ii}`;
       const ischecked = item.value === defaultValue ? 'checked' : '';
-      const label     = (item.label === UNZOOM_LABEL) ?
-                        `<img src='${SVG_ICON}' class='closeicon'>` :
-                        `${item.label}`;
-      const elemhtml  = `
+      const label = (item.label === UNZOOM_LABEL)
+        ? `<img src='${SVG_ICON}' class='closeicon'>`
+        : `${item.label}`;
+      const elemhtml = `
       <input type="radio"
               class="videomax-ext-speed-control-radio-button videomax-ext-speed-control-radio-button-${item.value}" 
              name="${id}" value="${item.value}" id="${id}" tabindex="${ii}"
@@ -107,12 +113,12 @@ try {
           return;
         }
 
-        let value = evt?.target?.value;
+        const value = evt?.target?.value;
 
         trace(`click '${value}' currentspeed='${g_currentSpeed}'`);
         let speed = DEFAULT_SPEED;
-        if (!(value === UNZOOM_CMD ||   // unzoom value
-              value === g_currentSpeed)) {  // toggle speed
+        if (!(value === UNZOOM_CMD // unzoom value
+              || value === g_currentSpeed)) { // toggle speed
           speed = value;
         }
 
@@ -133,7 +139,7 @@ try {
             window.close();
           }
         });
-      } catch(err) {
+      } catch (err) {
         logerr(err);
       }
     });
@@ -150,13 +156,14 @@ try {
 
   document.addEventListener('DOMContentLoaded', async () => {
     try {
-      const params     = new URLSearchParams(url.hash.replace('#', ''));
-      const tabId      = params.get('tabId');
+      const params = new URLSearchParams(url.hash.replace('#', ''));
+      const tabId = params.get('tabId');
       const videofound = params.get('videofound');
-      g_currentSpeed   = params.get('speed');
-      const container  = window.document.getElementById('speedBtnGroup');
+      g_currentSpeed = params.get('speed');
+      const container = window.document.getElementById('speedBtnGroup');
       trace(
-        `DOMContentLoaded params tabId:'${tabId}' currentSpeed:'${g_currentSpeed}' videofound:'${videofound}'`);
+        `DOMContentLoaded params tabId:'${tabId}' currentSpeed:'${g_currentSpeed}' videofound:'${videofound}'`,
+      );
 
       addSpeedControlUI(window.document, container, tabId, g_currentSpeed);
 
@@ -168,9 +175,9 @@ try {
       // The page could have been UNZOOMED by the escape key and everything could be out of sync
       chrome.runtime.sendMessage({
         message: {
-          cmd:   REZOOM_CMD,
+          cmd: REZOOM_CMD,
           speed: g_currentSpeed,
-          tabId: tabId,
+          tabId,
         },
       }, (response) => {
         trace('sendMessage callback', response);

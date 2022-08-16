@@ -10,7 +10,12 @@ body::-webkit-scrollbar {
     display: none;
 }
 
-.videomax-ext-max {
+/* the repeating increases the weight of the rule (nexted .videomax-ext-max classes)
+    so it overrides any other classnames on the element.
+ */
+.videomax-ext-max,
+.videomax-ext-max .videomax-ext-max,
+.videomax-ext-max .videomax-ext-max .videomax-ext-max {
     clear: both !important;
     background: rgb(0, 0, 0) !important;
     width: calc(100vw) !important;
@@ -32,7 +37,9 @@ body::-webkit-scrollbar {
     overflow: visible !important;
 }
 
-.videomax-ext-hide {
+.videomax-ext-hide,
+.videomax-ext-hide .videomax-ext-hide,
+.videomax-ext-max .videomax-ext-hide {
     display: none !important;
     visibility: hidden !important;
     /* added 30May22 try to stop pop ups blocking video */
@@ -44,7 +51,9 @@ body::-webkit-scrollbar {
 }
 
 /* make it inherit style of parent*/
-.videomax-ext-overlap {
+.videomax-ext-overlap,
+.videomax-ext-overlap .videomax-ext-overlap,
+.videomax-ext-max .videomax-ext-overlap {
     min-height: 0 !important;
     max-height: none !important;
     min-width: 0 !important;
