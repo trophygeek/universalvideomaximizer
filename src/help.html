@@ -8,22 +8,27 @@
 <body class="dark">
 
 <div class="container">
-  <h1><img class="logo" src="icons/icon128.png">Universal Video Maximizer - version 3.0 Help</h1>
+  <h1><img alt="logo" class="logo" src="icons/icon128.png">Universal Video Maximizer - version 3.0 Help</h1>
   <h2>
-    Welcome to version 3.0!
+    Welcome to version 3.0 (May 2023 update)!
   </h2>
 
-  <p>
-    You will only see this message after updating or after installing.
-  </p>
+  <section class="padding-3">
+    <span class="emphasis">New features in this update:</span>
+    <ul>
+      <li>Keyboard shortcuts support</li>
+      <li>Improved speed playback</li>
+    </ul>
+  </section>
 
-  <p>
-    This is a major rewrite and is <span class="emphasis">required</span> by the Google Chrome store.
-    <a href="https://developer.chrome.com/blog/mv2-transition/" target="_blank" rel="noreferrer">
+  <section class="padding-3">
+    Version 3 is a major rewrite and is <span class="emphasis">required</span> by the Google Chrome store.
+    <a href="https://developer.chrome.com/docs/extensions/migrating/mv2-sunset/" target="_blank" rel="noreferrer">
       All extensions will need to be upgraded to their latest API.</a>
-  </p>
+  </section>
 
-  <p>
+
+  <section class="padding-1">
     As always, this extension is:
   <ul>
     <li><span class="emphasis bold">FREE</span>
@@ -31,58 +36,56 @@
     <li>Requires minimal permissions to increase security and privacy
     </li>
 
-    <li><span class="emphasis">NEVER collects data</span>. Privacy is top priority.
+    <li><span class="emphasis">NEVER collects ANY data</span>. Privacy is top priority.
     </li>
 
     <li>Is <a href="https://github.com/trophygeek/universalvideomaximizer/" target="_blank"
            rel="noreferrer">open-sourced</a> for transparency.
     </li>
   </ul>
-  </p>
+  </section>
 
 
-  <p>
-    Any problems should be reported here via a
+  <section class="padding-1">
+    Any problems or feature requests should be reported here via a
     <a href="https://github.com/trophygeek/universalvideomaximizer/issues" target="_blank" rel="noreferrer">GitHub
-      issue</a>.
-  </p>
-
+      issue</a>. Chrome's reporting feature in the store does not notifing when new issues are added.
+  </section>
 
   <hr/>
 
-
-  <h3>New Playback Speed option</h3>
-  <p class="padding-3">
+  <h3>New playback speed option</h3>
+  <section class="padding-3">
     <img class="illustration" src="img/speed_change_yes.png" alt="screen shot">
     Playback speed cannot work on pages where videos are actually hosted on a different site. (e.g. youtube videos not
     on the youtube site). This is a limitation of the Chrome Extension API itself.<br><br>
     When a site looks like it supports speed control, the toolbar icon will display a <img alt="playback indicator icon" src="img/playback_indicator.png"> overlay
-  </p>
+  </section>
 
 
-  <p class="padding-5">
+  <section class="padding-5">
     <img class="illustration" src="img/new_speed_control_bar.png" alt="screen shot">
     When the speed control graphics is displayed, clicking the button shows extra options to control playback speed.
-  </p>
+  </section>
 
 
-
-  <p class="padding-3">
+  <h4>Why speed control fails on some sites</h4>
+  <section class="padding-3">
     <img class="illustration" src="img/speed_change_no.png" alt="screen shot">
     When any pages loads their videos from a different site (e.g. a youtube video embedded in a non youtube site), then
     the speed control feature will not work and is disabled. Video Maximizer will fall back to the classic toggle
     behavior.<br><br>
     When I site doesn't support zooming, then a <img alt="zoom indicator icon" src="img/zoom_only_indicator.png"> overlay will be displayed.
-  </p>
+  </section>
 
 
   <hr/>
 
   <h3>
-    Hard-to-discover shortcuts
+    New keyboard shortcuts
   </h3>
 
-  <p class="padding-1">
+  <section class="padding-1">
     <img class="illustration" src="img/tips3.png">
   <ol>
     <li>The Unzoom function can be accessed by <span class="bold">clicking</span> this icon (or the Spacebar after
@@ -90,18 +93,27 @@
     </li>
     <li>Clicking the speed-change button a second time toggles it back to normal speed.</li>
   </ol>
+    <img class="illustration" src="img/arrow_keys.png" alt="graphics showing arrow keys">
   <ul>
+    <li><span class="text-success">up/down keys:</span> Increase and decrease playback speed. See 1</li>
+    <li><span class="text-success">right/left keys:</span> Skip the playback forwards/back. See 2</li>
+    <li><span class="text-success">arrow + shift:</span> Longer skips.</li>
+    <li><span class="text-success">relative skip times:</span> Changing playback speed adjusts how long the skip is.
+      <br/>0.25x playback speed is 1/4th less the skip time.
+      <br />e.g. 10s skip at 16x playback would skip forward 1m 40s in the video.</li>
+    <li><span class="text-success">Length of skips</span> Can be customized in the <a href="#options">Options</a> page.</li>
     <li><span class="text-success">TIP: ⭐</span> Pressing the <span class="emphasis">Escape key</span> on the page UNZOOMS.
     <li><span class="text-success">TIP:</span> Pressing escape when the Speed Control window is open will close it.</li>
-    </li>
     <li><span class="text-success">NOTE: </span> Speed changing <span class="emphasis">will not work </span> on
-      sites hosting videos from other sites. This is just a limitiation of the Chrome APIs.<br>
+      sites hosting videos from other sites. This is just a limitiation of the Chrome APIs.
     </li>
     <li><span class="text-success">NOTE: </span> there is an <span class="emphasis">option to disable</span> the Speed
-      Controls completely and revert to the way the old Video Maximizer worked (see Options below)
+      Controls to revert to the behavior the original Video Maximizer (see Options below)
     </li>
+    <li><span class="text-success">Keyboard shortcut to zoom:</span> This is built into chrome!
+      Go to <code>chrome://extensions/shortcuts</code> in Chrome </li>
   </ul>
-  </p>
+  </section>
 
   <hr/>
 
@@ -109,29 +121,29 @@
     Pinning the extension to the toolbar makes it easier to use.
   </h3>
 
-  <p class="padding-14">
+  <section class="padding-14">
     <img class="illustration"  src="img/tips1.png">
   <ol>
     <li>To pin, first click on the Extensions puzzle piece icon</li>
     <li>Click the Pin icon</li>
   </ol>
-  </p>
+  </section>
 
   <hr/>
 
   <h3>
-    Changing options - Reverting to classic “toggle” behavior
+    Changing Options<a id="options"></a>
   </h3>
 
-  <p class="padding-7">
-    <img class="illustration" src="img/tips2.png">
+  <section class="padding-7">
+    <img class="illustration" src="img/tips2.png" alt="screenshot showing how to show options page">
   <ol>
     <li><span class="bold">Right-click</span> the icon</li>
-    <li>Select Option from the dropdown menu. You can disable the speed controls and revert the behavior back to
-      the classic toggle
+    <li>Select Option from the dropdown menu.
     </li>
   </ol>
-  </p>
+    You can disable the speed controls and revert the behavior back to the classic toggle.
+  </section>
 
 </div>
 

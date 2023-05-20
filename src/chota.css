@@ -1,14 +1,15 @@
 /*! chota.css v0.8.0 | MIT License | github.com/jenil/chota */
 :root {
     --bg-color: #000;
-    --bg-secondary-color: #131316;
+    --bg-secondary-color: rgba(250, 224, 66, .2);
     --bg-primary: 000;
     --color-primary: rgba(3, 252, 128, 0.96);
+    --color-secondary: rgba(126, 214, 255, 0.96);
     --color-lightGrey: #d2d6dd;
     --color-grey: #ccc;
     --color-darkGrey: #777;
-    --color-error: rgba(212, 57, 57, 0.97);
-    --color-success: rgba(30, 250, 2, 0.95);
+    --color-error: rgba(252, 210, 210, 0.97);
+    --color-success: rgba(30, 250, 2, 0.85);
     --grid-maxWidth: 90rem;
     --grid-gutter: 2rem;
     --font-size: 1.6rem;
@@ -24,7 +25,7 @@ html {
     -webkit-box-sizing: border-box;
     box-sizing: border-box;
     font-size: 62.5%;
-    line-height: 1.15;
+    line-height: 1.25;
     -ms-text-size-adjust: 100%;
     -webkit-text-size-adjust: 100%;
 }
@@ -84,7 +85,7 @@ h6 {
 }
 a {
     color: var(--color-primary);
-    text-decoration: var(--color-primary);
+    /*text-decoration: var(--color-primary);*/
 }
 a:hover:not(.button) {
     opacity: 0.75;
@@ -142,6 +143,7 @@ code,
 kbd {
     padding: 0 0.4rem;
     font-size: 90%;
+    font-weight: bold;
     white-space: pre-wrap;
     border-radius: 4px;
     padding: 0.2em 0.4em;
@@ -478,6 +480,8 @@ input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type=
 select,
 textarea,
 textarea[type="text"] {
+    color: var(--font-color);
+    background-color: var(--bg-color);
     font-family: inherit;
     padding: 0.8rem 1rem;
     border-radius: 4px;
@@ -530,10 +534,10 @@ select {
 [type="submit"],
 button {
     padding: 1rem 2.5rem;
-    color: var(--color-darkGrey);
-    background: var(--color-lightGrey);
+    color: var(--color-primary);
+    background: var(--bg-secondary-color);
     border-radius: 4px;
-    border: 1px solid transparent;
+    border: 1px solid var(--color-primary);
     font-size: var(--font-size);
     line-height: 1;
     text-align: center;
@@ -634,8 +638,6 @@ button:disabled:hover {
     color: var(--color-primary);
 }
 .button.icon {
-    display: -webkit-inline-box;
-    display: -ms-inline-flexbox;
     display: inline-flex;
     -webkit-box-align: center;
     -ms-flex-align: center;
@@ -1065,4 +1067,197 @@ h1 {
 }
 .padding-14 {
     padding-bottom: 14em;
+}
+
+ /* options page */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+    opacity: 1;
+    padding: 0.25em;
+}
+.secondsTextInput {
+    max-width: 5em;
+    max-width: 5em;
+}
+
+.secondsInputSuffix {
+    white-space: nowrap;
+    display: flex;
+    padding: 0.25em;
+    vertical-align: middle;
+}
+
+label, .label {
+    padding-right: 0.25em;
+    padding-left: 0.25em;
+    line-height: 0;
+    align-items: center;
+    vertical-align: middle;
+}
+
+/**** CSS3 collapsable section ****/
+.wrap-collabsible {
+    margin-bottom: 1.2rem;
+}
+
+input#collapsible[type='checkbox'] {
+    display: none;
+}
+
+.lbl-toggle {
+    display: block;
+
+    font-weight: bold;
+    font-family: monospace;
+    font-size: 1.2rem;
+    text-transform: uppercase;
+    text-align: center;
+
+    padding: 1rem;
+
+    color: var(--color-primary);
+    background: var(--bg-secondary-color);
+
+    cursor: pointer;
+
+    border-radius: 7px;
+    transition: all 0.25s ease-out;
+}
+
+.lbl-toggle:hover {
+    color: var(--color-success);
+}
+
+.lbl-toggle::before {
+    content: ' ';
+    display: inline-block;
+
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 5px solid currentColor;
+    vertical-align: middle;
+    margin-right: .7rem;
+    transform: translateY(-2px);
+
+    transition: transform .2s ease-out;
+}
+
+.toggle:checked + .lbl-toggle::before {
+    transform: rotate(90deg) translateX(-3px);
+}
+
+.collapsible-content {
+    max-height: 0px;
+    overflow: hidden;
+    transition: max-height .25s ease-in-out;
+}
+
+.toggle:checked + .lbl-toggle + .collapsible-content {
+    max-height: 100vh;
+}
+
+.toggle:checked + .lbl-toggle {
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.collapsible-content .content-inner {
+    background: var(--bg-secondary-color);
+    border-bottom: 1px solid var(--color-lightGrey);
+    border-bottom-left-radius: 7px;
+    border-bottom-right-radius: 7px;
+    padding: .5rem 1rem;
+}
+
+/** list with editable items */
+div[contenteditable="true"] {
+    border: 1px solid lightgrey;
+    padding: 2px;
+}
+
+div[contenteditable="true"]:focus {
+    background-color: #fff7ec;
+    border: 1px solid lightgrey;
+    padding: 2px;
+}
+
+li:hover button.del-btn-sel {
+    float: right;
+    flex-direction: row;
+    display: inline-block;
+    visibility: visible;
+
+}
+
+li button.del-btn-sel {
+    float: right;
+    display: inline-block;
+    visibility: hidden;
+}
+
+.button-span {
+    float: right;
+    display: inline-block;
+}
+
+.list {
+    overflow-y: scroll;
+    max-height: 23em !important;
+    min-width: 40em !important;
+}
+
+
+.list-group {
+    display: flex;
+    flex-direction: column;
+    padding-left: 0;
+    margin-bottom: 0
+}
+
+.list-group-item {
+    width: 100%;
+    min-height: 4em;
+    border: 1px solid var(--color-primary);
+    color: var(--color-primary);;
+    text-align: left;
+    font-size: larger;
+
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    padding: .75rem 1.25rem;
+    margin-bottom: -1px;
+    background-color: var(--bg-color);
+}
+
+.list-group-item:first-child {
+    border-top-left-radius: .25rem;
+    border-top-right-radius: .25rem
+}
+
+.list-group-item:last-child {
+    margin-bottom: 0;
+    border-bottom-right-radius: .25rem;
+    border-bottom-left-radius: .25rem
+}
+
+.list-group-item:focus,.list-group-item:hover {
+    color: var(--color-primary);
+    text-decoration: none;
+    background-color: var(--bg-secondary-color);
+
+    z-index: 1;
+}
+
+.list-group-item.active {
+    color: var(--color-primary);
+    background-color: var(--bg-secondary-color);
+    z-index: 2;
+    border-color: var(--color-primary);
+}
+
+.max-heigth {
+    overflow-y: scroll;
+    max-height: 23em !important;
 }

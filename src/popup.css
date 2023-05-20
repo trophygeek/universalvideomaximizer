@@ -19,7 +19,7 @@ body {
     margin: 0;
 }
 
-.videomax-ext-speed-control-container {
+.control-container {
     clear: both;
     display: flex;
     color: white;
@@ -33,13 +33,7 @@ body {
 }
 
 
-.videomax-ext-speed-control-radio-button {
-    position: absolute;
-    left: -9999em;
-    top: -9999em;
-}
-
-.videomax-ext-speed-control-radio-button + label {
+label {
     float: left;
     padding: 0.5em 0.5em 0.1em 0.5em;
     line-height: 1.5em;
@@ -53,24 +47,42 @@ body {
     opacity: 90%; /* fade in on hover */
 }
 
-.videomax-ext-speed-control-radio-button + label:first-of-type {
+/* Hide the native radio input */
+input[type="checkbox"] {
+    appearance: none;
+    opacity: 0;
+    position: absolute;
+    width: 0;
+}
+
+input[type="checkbox"]:first-of-type + label {
     border-radius: 0.7em 0 0 0.7em;
 }
 
-.videomax-ext-speed-control-radio-button + label:last-of-type {
+input[type="checkbox"]:last-of-type + label {
     border-radius: 0 0.7em 0.7em 0;
 }
-.videomax-ext-speed-control-radio-button:checked + label {
+
+input[type="checkbox"]:checked + label {
     background-color: #1b4060;
 }
 
-.videomax-ext-speed-control-radio-button + label:hover,
-.videomax-ext-speed-control-radio-button + label:focus {
-    font-weight: bolder;
+input[type="checkbox"]:not(:checked) + label {
+    background-color: #2b5981;
 }
 
+input[type="checkbox"]:hover + label {
+    ouline: .25rem solid #2491ff;
+    outline-offset: 0;
+}
 
-.closeicon {
+input[type="checkbox"]:focus + label {
+    ouline: .25rem solid #2491ff;
+    outline-offset: 0;
+}
+
+input[type="checkbox"].closeicon + label {
     padding-top: 0.05em;
     width: 1.5em;
 }
+

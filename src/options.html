@@ -3,38 +3,105 @@
 <head>
   <title>Universal Video Maximizer - Options</title>
   <meta charset="utf-8">
-  <link rel="stylesheet" type="text/css" href="chota.css">
+  <link href="chota.css" rel="stylesheet" type="text/css">
+  <script src="options.js" type="module"></script>
 </head>
 <body class="dark">
 
 <div class="container">
-  <h1>Universal Video Maximizer</h1>
+  <h1>Universal Video Maximizer - Options</h1>
 
-  <form>
-    <fieldset>
-      <input type="checkbox" id="use_toggle_zoom_behavior" checked name="showspeedcontrols">
-      <label for="use_toggle_zoom_behavior">
-        Use classic toggle zoom behavior (will disable playback speed controls)
-      </label>
-    </fieldset>
+  <form id="mainForm">
+    <div class="container">
+      <fieldset>
+        <div class="row col bold">Use simplified behavior</div>
+        <div class="row col label">
+          <input checked id="useToggleZoomBehavior" name="useToggleZoomBehavior" type="checkbox">
+          <label for="useToggleZoomBehavior">
+            Use classic toggle-zoom behavior (enabling removes the playback-speed feature)
+          </label>
+        </div>
+      </fieldset>
 
-    <fieldset>
-      <a href="help.html">See more tricks here</a>
-    </fieldset>
+      <fieldset>
+        <div class="row col bold">Playback skipping</div>
+        <div class="container">
+          <div class="row col">Using arrow keys to skip while Video Maximizer popup controls are displayed.&nbsp; <a
+              href="help.html">Read more help</a></div>
+        </div>
 
-    <fieldset
-    <p>
-      Report problems via
-      <a href="https://github.com/trophygeek/universalvideomaximizer/issues" target="_blank" rel="noreferrer">GitHub
-        issue ↗</a>.
-    </p>
-    <p>
-      Include this information in the report:
-    </p>
-      <span id="version"></span>
-    </fieldset>
+        <div class="row col label">
+          <label for="regSkipSeconds">
+            Skip seconds:
+          </label>
+          <input class="secondsTextInput"
+                 id="regSkipSeconds"
+                 inputmode="numberic"
+                 max="900"
+                 maxlength="3"
+                 min="1"
+                 minlength="1"
+                 name="regSkipSeconds"
+                 pattern="[0-9]*"
+                 type="number">
+        </div>
+
+        <div class="row col label">
+          <label for="longSkipSeconds">
+            Skip seconds Ext:
+          </label>
+
+          <input class="secondsTextInput"
+                 id="longSkipSeconds"
+                 inputmode="numberic"
+                 max="900"
+                 maxlength="3"
+                 min="1"
+                 minlength="1"
+                 name="longSkipSeconds"
+                 pattern="[0-9]*"
+                 type="number"><span class="label"> (when Shift key is used)</span>
+        </div>
+        <div class="row col label">
+          <input checked id="preportionalSkipTimes" name="preportionalSkipTimes" type="checkbox">
+          <label for="preportionalSkipTimes">Playback skipping is in viewing times, not video time.
+            e.g. 2x playback speed skips twice as far.</label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <div class="row col bold">Speed controls only sites</div>
+        <div class="row col label">
+          <label for="nozoomlist">Sites that are already fullscreen so VideoMax won't try to zoom again, but speed
+            controls are still nice.</label>
+          <div class="list-group">
+          <ul id="nozoomlist" class="list">
+          </ul>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <div class="row col bold">Report problems via &nbsp; <a href="https://github.com/trophygeek/universalvideomaximizer/issues" rel="noreferrer" target="_blank">GitHub
+          issue ↗</a></div>
+        <div class="container">
+          <div class="wrap-collabsible">
+            <input class="toggle" id="collapsible" type="checkbox">
+            <label class="lbl-toggle" for="collapsible" tabindex="0">Include this information in the report:</label>
+            <div class="collapsible-content">
+              <div class="content-inner"><span id="version"></span></div>
+            </div>
+          </div>
+        </div>
+      </fieldset>
+      <fieldset>
+        <div class="container">
+          <button id="reset" type="reset">Reset to defaults</button>
+          <button id="save" type="button">Save</button>
+        </div>
+      </fieldset>
+    </div>
   </form>
 </div>
-<script src="options.js"></script>
 </body>
 </html>

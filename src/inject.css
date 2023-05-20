@@ -1,13 +1,12 @@
 
 body.videomax-ext-max {
-    overflow-y: hidden !important; /* Hide vertical scrollbar */
-    overflow-x: hidden !important; /* Hide horizontal scrollbar */
-    -ms-overflow-style: none; /* IE and Edge */
-    scrollbar-width: none; /* Firefox */
+  overflow-y: hidden !important; /* Hide vertical scrollbar */
+  overflow-x: hidden !important; /* Hide horizontal scrollbar */
+  scrollbar-width: none; /* Firefox */
 }
 
 body::-webkit-scrollbar {
-    display: none;
+  display: none;
 }
 
 /* the repeating increases the weight of the rule (nexted .videomax-ext-max classes)
@@ -16,50 +15,64 @@ body::-webkit-scrollbar {
 .videomax-ext-max,
 .videomax-ext-max .videomax-ext-max,
 .videomax-ext-max .videomax-ext-max .videomax-ext-max {
-    clear: both !important;
-    background: rgb(0, 0, 0) !important;
-    width: calc(100vw) !important;
-    height: calc(100vh) !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: 0 !important;
-    top: 0 !important;
-    left: 0 !important;
-    min-height: 0 !important;
-    min-width: 0 !important;
-    max-height: none !important;
-    max-width: none !important;
-    object-fit: contain !important;
-    visibility: visible !important;
-    display: block !important;
-    transform: revert !important;
-    /* added 17April22 */
-    overflow: visible !important;
+  clear: both !important;
+  background: rgb(0, 0, 0) !important;
+  width: calc(100vw) !important;
+  height: calc(100vh) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  top: 0 !important;
+  left: 0 !important;
+  min-height: 0 !important;
+  min-width: 0 !important;
+  max-height: none !important;
+  max-width: none !important;
+  object-fit: contain !important;
+  visibility: visible !important;
+  display: block !important;
+  transform: revert !important;
+  /* added 17April22 */
+  overflow: visible !important;
+  /* added 13May23 - cavas closed captions on crunchroll are after video */
+  position: fixed !important;
 }
 
 .videomax-ext-hide,
 .videomax-ext-hide .videomax-ext-hide,
 .videomax-ext-max .videomax-ext-hide {
-    display: none !important;
-    visibility: hidden !important;
-    /* added 30May22 try to stop pop ups blocking video */
-    position: absolute !important;
-    left: -5000em !important;
-    top: -5000em !important;
-    width: 1px !important;
-    height: 1px !important;
+  display: none !important;
+  visibility: hidden !important;
+  /* added 30May22 try to stop pop ups blocking video */
+  position: absolute !important;
+  left: -5000em !important;
+  top: -5000em !important;
+  width: 1px !important;
+  height: 1px !important;
 }
 
 /* make it inherit style of parent*/
 .videomax-ext-overlap,
 .videomax-ext-overlap .videomax-ext-overlap,
 .videomax-ext-max .videomax-ext-overlap {
-    min-height: 0 !important;
-    max-height: none !important;
-    min-width: 0 !important;
-    max-width: none !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  min-width: 0 !important;
+  max-width: none !important;
 }
 
-.videomax-ext-playback-controls {
-    /*width: calc(98vw);*/
+.videomax-ext-playback-controls,
+.videomax-ext-max .videomax-ext-playback-controls {
+  width: calc(98vw);
+}
+
+/* crunchyroll's CC text alignment fix */
+.videomax-ext-max canvas#velocity-canvas {
+  bottom: 1rem;
+  width: 100vw; /* center gets messed up when resizing. Top text still sometimes gets lost */
+}
+
+/* cnbc controls are at top withtout this */
+.videomax-ext-max .videomax-ext-playback-controls .jw-controls {
+  /*position: unset;*/
 }

@@ -1,116 +1,156 @@
-const FULL_DEBUG = true;
-const DEBUG_ENABLED = FULL_DEBUG;
-const TRACE_ENABLED = FULL_DEBUG;
-const ERR_BREAK_ENABLED = FULL_DEBUG;
+// @ts-check
+import {
+  BETA_UPDATE_NOTIFICATION_VERISON,
+  CSS_FILE,
+  CSS_STYLE_HEADER_ID,
+  DEAULT_SPEED,
+  DEFAULT_SETTINGS,
+  getSettings,
+  logerr,
+  saveSettings,
+  trace,
+} from "./common.js";
 
-const ALWAYS_SHOW_SPEED = false; // forces to always be enabled
+const ALWAYS_SHOW_SPEED = true; // forces to always be enabled
 
-const UNZOOM_CMD = 'UNZOOM';
-const SET_SPEED_CMD = 'SET_SPEED';
-const REZOOM_CMD = 'REZOOM';
+// "What's the current state of a tab?" is a serious problem when trying to be a secure extension.
+// When the user clicks our extensions icon, the background can get permissions it needs to
+// get information it needs to run (like the url so it can see if the site is a "no zoom needed").
+// BUT when the popup UI is used and the user clicks on an button to change speed, the
+// background doesn't have all the same permissions when it gets a message from the popup.
+// The popup also doesn't really have access to all the information about the target page either.
+//
+// The situation is to keep track of the various states of each tab that has had VidMax injected
+// in memory (like a map of TabId:currentState)
+// BUT background services in v3 can be unloaded at any time (and are) so this global data is lost.
+// So it must be persisted somehow... often this is done using local storage, but that immediately
+// hits a snag:
+//   Saving state in localStorage is basically impossible because the storage API is async (used
+//   to save off the current state), BUT chrome Unloading message is NOT async friendly.
+//
+// The most robust and low overhead approach is to get CHROME to store information about each
+// tab for us and the background service can check the state directly. There are only a few ways
+// to do this and none of them are intended for this purpose:
+//   chrome.action.enable/chrome.action.disable state
+//   chrome.action.getBadgeBackgroundColor
+//   chrome.action.getBadgeText
+//   chrome.action.getPopup
+//   chrome.action.getTitle
+//
+// We don't need much data since we have < 8 possible states.
+//  getBadgeBackgroundColor is an rgba()... so if we could use the alpha bit
+//  getBadgeText: if we have unique "text" for each state, then this works nicely
+//                BUT ZOOM+SPEED and just SPEED (sites that already zoom) overlap
+//  getPopup: This is the url for our popup. But it's current set based on state.
+//  getTitle: If each title should/could be unique, so it should work. But localizing
+//            will become harder later. There are multiple titles per state for
+//            errors: UNSUPPORTED_URL, SECURITY_CHECK_FAILED
 
-const DEAULT_SPEED = '1.0';
-
-const CSS_FILE = 'inject.css';
-const CSS_STYLE_HEADER_ID = 'maximizier-css-inject';
-
-const SETTINGS_STORAGE_KEY = 'settings';
-const OLD_TOGGLE_ZOOM_BEHAVIOR = 'use_toggle_zoom_behavior';
-const DEFAULT_OLD_TOGGLE_ZOOM_BEHAVIOR = false;
-
-const BETA_UPDATE_NOTIFICATION = 'beta_notification';
-// bumping this will cause the notification to show again. keep it pinned unless some major feature
-const BETA_UPDATE_NOTIFICATION_VERISON = '3.0.40';
-
-// Badges show state to user bug are also used to KEEP TRACK OF THE STATE for a given tabId.
-// This approach to state storage is required because v3 extensions are unloaded unexpected.
-// Saving state in localStorage is basically impossible because the storage API is async (used
-// to save off the current state), BUT chrome Unloading message is NOT async friendly.
+// Badges show state to user
 const BADGES = {
-  NONE: '',
-  ZOOMED: '←  →',
-  SPEED: '▶️',
-  REFRESH: '⟳',
-  WARNING: '⚠',
+  NONE:    "",
+  ZOOMED:  "←  →",
+  SPEED:   "▶️",
+  REFRESH: "↺",
+  WARNING: "!",
 };
 
-const STATES = {
-  RESET: 'RESET',
-  ZOOMING: 'ZOOMING',
-  ZOOMED_NOSPEED: 'ZOOMED_NOSPEED',
-  ZOOMED_SPEED: 'ZOOMED_SPEED',
-  REFRESH: 'REFRESH',
-  WARNING: 'WARNING',
+
+const DEFAULT_COLOR = "#FFFFFF00";
+
+/** @type {BackgroundStateMap} */
+const STATE_DATA = {
+  // each title MUST be unique! Reverse lookup uses the title to
+  // map chrome.action.getTitle back to state.
+  RESET:              {
+    badge:     BADGES.NONE,
+    title:     "Click to zoom video",
+    showpopup: false,
+    zoomed:    false,
+    color:     DEFAULT_COLOR,
+  },
+  ZOOMING:            {
+    badge:     BADGES.ZOOMED,
+    title:     "Searching for videos to zoom",
+    showpopup: false,
+    zoomed:    true,
+    color:     DEFAULT_COLOR,
+  },
+  ZOOMING_SPEED_ONLY: {
+    badge:     BADGES.ZOOMED,
+    title:     "Searching for videos enhance",
+    showpopup: true,
+    zoomed:    true,
+    color:     DEFAULT_COLOR,
+  },
+  ZOOMED_NOSPEED:     {
+    badge:     BADGES.SPEED,
+    title:     "Click to unzoom\nNo speed change allowed by this site.",
+    showpopup: false,
+    zoomed:    true,
+    color:     DEFAULT_COLOR,
+  },
+  ZOOMED_SPEED:       {
+    badge:     BADGES.SPEED,
+    title:     "Click to change speed or unzoom",
+    showpopup: true,
+    zoomed:    true,
+    color:     DEFAULT_COLOR,
+  },
+  SPEED_ONLY:         {
+    badge:     BADGES.SPEED,
+    title:     "Click to change speed",
+    showpopup: true,
+    zoomed:    true,
+    color:     DEFAULT_COLOR,
+  },
+  REFRESH:            {
+    badge:     BADGES.REFRESH,
+    title:     "Permissions check complete. Click again.",
+    showpopup: false,
+    zoomed:    false,
+    color:     "#03FC80F4",
+  },
+  ERR_PERMISSION:     {
+    badge:     BADGES.WARNING,
+    title:     "Permission denied by user",
+    showpopup: false,
+    zoomed:    false,
+    color:     "#FCD2D2F7",
+  },
+  ERR_URL:            {
+    badge:     BADGES.WARNING,
+    title:     "Extension only works on https sites\n and files dragged+dropped into chrome tab",
+    showpopup: false,
+    zoomed:    false,
+    color:     "#FCD2D2F7",
+  },
 };
 
-const ACTIVE_STATES = [STATES.ZOOMING, STATES.ZOOMED_NOSPEED, STATES.ZOOMED_SPEED];
+// this is used to pass the domain to the popup, it WILL be unloaded, but
+// that shouldn't happen while the popup is displayed
+let g_domain = "";
 
-// todo: move to localize
-const TOOLTIP = {
-  ZOOMED: 'Click to zoom video',
-  CANNOT_SPEED_CHANGE: 'Click ot unzoom\nNo speed change allowed by this site.',
-  SPEED_CHANGE: 'Click to change speed or unzoom',
-  SPEED: 'Click to change speed',
-  REFRESH: 'Permissions check complete. Click again.',
-  SECURITY_CHECK_FAILED: 'Permission denied by user',
-  UNSUPPORTED_URL: 'Extension only works on https sites',
-};
-
-/* these are sites that are already zoomed, but playback speed is kind of nice
- * todo: move to options dialog so user can edit. */
-const ZOOM_EXCLUSION_LIST = ['amazon.com',
-  'hbomax.com',
-  'disneyplus.com',
-  'hulu.com',
-  'netflix.com',
-  'tv.youtube.com',
-  'youku.com',
-  'bet.plus',
-  'tv.apple.com',
-  'play.google.com'];
-
-const logerr = (...args) => {
-  if (DEBUG_ENABLED === false) {
-    return;
-  }
-  // eslint-disable-next-line no-console
-  console.trace(
-    '%c VideoMax BK ERROR',
-    'color: white; font-weight: bold; background-color: red',
-    ...args,
-  );
-  if (ERR_BREAK_ENABLED) {
-    // eslint-disable-next-line no-debugger
-    debugger;
-  }
-};
-
-const trace = (...args) => {
-  if (TRACE_ENABLED) {
-    // blue color , no break
-    // eslint-disable-next-line no-console
-    console.log(
-      '%c VideoMax BK ',
-      'color: white; font-weight: bold; background-color: blue',
-      ...args,
-    );
-  }
-};
+// there will be sites that request this extension NOT work with them.
+// still building out this feature, but this is used for testing
+const NOPE_DOMAINS_LIST = ["rt.com", "kremlin.ru", "prageru.com", "prage.ru"];
+const NOPE_URL_LIST     = ["prageru"];  // maybe block all .ru propaganda related domains?
 
 /** used by unit tests **/
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 /**
- *
+ * Injection returns an array of results, this aggregates them into a single result.
  * @param injectionResults {InjectionResult[]}
- * @param defaultVal {boolean}
+ * @param defaultVal {boolean} Assume default is true or false. If any result in array is different
+ *                              then it that's the result of all of the values.
  * @returns {boolean}
  */
 function injectionResultCheck(injectionResults, defaultVal = false) {
   if ((injectionResults?.length || 0) === 0) {
     return defaultVal;
   }
-  for (const frameresult of injectionResults) {
+  for (let frameresult of injectionResults) {
     if (frameresult.result !== defaultVal) {
       return frameresult.result;
     }
@@ -123,11 +163,11 @@ function injectionResultCheck(injectionResults, defaultVal = false) {
  * @param newspeed {string}
  */
 function injectVideoSpeedAdjust(newspeed) {
-  const PLAYBACK_SPEED_ATTR = 'data-videomax-playbackspeed';
+  const PLAYBACK_SPEED_ATTR = "data-videomax-playbackspeed";
 
   /** nested local function * */
-  const _loadStart = (event) => {
-    const video_elem = event?.target;
+  const _loadStart  = (event) => {
+    const video_elem    = event?.target;
     const playbackSpeed = video_elem?.getAttribute(PLAYBACK_SPEED_ATTR);
     if (playbackSpeed) {
       const speedNumber = parseFloat(playbackSpeed);
@@ -140,32 +180,74 @@ function injectVideoSpeedAdjust(newspeed) {
   /** nested local function * */
 
   const speadNumber = parseFloat(newspeed);
-  const result = false;
+  const result      = false;
 
-  for (const eachVideo of document.querySelectorAll('video')) {
+  for (let eachVideo of document.querySelectorAll("video")) {
     eachVideo.defaultPlaybackRate = speadNumber;
-    eachVideo.playbackRate = speadNumber;
+    eachVideo.playbackRate        = speadNumber;
 
     eachVideo.setAttribute(PLAYBACK_SPEED_ATTR, newspeed);
-    eachVideo.removeEventListener('loadstart', _loadStart);
-    eachVideo.addEventListener('loadstart', _loadStart);
+    eachVideo.removeEventListener("loadstart", _loadStart);
+    eachVideo.addEventListener("loadstart", _loadStart);
   }
   return result;
 }
 
+/**
+ * @param skipSecondsStr {string}  negative numbers backwards
+ */
+function injectVideoSkip(skipSecondsStr) {
+  const skipSeconds = parseFloat(skipSecondsStr);
+  for (let eachVideo of document.querySelectorAll("video")) {
+    // restore playback speed after we skip
+    const savedSpeed       = eachVideo.playbackRate || 1.0;
+    eachVideo.currentTime  = Math.max(0, eachVideo.currentTime + skipSeconds); // don't go negative;
+    eachVideo.playbackRate = savedSpeed;
+  }
+}
+
+/**
+ * @param speedStr {string}  negative numbers backwards
+ */
+async function injectVideoPlaybackToggle(speedStr) {
+  const speedNumber = parseFloat(speedStr);
+  for (let eachVideo of document.querySelectorAll("video")) {
+    const isVideoPlaying = eachVideo => !!(eachVideo.currentTime > 0 && !eachVideo.paused &&
+                                           !eachVideo.ended && eachVideo.readyState > 2);
+    if (isVideoPlaying) {
+      console.trace(`
+        Playing -> pause 
+      `);
+      await eachVideo.pause();
+    } else {
+      console.trace(`
+        Paused -> play 
+      `);
+      await eachVideo.play();
+      eachVideo.playbackRate = speedNumber;
+    }
+  }
+}
+
+/**
+ *
+ * @param cssHRef {string}
+ * @param styleId {string}
+ * @returns {boolean}
+ */
 function injectCssHeader(cssHRef, styleId) {
   try {
     if (document.getElementById(styleId)) {
-      console.log('VideoMax Native Inject. Style header already injected');
-      return;
+      console.log("VideoMax Native Inject. Style header already injected");
+      return true;
     }
-    const styleLink = document.createElement('link');
-    styleLink.id = styleId;
-    styleLink.href = cssHRef;
-    styleLink.type = 'text/css';
-    styleLink.rel = 'stylesheet';
-    styleLink.media = 'all';
-    document.getElementsByTagName('head')[0].appendChild(styleLink);
+    const styleLink = document.createElement("link");
+    styleLink.id    = styleId;
+    styleLink.href  = cssHRef;
+    styleLink.type  = "text/css";
+    styleLink.rel   = "stylesheet";
+    styleLink.media = "all";
+    document.getElementsByTagName("head")[0].appendChild(styleLink);
     return true;
   } catch (err) {
     console.error(`****** VideoMax ERROR Native Inject
@@ -218,148 +300,225 @@ function isCssHeaderIsBlocked(cssHRef) {
   } catch (_err) {
   }
   if (isBlocked) {
-    console.log('VideoMaxExt css include file blocked.');
+    console.log("VideoMaxExt css include file blocked.");
   }
   return isBlocked;
 }
 
 function supportsSpeedChange() {
-  const matched = document.querySelectorAll('video[class*="videomax-ext-video-matched"]');
+  const matched = document.querySelectorAll(`video[class*="videomax-ext-video-matched"]`);
   return matched.length > 0;
 }
 
 /**
  *
- * @param tabId {Number}
- * @param state {STATES}
+ * @param tabId {number}
+ * @param state {BackgroundState}
  * @param speed {String}
  * @return {Promise<void>}
  */
-async function setState(tabId, state, speed = DEAULT_SPEED) {
+async function setCurrentState(tabId, state, speed = DEAULT_SPEED) {
   try {
     // map state to another state
     switch (state) {
-      case STATES.ZOOMING:
+      case "ZOOMING":
+        trace(`setCurrentState "${state}"`);
         const featureShowSpeedPopup = (await getSettingOldToggleBehavior()) === false;
         if (featureShowSpeedPopup) {
           // we have a case where "speed only" the check will fail.
           const supportsSpeedChange = await CheckSupportsSpeedChange(tabId);
           if (supportsSpeedChange) {
-            state = STATES.ZOOMED_SPEED;
+            state = "ZOOMED_SPEED";
           } else {
-            state = STATES.ZOOMED_NOSPEED;
+            state = "ZOOMED_NOSPEED";
           }
         }
         break;
+
+      case "ZOOMING_SPEED_ONLY":
+        trace(`setCurrentState "${state}"`);
+        state = "SPEED_ONLY";
+        break;
     }
 
-    const States = {
-      [STATES.RESET]: {
-        text: BADGES.NONE, // badge text
-        title: TOOLTIP.ZOOMED, // tooltip
-        popup: '',
-        zoomed: false,
-      },
-      [STATES.ZOOMING]: {
-        text: BADGES.ZOOMED,
-        title: TOOLTIP.ZOOMED,
-        popup: '',
-        zoomed: true,
-      },
-      [STATES.ZOOMED_SPEED]: {
-        text: BADGES.SPEED,
-        title: TOOLTIP.SPEED_CHANGE,
-        popup: `popup.html#tabId=${tabId}&speed=${speed}`,
-        zoomed: true,
-      },
-      [STATES.ZOOMED_NOSPEED]: {
-        text: BADGES.ZOOMED,
-        title: TOOLTIP.CANNOT_SPEED_CHANGE,
-        popup: '',
-        zoomed: true,
-      },
-      [STATES.REFRESH]: {
-        text: BADGES.REFRESH,
-        title: TOOLTIP.REFRESH,
-        popup: '',
-        zoomed: false,
-      },
-      [STATES.WARNING]: {
-        text: BADGES.WARNING,
-        title: TOOLTIP.SECURITY_CHECK_FAILED,
-        popup: '',
-        zoomed: false,
-      },
-    };
-
     const {
-      text,
-      title,
-      popup, // zoomed,
-    } = States[state];
+            badge,
+            title,
+            showpopup,
+            color,
+          } = STATE_DATA[state];
+    trace(`setCurrentState "${state}"
+    badge: "${badge}"
+    title: "${title}"
+    showpopup: "${showpopup}"
+    color: "${color}"`, STATE_DATA[state]);
 
-    // featureShowSpeedPopup
-    await chrome.action.setBadgeText({
+    // we need to pass in the tab id because the popup js can't get it and the
+    // the message sent to background is missing it.
+    const popup = showpopup ? `popup.html#tabId=${tabId}&speed=${speed}&domain=${g_domain}` : "";
+
+    // don't think the order matters, just set them all and wait for them to complete.
+    Promise.all([chrome.action.setBadgeText({
       tabId,
-      text,
-    });
-    await chrome.action.setPopup({
+      text: badge,
+    }), chrome.action.setPopup({
       tabId,
       popup,
-    });
-    await chrome.action.setTitle({
+    }), chrome.action.setTitle({
       tabId,
       title,
-    });
+    }), chrome.action.setBadgeBackgroundColor({
+      tabId,
+      color,
+    })]);
   } catch (err) {
     logerr(err);
   }
 }
 
+/**
+ *
+ * @param tabId
+ * @return {Promise<BackgroundState>}
+ */
+async function getTabCurrentState(tabId) {
+  try {
+    const title = await chrome.action.getTitle({ tabId });
+    // DEFAULT will be the `name` string from our manifeset
+    // e.g. "Universal Video Maximizer BETA v3"
+
+    // Normally, would could test if the string is in BackgroundState
+    // but typescript doesn't support string unions as of 2023
+    const key = /** @type {[BackgroundState]} */ Object.keys(STATE_DATA)
+      .filter(key => STATE_DATA[key].title === title);
+    if (!key?.length) {
+      trace(`getTabCurrentState NO MATCH "${key}"`);
+      return /** @type {BackgroundState} */  "RESET";
+    }
+    trace(`getTabCurrentState "${key}"`);
+    return key[0];
+  } catch (err) {
+    logerr("GetStateErr", err);
+    return /** @type {BackgroundState} */ "RESET";
+  }
+}
+
+/**
+ * @param state {BackgroundState}
+ * @return {boolean}
+ */
+function isActiveState(state) {
+  return STATE_DATA[state]?.zoomed || false;
+}
+/**
+ *
+ * @param url {string}
+ * @return {string}
+ */
 const getDomain = (url) => (new URL(url)).host.toLowerCase();
 
-const isPageExcluded = (url) => {
-  if (!url) {
+/**
+ * Returns true if there are any overlaps between two arrays of strings.
+ * @param arrA {string[]}
+ * @param arrB {string[]}
+ * @return {boolean}
+ */
+const intersection = (arrA, arrB) => arrA.filter(x => arrB.includes(x)).length > 0;
+
+/**
+ * @param url {string | undefined}
+ * @return {Promise<boolean>}
+ */
+const isPageExcluded = async (url) => {
+  if (!url?.length) {
+    // we don't have access to the url, check our current state
+    trace("isPageExcluded url is EMPTY");
     return false;
   }
-  const domain = getDomain(url);
-  for (const elem of ZOOM_EXCLUSION_LIST) {
-    if (domain.indexOf(elem) >= 0) {
-      return true;
-    }
+  g_domain = getDomain(url);
+  if (!g_domain?.length) {
+    // can happen for file:// uris
+    return false;
+  }
+  // domains are comma delimited string list, just look for `domain,` in the list.
+  const settings = await getSettings();
+  if (settings.zoomExclusionListStr.indexOf(`${g_domain},`) !== -1) {
+    trace(`Excluded from zooming ${g_domain}`);
+    return true;
   }
   return false;
 };
 
+/**
+ *
+ * @param url {string | undefined}
+ * @returns {boolean}
+ */
+const isABigFatNope = (url) => {
+  if (!url?.length) {
+    return false;
+  }
+  const domain = getDomain(url);
+  for (let elem of NOPE_DOMAINS_LIST) {
+    if (domain.indexOf(elem) >= 0) { // substring so www. prefix matches
+      logerr(`NOPE_DOMAINS_LIST match for "${url}"`);
+      return true;
+    }
+  }
+  const parts = url.toLowerCase()
+    .split(/[^A-Za-z]/);
+  if (intersection(parts, NOPE_URL_LIST)) {
+    logerr(`NOPE_URL_LIST match for "${url}"`);
+    return true;
+  }
+
+  return false;
+};
+
+/**
+ *
+ * @param tabId {number}
+ * @returns {Promise<void>}
+ * @constructor
+ */
 async function DoInjectZoomJS(tabId) {
   try {
     // The script will be run at document_end
-    trace('DoInjectZoomJS enter');
+    trace("DoInjectZoomJS enter");
     await chrome.scripting.executeScript({
       target: {
         tabId,
         allFrames: true,  // false doesn't hide some content.
-      }, //      world: 'MAIN',  // this breaks dailymotion
-      files: ['cmd_zoom_inject.js', 'videomax_main_inject.js'],
+      },
+      world:  "MAIN",  // this breaks dailymotion
+      files:  ["cmd_zoom_inject.js", "videomax_main_inject.js"],
     });
-    trace('DoInjectZoomJS enter');
+    trace("DoInjectZoomJS enter");
   } catch (err) {
     logerr(err);
   }
 }
 
+/**
+ * Tag only is for when we're dealing with sites that already zoom correctly
+ * but we want to be able to change playback control
+ * @param tabId {number}
+ * @returns {Promise<void>}
+ * @constructor
+ */
 async function DoInjectTagOnlyJS(tabId) {
   try {
-    trace('DoInjectTagOnlyJS enter');
+    trace("DoInjectTagOnlyJS enter");
     // The script will be run at document_end
     await chrome.scripting.executeScript({
       target: {
         tabId,
         allFrames: true,
-      }, //      world: 'MAIN',  // this breaks dailymotion
-      files: ['cmd_tagonly_inject.js', 'videomax_main_inject.js'],
+      },
+      world:  "MAIN",  // this breaks dailymotion
+      files:  ["cmd_tagonly_inject.js", "videomax_main_inject.js"],
     });
-    trace('DoInjectTagOnlyJS leave');
+    trace("DoInjectTagOnlyJS leave");
   } catch (err) {
     logerr(err);
   }
@@ -375,8 +534,8 @@ async function DoInjectTagOnlyJS(tabId) {
  */
 async function DoInjectZoomCSS(tabId, isDummy = false) {
   try {
-    trace('DoInjectZoomCSS enter');
-    const cssFilePath = isDummy ? '' : chrome.runtime.getURL(CSS_FILE);
+    trace("DoInjectZoomCSS enter");
+    const cssFilePath = isDummy ? "" : chrome.runtime.getURL(CSS_FILE);
     // we inject this way because we can undo it by deleting the style element.
     // The script will be run at document_end
     await chrome.scripting.executeScript({
@@ -384,27 +543,35 @@ async function DoInjectZoomCSS(tabId, isDummy = false) {
         tabId,
         allFrames: true,
       },
-      func: injectCssHeader,
-      args: [cssFilePath, CSS_STYLE_HEADER_ID], // world:  'MAIN',
+      world:  "MAIN",
+      func:   injectCssHeader,
+      args:   [cssFilePath, CSS_STYLE_HEADER_ID],
     });
-    trace('DoInjectZoomCSS leave');
+    trace("DoInjectZoomCSS leave");
   } catch (err) {
     logerr(err);
   }
 }
 
+/**
+ *
+ * @param tabId {number}
+ * @returns {Promise<void>}
+ * @constructor
+ */
 async function DoUndoInjectCSS(tabId) {
   try {
-    trace('DoUndoInjectCSS enter');
+    trace("DoUndoInjectCSS enter");
     await chrome.scripting.executeScript({
       target: {
-        tabId,
-        frameIds: [0],
+        tabId, // frameIds: [0],
+        allFrames: true,
       },
-      func: uninjectCssHeader,
-      args: [CSS_STYLE_HEADER_ID], // world:  'MAIN',
+      world:  "MAIN",
+      func:   uninjectCssHeader,
+      args:   [CSS_STYLE_HEADER_ID],
     });
-    trace('DoUndoInjectCSS leave');
+    trace("DoUndoInjectCSS leave");
   } catch (err) {
     logerr(err);
   }
@@ -414,26 +581,26 @@ async function DoUndoInjectCSS(tabId) {
  * Deep check to see if page is currently zoomed. Fast because it only checks the ID.
  * @param tabId {number}
  * @returns {Promise<boolean>}
- * @constructor
  */
 async function DoCheckCSSInjectedFast(tabId) {
   try {
-    trace('DoCheckCSSInjectedFast enter');
-    const injectionresult /* :InjectionResult[] */ = await chrome.scripting.executeScript({
+    trace("DoCheckCSSInjectedFast enter");
+    /** @var {InjectionResult[]} */
+    const injectionresult = await chrome.scripting.executeScript({
       target: {
-        tabId,
-        frameIds: [0],
+        tabId, // frameIds: [0],
+        allFrames: true,
       },
-      func: isCssHeaderInjectedFast,
-      args: [CSS_STYLE_HEADER_ID],
-      world: 'MAIN',
+      world:  "MAIN",
+      func:   isCssHeaderInjectedFast,
+      args:   [CSS_STYLE_HEADER_ID],
     });
 
     const result = injectionResultCheck(injectionresult);
     trace(`DoCheckCSSInjectedFast result: ${result}`, injectionresult);
     return result;
   } catch (err) {
-    logerr('DoCheckCSSInjectedFast failed, returning false', err);
+    logerr("DoCheckCSSInjectedFast result FAILED, returning false", err);
     return false;
   }
 }
@@ -447,39 +614,48 @@ async function DoCheckCSSInjectedFast(tabId) {
  */
 async function DoCheckCSSInjectedIsBlocked(tabId) {
   try {
-    trace('DoCheckCSSInjectedIsBlocked enter');
-    const cssFilePath = chrome.runtime.getURL(CSS_FILE);
-
-    const injectionresult /* :InjectionResult[] */ = await chrome.scripting.executeScript({
+    trace("DoCheckCSSInjectedIsBlocked enter");
+    const cssFilePath     = chrome.runtime.getURL(CSS_FILE);
+    /** @var {InjectionResult[]} */
+    const injectionresult = await chrome.scripting.executeScript({
       target: {
         tabId,
         frameIds: [0],
       },
-      func: isCssHeaderIsBlocked,
-      args: [cssFilePath],
-      world: 'MAIN',
+      func:   isCssHeaderIsBlocked,
+      args:   [cssFilePath],
+      world:  "MAIN",
     });
+
     const result = injectionResultCheck(injectionresult);
     trace(`DoCheckCSSInjectedIsBlocked result: ${result}`, injectionresult);
     return result;
   } catch (err) {
-    logerr('DoCheckCSSInjectedIsBlocked failed, returning false', err);
+    logerr("DoCheckCSSInjectedIsBlocked failed, returning false", err);
     return true;
   }
 }
 
+/**
+ *
+ * @param tabId {number}
+ * @returns {Promise<boolean>}
+ * @constructor
+ */
 async function CheckSupportsSpeedChange(tabId) {
   try {
     if (ALWAYS_SHOW_SPEED) {
       return true;
     }
-    trace('CheckSupportsSpeedChange enter');
-    const injectionresult /* :InjectionResult[] */ = await chrome.scripting.executeScript({
+    trace("CheckSupportsSpeedChange enter");
+    /** @var {InjectionResult[]} */
+    const injectionresult = await chrome.scripting.executeScript({
       target: {
         tabId,
         allFrames: true,
       },
-      func: supportsSpeedChange,
+      func:   supportsSpeedChange,
+      world:  "MAIN",
     });
 
     const result = injectionResultCheck(injectionresult);
@@ -494,83 +670,122 @@ async function CheckSupportsSpeedChange(tabId) {
 /**
  *
  * @param tabId {number}
- * @param uninject {boolean}
  * @return {Promise<void>}
  */
-async function unZoom(tabId, uninject = true) {
+async function unZoom(tabId) {
   try {
-    trace('unZoom');
-    await setState(tabId, STATES.RESET);
-    if (uninject) {
-      const promise1 = DoUndoInjectCSS(tabId);
-      const promise2 = chrome.scripting.executeScript({
-        target: {
-          tabId,
-          allFrames: true,
-        },
-        files: ['cmd_unzoom_inject.js', 'videomax_main_inject.js'],
-      });
-      await Promise.all([promise1, promise2]);
-    }
-    await setTabSpeed(tabId, DEAULT_SPEED);
+    trace("unZoom");
+    Promise.all([setCurrentState(tabId, "RESET"),
+                 DoUndoInjectCSS(tabId),
+                 setTabSpeed(tabId, DEAULT_SPEED),
+                 chrome.scripting.executeScript({
+                   target: {
+                     tabId,
+                     allFrames: true,
+                   },
+                   world:  "MAIN",
+                   files:  ["cmd_unzoom_inject.js", "videomax_main_inject.js"],
+                 })]);
   } catch (err) {
     logerr(err);
   }
 }
 
-async function Zoom(tabId, url) {
+/**
+ *
+ * @param tabId {number}
+ * @param state {BackgroundState}
+ * @param url {string | undefined}
+ * @returns {Promise<void>}
+ * @constructor
+ */
+async function DoZoom(tabId, state, url = undefined) {
   try {
-    const excluded_zoom = isPageExcluded(url);
-    if (!excluded_zoom) {
-      const promise1 = DoInjectZoomJS(tabId);
-      const promise2 = DoInjectZoomCSS(tabId);
-      await Promise.all([promise1, promise2]);
+    if (isABigFatNope(url)) {
+      return;
+    }
+    const excluded_zoom = await isPageExcluded(url);
+    if (excluded_zoom || state === "SPEED_ONLY") {
+      Promise.all([DoInjectTagOnlyJS(tabId),
+                   DoInjectZoomCSS(tabId, true),
+                   setCurrentState(tabId, "ZOOMING_SPEED_ONLY")]);
+    } else {
+      Promise.all([DoInjectZoomJS(tabId), DoInjectZoomCSS(tabId)]);
 
       // now verify the css wasn't blocked by CSP.
       const isBlocked = await DoCheckCSSInjectedIsBlocked(tabId);
       if (isBlocked) {
-        trace('css loading file blocked. directly adding css. undo/redo may fail');
+        trace("CSS loading file BLOCKED. directly adding css. undo/redo may fail");
         // ok. we just need to inject in a way that cannot be easily undone.
         await chrome.scripting.insertCSS({
           target: {
             tabId,
             allFrames: true,
-          }, //      world: 'MAIN',  // this breaks dailymotion
-          origin: 'AUTHOR',
-          files: [CSS_FILE],
+          },
+          origin: "AUTHOR",
+          files:  [CSS_FILE],
         });
       }
-    } else {
-      trace(`EXCLUDED_ZOOM for site '${url}'`);
-      const promise1 = DoInjectTagOnlyJS(tabId);
-      const promise2 = DoInjectZoomCSS(tabId, true);
-      await Promise.all([promise1, promise2]);
+      await setCurrentState(tabId, "ZOOMING"); // will check if page can speed up and refresh state
     }
-
-    await setState(tabId, STATES.ZOOMING); // will check if page can speed up and refresh state
   } catch (err) {
     logerr(err);
   }
 }
 
-async function setTabSpeed(tabId, speed = DEAULT_SPEED) {
+/**
+ *
+ * @param tabId {number}
+ * @param speedStr {string}
+ * @returns {Promise<null|chrome.scripting.InjectionResult[]>}
+ */
+async function setTabSpeed(tabId, speedStr = DEAULT_SPEED) {
   try {
-    trace('setTabSpeed', tabId, speed);
+    trace("setTabSpeed", tabId, speedStr);
 
-    if (typeof parseFloat(speed) !== 'number') {
-      logerr(`Speed NOT valid number '${speed}'`);
+    if (typeof parseFloat(speedStr) !== "number") {
+      logerr(`Speed NOT valid number '${speedStr}'`);
       return null;
     }
     // "allFrames" is broken unless manifest requests permissions
-    // to EVERYTHING on every site, all the time!?!
-    // see https://bugs.chromium.org/p/chromium/issues/detail?id=826433
+    // `"optional_host_permissions": ["<all_urls>"]`
+    // https://bugs.chromium.org/p/chromium/issues/detail?id=1265064
     return chrome.scripting.executeScript({
       target: {
         tabId,
         allFrames: true,
-      }, //      world: 'MAIN',  // this breaks dailymotion
-      func: injectVideoSpeedAdjust,
-      args: [speed],
+      },
+      world:  "MAIN",
+      func:   injectVideoSpeedAdjust,
+      args:   [speedStr],
+    });
+  } catch (err) {
+    logerr(err);
+    return null;
+  }
+}
+
+/**
+ * @param tabId {number}
+ * @param secondToSkipStr {string} Neg skips backwards
+ * @returns {Promise<chrome.scripting.InjectionResult[]>}
+ */
+async function skipPlayback(tabId, secondToSkipStr) {
+  try {
+    trace("skipPlayback", tabId, secondToSkipStr);
+    if (typeof parseFloat(secondToSkipStr) !== "number") {
+      logerr(`secondToSkipStr NOT valid number '${secondToSkipStr}'`);
+      return null;
+    }
+
+    return chrome.scripting.executeScript({
+      target: {
+        tabId,
+        allFrames: true,
+      },
+      world:  "MAIN",
+      func:   injectVideoSkip,
+      args:   [secondToSkipStr],
     });
   } catch (err) {
     logerr(err);
@@ -581,67 +796,59 @@ async function setTabSpeed(tabId, speed = DEAULT_SPEED) {
 /**
  *
  * @param tabId {number}
- * @returns {Promise<string>}
+ * @param speedStr {string}
+ * @returns {Promise<null|chrome.scripting.InjectionResult[]>}
  */
-async function getTabCurrentState(tabId) {
+async function togglePlayback(tabId, speedStr) {
   try {
-    const badgeText = await chrome.action.getBadgeText({ tabId });
-    // map badgeText back to state
-    const state = {
-      [BADGES.NONE]: STATES.RESET,
-      [BADGES.ZOOMED]: STATES.ZOOMED_NOSPEED,
-      [BADGES.SPEED]: STATES.ZOOMED_SPEED,
-      [BADGES.REFRESH]: STATES.REFRESH,
-      [BADGES.WARNING]: STATES.WARNING,
-    }[badgeText] || STATES.RESET;
-
-    if (ACTIVE_STATES.includes(state)) {
-      // user may have hit escape key to unzoom so we're in a weird state.
-      // by reinjecting the CSS, we rezoom.
-      trace('getTabCurrentState reinjecting css just in case');
-      await DoInjectZoomCSS(tabId);
+    trace("togglePlayback", tabId, speedStr);
+    if (typeof parseFloat(speedStr) !== "number") {
+      logerr(`speed NOT valid number '${speedStr}'`);
+      return null;
     }
 
-    return state;
+    return chrome.scripting.executeScript({
+      target: {
+        tabId,
+        allFrames: true,
+      },
+      world:  "MAIN",  // this breaks dailymotion
+      func:   injectVideoPlaybackToggle,
+      args:   [speedStr],
+    });
   } catch (err) {
     logerr(err);
-    return STATES.RESET;
+    return null;
   }
 }
 
+
 /**
  *
- * @param tabId {number}
- * @returns {Promise<boolean>}
+ * @returns {Promise<boolean|any>}
  */
-const getIsCurrentlyZoomed = async (tabId) => {
-  const state = await getTabCurrentState(tabId);
-  const result = ACTIVE_STATES.includes(state);
-  trace(`getIsCurrentlyZoomed: ${result}`);
-  return result;
-};
-
 const getSettingOldToggleBehavior = async () => {
   try {
-    const data = await chrome.storage.local.get(SETTINGS_STORAGE_KEY) || {};
-    trace('getFeatureShowZoomPopup settings:', JSON.stringify(data, null, 2));
-    return (data?.settings && data?.settings[OLD_TOGGLE_ZOOM_BEHAVIOR]) || DEFAULT_OLD_TOGGLE_ZOOM_BEHAVIOR;
+    const settings = await getSettings();
+    trace("getFeatureShowZoomPopup settings:", JSON.stringify(settings, null, 2));
+    return (settings.useToggleZoomBehavior || DEFAULT_SETTINGS.useToggleZoomBehavior);
   } catch (err) {
     logerr(err);
-    return DEFAULT_OLD_TOGGLE_ZOOM_BEHAVIOR;
+    return DEFAULT_SETTINGS.useToggleZoomBehavior;
   }
 };
 
+/**
+ * @returns {Promise<boolean>}
+ */
 const getSettingBetaIntroAlreadyShown = async () => {
   try {
-    const data = await chrome.storage.local.get(BETA_UPDATE_NOTIFICATION) || {};
-    const result = (BETA_UPDATE_NOTIFICATION_VERISON === data[BETA_UPDATE_NOTIFICATION]);
+    const settings = await getSettings();
+    const result   = (BETA_UPDATE_NOTIFICATION_VERISON === settings.lastBetaVersion);
 
     // now update it to expected version
-    await chrome.storage.local.set(
-      { [BETA_UPDATE_NOTIFICATION]: BETA_UPDATE_NOTIFICATION_VERISON },
-    );
-
+    settings.lastBetaVersion = BETA_UPDATE_NOTIFICATION_VERISON;
+    await saveSettings(settings);
     return result;
   } catch (err) {
     logerr(err);
@@ -653,14 +860,14 @@ const getSettingBetaIntroAlreadyShown = async () => {
  * and when Chrome is updated to a new version. */
 async function showUpgradePageIfNeeded() {
   try {
-    trace('chrome.runtime.onInstalled');
+    trace("chrome.runtime.onInstalled");
     // checked saved state and see if we've opened the page about v3 update.
     const shown = await getSettingBetaIntroAlreadyShown();
     if (shown) {
       return;
     }
 
-    const url = chrome?.runtime?.getURL('help.html') || '';
+    const url = chrome?.runtime?.getURL("help.html") || "";
     if (!url) {
       return;
     }
@@ -674,83 +881,73 @@ async function showUpgradePageIfNeeded() {
   }
 }
 
+/**
+ *
+ * @param tabId {number}
+ * @param url {string}
+ * @returns {Promise<void>}
+ */
 async function toggleZoomState(tabId, url) {
   const state = await getTabCurrentState(tabId);
-  if (!ACTIVE_STATES.includes(state)) {
-    await Zoom(tabId, url);
+  if (!isActiveState(state)) {
+    await DoZoom(tabId, state, url);
     return;
   }
 
-  // we are zoomed
-  if (state === STATES.ZOOMED_NOSPEED) { // toggle behavior otherwise message unzooms
+  // we are zoomed but
+  if (state === "ZOOMED_NOSPEED") { // toggle behavior otherwise message unzooms
     await unZoom(tabId);
   }
 }
 
-chrome.action.onClicked.addListener(async (tab) => {
-  trace('chrome.action.onClicked - checking permissions');
+chrome.action.onClicked.addListener((tab) => {
+  trace("chrome.action.onClicked - checking permissions");
   const tabId = tab.id;
-  chrome.permissions.request(
-    { permissions: ['activeTab', 'scripting', 'storage'] },
-    async (granted) => {
-      try {
-        if (!granted) {
-          await setState(tabId, STATES.REFRESH);
-          logerr('permissions to run were denied, so extension is not injecting');
-          return;
-        }
-        trace('permissions granted');
-        await showUpgradePageIfNeeded();
-
-        // tab?.url could be null, so we need to query to get the current tab
-        if (!tab?.url) {
-          // now we have to go back and get the url since it wasn't passed to us
-          // simple thing is to ask the user to click the button again.
-          await setState(tabId, STATES.REFRESH);
-          logerr(STATES.REFRESH);
-          return;
-        }
-
-        if (!(tab?.url?.startsWith('https://') || tab?.url?.startsWith('http://')
-              || tab?.url?.startsWith('file:'))) {
-          // do not run on chrome: or about: urls.
-          await setState(tabId, STATES.WARNING);
-          trace(STATES.WARNING);
-          return;
-        }
-
-        // "all frames" feature in v3 manifest doesn't REALLY work.
-        // https://bugs.chromium.org/p/chromium/issues/detail?id=826433
-
-        // {
-        //   let frames = await chrome?.webNavigation?.getAllFrames({ tabId }) || [];
-        //   const getDomain = (url) => (new URL(url)).host;
-        //   const tld = getDomain(tab?.url);
-        //
-        //   filtered = frames.filter(
-        //       eachframe => (tld === getDomain(eachframe.url)))
-        //     .map(eachframe => eachframe.frameId);
-        //
-        //   lame_global_test.frameIds = filtered;
-        // }
-
-        await toggleZoomState(tabId, tab?.url);
-      } catch (err) {
-        logerr(err);
+  // keep in sync with manifest.json `optional_permissions`
+  chrome.permissions.request({
+    permissions: ["activeTab", "scripting", "storage"],
+    origins:     [tab?.url],
+  }, async (granted) => {
+    try {
+      if (!granted) {
+        await setCurrentState(tabId, "REFRESH");
+        logerr("permissions to run were denied, so extension is not injecting");
+        return;
       }
-    },
-  );
+      trace("permissions granted");
+      await showUpgradePageIfNeeded();
+
+      // tab?.url could be null, so we need to query to get the current tab
+      if (!tab?.url) {
+        // now we have to go back and get the url since it wasn't passed to us
+        // simple thing is to ask the user to click the button again.
+        await setCurrentState(tabId, "REFRESH");
+        return;
+      }
+
+      if (!(tab?.url?.startsWith("https://") || tab?.url?.startsWith("http://") ||
+            tab?.url?.startsWith("file:"))) {
+        // do not run on chrome: or about: urls.
+        await setCurrentState(tabId, "ERR_URL");
+        trace("ERR_URL");
+        return;
+      }
+      await toggleZoomState(tabId, tab?.url);
+    } catch (err) {
+      logerr(err);
+    }
+  });
 });
 
 // handle popup messages
-chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-  const cmd = request?.message?.cmd || '';
-  const tabId = parseFloat(request?.message?.tabId || '0');
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  const cmd   = /** @type CmdType*/ request?.message?.cmd || "";
+  const tabId = parseFloat(request?.message?.tabId || "0");
   const speed = request?.message?.speed || DEAULT_SPEED;
   if (!tabId) {
-    logerr('something wrong with message', request);
+    logerr("something wrong with message", request);
     sendResponse && sendResponse({ success: false });
-    return false;
+    return;
   }
 
   trace(`chrome.runtime.onMessage '${cmd}' '${speed}'`, request, sender);
@@ -759,50 +956,70 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   setTimeout(async () => {
     try {
       switch (cmd) {
-        case UNZOOM_CMD:
+        case "UNZOOM_CMD":
           await unZoom(tabId);
           // await setTabSpeed(tabId, speed);
           break;
 
-        case SET_SPEED_CMD:
-          await setState(tabId, STATES.ZOOMED_SPEED, speed);
-          await setTabSpeed(tabId, speed);
+        case "SET_SPEED_CMD":
+          Promise.all([setCurrentState(tabId, "ZOOMED_SPEED", speed), setTabSpeed(tabId, speed)]);
           break;
 
-        case REZOOM_CMD:
+        case "REZOOM_CMD":
           // the popup is about to display and thinks the page is zoomed, but it's may not be
-          // if escape key was pressed.
-          const zoomed = await DoCheckCSSInjectedFast(tabId);
-          if (!zoomed) {
+          // (e.g. if escape key was pressed.)
+          // in theory, re-injecting should be fine
+          const currentState = await getTabCurrentState(tabId);
+          if (currentState === "ZOOMING_SPEED_ONLY") {
+            trace("REZOOM_CMD - Speed only, not rezooming");
+            await setTabSpeed(tabId, speed);
+          } else {
+            trace("REZOOM_CMD -- Zooming");
             // a full zoom isn't needed, just the css reinjected.
-            const promise1 = Zoom(tabId);
-            const promise2 = setState(tabId, STATES.ZOOMING, speed);
-            const promise3 = setTabSpeed(tabId, speed);
-            await Promise.all([promise1, promise2, promise3]);
+
+            // we need to see if we're in "SPEED_ONLY" mode because
+            // we don't have access to the url to see if it's a site like hulu
+            const currentState = await getTabCurrentState(tabId);
+            const nextState    = currentState === "SPEED_ONLY" ? "ZOOMING_SPEED_ONLY" : "ZOOMING";
+            Promise.all([setCurrentState(tabId, nextState, speed),
+                         DoZoom(tabId, currentState), // we don't have access to url
+                         setTabSpeed(tabId, speed)]);
+            trace("REZOOM_CMD -- Zooming -- COMPLETE");
           }
           break;
+
+        case "SKIP_PLAYBACK_CMD":
+          await skipPlayback(tabId, speed);
+          break;
+
+        case "TOGGLE_PLAYBACK_CMD":
+          await togglePlayback(tabId, speed);
+          break;
+
       }
     } catch (err) {
       logerr(err);
     }
-  }, 1);
+  }, 0);
 
-  sendResponse && sendResponse({}); // used to close popup.
-  return false;
+  sendResponse && sendResponse({ success: true }); // used to close popup.
 });
 
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   try {
     trace(`tabs.onUpdated event tabId=${tabId}
     changeInfo:`, changeInfo);
-    if (tabId && changeInfo?.status === 'loading') {
-      if (await getIsCurrentlyZoomed(tabId)) {
-        trace('chrome.tabs.onUpdated loading so starting unzoom. likely SPA nav');
-        // some SPA won't do a clean refetch, we need to uninstall.
-        await unZoom(tabId, true);
-      } else {
-        trace(`tabId not currently zoomed ${tabId}`);
-      }
+    if (tabId && changeInfo?.status === "loading") {
+      setTimeout(async () => {
+        const state = await getTabCurrentState(tabId);
+        if (isActiveState(state)) {
+          trace("chrome.tabs.onUpdated loading so starting unzoom. likely SPA nav");
+          // some SPA won't do a clean refetch, we need to uninstall.
+          await unZoom(tabId);
+        } else {
+          trace(`tabId not currently zoomed ${tabId}`);
+        }
+      }, 0);
     }
   } catch (err) {
     logerr(err);

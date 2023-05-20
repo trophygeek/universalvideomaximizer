@@ -1,6 +1,6 @@
 {
   "name": "Universal Video Maximizer BETA v3",
-  "version": "3.0.70",
+  "version": "3.0.74",
   "manifest_version": 3,
   "description": "Zoom videos and theater mode on most websites WITHOUT requiring permissions to every site.",
   "homepage_url": "https://github.com/trophygeek/universalvideomaximizer",
@@ -14,15 +14,16 @@
     "default_title": "Universal Video Maximizer BETA v3"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "options_page": "options.html",
   "optional_permissions": [
     "activeTab",
     "scripting",
-    "storage",
-    "tabs"
+    "storage"
   ],
+  "optional_host_permissions": ["<all_urls>"],
   "web_accessible_resources": [
     {
       "resources": [

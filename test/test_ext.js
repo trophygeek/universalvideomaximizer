@@ -110,7 +110,6 @@ const ZoomExtCmd = async (webWorker) => {
       }
     });
   });
-
 };
 
 const UnZoomExtCmd = async (webWorker) => {
