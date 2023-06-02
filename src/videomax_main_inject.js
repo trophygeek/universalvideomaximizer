@@ -1,5 +1,5 @@
 try { // scope and prevent errors from leaking out to page.
-  const FULL_DEBUG          = false;
+  const FULL_DEBUG          = true;
   const DEBUG_ENABLED       = FULL_DEBUG;
   const TRACE_ENABLED       = FULL_DEBUG;
   const ERR_BREAK_ENABLED   = FULL_DEBUG;
@@ -8,21 +8,26 @@ try { // scope and prevent errors from leaking out to page.
   // this will put add the score as an attribute for
   // elements across revisions, the zoomed page's html can
   // be diffed. This is for debugging and unit testing.
-  const EMBED_SCORES = false;
+  const EMBED_SCORES = true;
 
   // experiments - keep these settings to regress check if various fixes for one site
-  // breaks another site.
-  const RUN_OLD_VIDEO_MATCH             = true; // still needed for bbc, cnbc
-  const DO_NOT_MATCH_ADS                = true;
-  const OBSERVER_DIV_REAPPLY            = false;
-  const OBSERVER_CLASSES_REAPPLY        = false;
-  const FIX_UP_STYLES_ON_PLAYBACK_CNTLS = false;
-  const SKIP_REHIDE                     = false;
-  const ALWAYS_MAX_BODY                 = true;
-  const SCROLL_TO_VIDEO                 = true;
-  const STOP_NODE_DISABLE               = true;
-  const PLAY_CNTL_SMELL                 = true;
-  const NO_REHIDE_HIDDEN_CNTL           = true;
+  // breaks another site. Eventually, these can go away as we verify no adverse interactions with
+  // more obscure sites.
+  const RUN_OLD_VIDEO_MATCH                = true; // no longer needed with security enhancements
+  const DO_NOT_MATCH_ADS                   = true;
+  const OBSERVER_DIV_REAPPLY               = false;
+  const OBSERVER_CLASSES_REAPPLY           = false;
+  const FIX_UP_STYLES_ON_PLAYBACK_CNTLS    = false;
+  const SKIP_REHIDE                        = false;
+  const ALWAYS_MAX_BODY                    = true;
+  const SCROLL_TO_VIDEO                    = true;
+  const STOP_NODE_DISABLE                  = true;
+  const PLAY_CNTL_SMELL                    = true;
+  const NO_REHIDE_HIDDEN_CNTL              = false;
+  const FALLBACK_SEARCH_FOR_PLAYBACk_CNTLS = true;
+  const NO_NESTED_PLAYBACK_CNTLS           = true;
+  const REHIDE_RETRY_UNTIL_NONE            = true; // tictok popups
+
 
   // when walking dom how many levels up to check when looking for controls?
   // too low and we miss some playback position controls (vimeo)
@@ -57,11 +62,12 @@ try { // scope and prevent errors from leaking out to page.
 
   // smp-toucan-player is some random bbc player
   const VIDEO_NODES       = ["object", "embed", "video", "iframe", "smp-toucan-player"];
-  const ALWAYS_HIDE_NODES = ["aside", "footer", "header"];
-  const IGNORE_NODES      = ["noscript", "script", "head", "html"];
+  const ALWAYS_HIDE_NODES = ["footer", "header"];  // aside needed for 9anime
   const STOP_NODES        = ["head", "body", "html"];  // stop when walking up parents
   const STOP_NODES_FRAME  = ["head", "body", "html", "frame", "iframe"];  // stop when walking up
   const AVOID_ZOOMING     = ["a"];  // can be hidden but NEVER a control or video
+  const IGNORE_NODES      = ["noscript", "script", "head", "html", "link"];
+  const IGNORE_CNTL_NODES = [...IGNORE_NODES, ...STOP_NODES_FRAME];
 
   const CSS_STYLE_HEADER_ID = "maximizier-css-inject";
 
@@ -77,6 +83,7 @@ try { // scope and prevent errors from leaking out to page.
   const PLAYBACK_CNTLS_CSS_CLASS     = `${PREFIX_CSS_CLASS_PREP}-playback-controls`;
   const PLAYBACK_VIDEO_MATCHED_CLASS = `${PREFIX_CSS_CLASS_PREP}-video-matched`;
   const EMBEDED_SCORES               = `${PREFIX_CSS_CLASS_PREP}-scores`;
+  const REHIDE_DEBUG_CSS_CLASS       = `${PREFIX_CSS_CLASS_PREP}-rehide`;
 
   // eslint-disable-next-line no-unused-vars
   const ALL_CLASSNAMES_TO_REMOVE = [OVERLAP_CSS_CLASS, // -prop-
@@ -90,7 +97,9 @@ try { // scope and prevent errors from leaking out to page.
                                     PLAYBACK_VIDEO_MATCHED_CLASS,
                                     `${PREFIX_CSS_CLASS}-video-matched`,
                                     EMBEDED_SCORES,
-                                    `${PREFIX_CSS_CLASS}-scores`];
+                                    `${PREFIX_CSS_CLASS}-scores`,
+                                    REHIDE_DEBUG_CSS_CLASS, // debug only
+  ];
 
   //  const SPEED_CONTROLS     = `${PREFIX_CSS_CLASS}-speed-control`;
   const SCALESTRING_WIDTH  = "100%"; // "calc(100vw)";
@@ -108,7 +117,7 @@ try { // scope and prevent errors from leaking out to page.
   const videomaxGlobals = {
     elemMatcher:      null,
     foundOverlapping: false,
-    /** @var {HTMLElement || Node} */
+    /** @var {HTMLElement | Node} */
     matchedVideo: null,
     /** @var {boolean} */
     matchedIsHtml5Video: false,
@@ -220,10 +229,14 @@ try { // scope and prevent errors from leaking out to page.
         return;
       }
 
-      const startingAttr = window.document.body.parentNode.getAttribute(
-        VIDEO_MAX_EMBEDDED_SCORE_ATTR) || "";
-      window.document.body.parentNode.setAttribute(VIDEO_MAX_EMBEDDED_SCORE_ATTR,
-        [startingAttr, newStr].join("\n\n"));
+      // const startingAttr = window.document.body.parentNode.getAttribute(
+      //   VIDEO_MAX_EMBEDDED_SCORE_ATTR) || "";
+      // window.document.body.parentNode.setAttribute(VIDEO_MAX_EMBEDDED_SCORE_ATTR,
+      //   [startingAttr, newStr].join("\n\n"));
+      window.document.body.parentNode.append(window.document.createComment(`
+      ${newStr}
+      
+      `));
     } catch (err) {
       trace(err);
     }
@@ -231,6 +244,28 @@ try { // scope and prevent errors from leaking out to page.
 
   /**
    *
+   * @param elem {HTMLElement | Node}
+   * @return {string}
+   * @constructor
+   */
+  const PrintNode = (elem) => {
+    try {
+      const clone = elem?.cloneNode(false);
+      if (!clone) {
+        return "";
+      }
+      clone.innerText = "";
+      if (clone?.srcdoc?.length) {
+        clone.srcdoc = "";
+      }
+      const result = clone?.outerHTML || " - ";
+      return result.substring(0, 1024);// don't allow it to be too big.
+    } catch (err) {
+      return " - ";
+    }
+  };
+
+  /**
    * @param strMessage {string}
    * @param strSelector {string}
    */
@@ -238,14 +273,7 @@ try { // scope and prevent errors from leaking out to page.
     const results = [strMessage];
     const matches = document.querySelectorAll(strSelector);
     for (let match of matches) {
-      try {
-        const clone = match?.cloneNode(false) || null;
-        if (clone) {
-          results.push(clone?.outerHTML || " - ");
-        }
-      } catch (err) {
-        trace(err);
-      }
+      results.push(PrintNode(match));
     }
     appendUnitTestResultInfo(`${results.join(`\n`)}\n`);
   };
@@ -269,12 +297,6 @@ try { // scope and prevent errors from leaking out to page.
     }
   };
 
-  /**
-   *
-   * @param id {string}
-   * @return {HTMLElement}
-   */
-  const $              = (id) => document.getElementById(id);
   const documentLoaded = () => ["complete", "interactive"].includes(document.readyState);
 
   /**
@@ -435,8 +457,7 @@ try { // scope and prevent errors from leaking out to page.
     const compstyle = getElemComputedStyle(node);
 
     // make sure the ratio is reasonable for a video.
-    return (safeParseInt(compstyle?.width) === 0 ||
-            safeParseInt(compstyle?.height) === 0);
+    return (safeParseInt(compstyle?.width) === 0 || safeParseInt(compstyle?.height) === 0);
   }
 
   /**
@@ -468,6 +489,14 @@ try { // scope and prevent errors from leaking out to page.
    * @param elem {Node || HTMLElement}
    * @return {boolean}
    */
+  function isIngoredCntlNode(elem) {
+    return IGNORE_CNTL_NODES.includes(elem?.nodeName?.toLowerCase() || "");
+  }
+
+  /**
+   * @param elem {Node || HTMLElement}
+   * @return {boolean}
+   */
   function IsAlwaysHideNode(elem) {
     return ALWAYS_HIDE_NODES.includes(elem?.nodeName?.toLowerCase() || "");
   }
@@ -479,9 +508,6 @@ try { // scope and prevent errors from leaking out to page.
    */
   function isOnlyHide(elem) {
     const isLink = AVOID_ZOOMING.includes(elem?.nodeName?.toLowerCase() || "");
-    if (isLink) {
-      debugger;
-    }
     return isLink;
   }
 
@@ -549,7 +575,6 @@ try { // scope and prevent errors from leaking out to page.
   }
 
   /**
-   *
    * @param childElem {HTMLElement}
    * @param ancestorElem {HTMLElement}
    * @return {boolean}
@@ -558,13 +583,34 @@ try { // scope and prevent errors from leaking out to page.
     let checkParents = 100;
     let elem         = childElem;
     while (elem.parentElement && checkParents-- && !isStopNodeType(elem)) {
-      if (elem.isSameNode(ancestorElem)) {
+      if (elem === ancestorElem) {
         return true;
       }
       elem = elem.parentElement;
     }
     return false;
   }
+
+  /**
+   *
+   * @param childElem {HTMLElement}
+   * @return {boolean}
+   */
+  function anyParentsAlreadyPlayback(childElem) {
+    let checkParents = 100;
+    let elem         = childElem;
+    while (elem.parentElement && checkParents-- && !isStopNodeType(elem)) {
+      const match = elem.classList?.contains(PLAYBACK_CNTLS_CSS_CLASS) ||
+                    elem.classList?.contains(`${PREFIX_CSS_CLASS}-playback-controls`) || false;
+      if (match) {
+        trace("anyParentsAlreadyPlayback is True", childElem);
+        return true;
+      }
+      elem = elem.parentElement;
+    }
+    return false;
+  }
+
 
   /**
    *
@@ -615,14 +661,20 @@ try { // scope and prevent errors from leaking out to page.
       logerr("*** maximizeVideoDom while loop ran too long ***");
     }
 
-    if (true) {
+    if (FALLBACK_SEARCH_FOR_PLAYBACk_CNTLS) {
       // see if we've tagged an element as a playback control
       const currentDoc = videoElem.ownerDocument;
       if (((currentDoc.querySelectorAll(`.${PLAYBACK_CNTLS_CSS_CLASS}`)?.length || 0) !== 0)) {
         trace(`====\nDid NOT find playback controls - searching for sliders\n====`);
-        // this is a VERY basic fallback. closertotruth.com fix
+        // this is a VERY basic fallback.
         for (let eachslider of containerElem.querySelectorAll("[role=\"slider\"]")) {
-          replaceVideoMaxClassInTree(containerElem, eachslider, PLAYBACK_CNTLS_CSS_CLASS);
+          // volumes are sliders too. English specific term search isn't great
+          if (eachslider.className.toLowerCase()
+                .indexOf("volume") === -1) {
+            replaceVideoMaxClassInTree(containerElem, eachslider, PLAYBACK_CNTLS_CSS_CLASS);
+          } else {
+            trace("Possible volume slider, skipping");
+          }
         }
       }
 
@@ -1049,15 +1101,27 @@ try { // scope and prevent errors from leaking out to page.
 
   /**
    * @param elem {Node || HTMLElement}
+   * @param isRehide {boolean}
    */
-  function hideNode(elem) {
+  function hideNode(elem, isRehide = false) {
     if (isIgnoredNode(elem)) {
-      return;
+      return false;
     }
     if (NO_REHIDE_HIDDEN_CNTL && isElementHidden(elem)) {
+      trace("NOT hiding node NO_REHIDE_HIDDEN_CNTL", elem);
+      return false;
+    }
+    if (isADecendantElem(elem, videomaxGlobals.matchedVideo)) {
       trace("Not adding HIDDEN_CSS_CLASS class to hidden node NO_REHIDE_HIDDEN_CNTL", elem);
+      return false;
     }
     elem?.classList?.add(HIDDEN_CSS_CLASS); // may be Node
+    isADecendantElem(elem, videomaxGlobals.matchedVideo);  // debugging issue remove
+    if (isRehide && TRACE_ENABLED) {
+      elem?.classList?.add(REHIDE_DEBUG_CSS_CLASS); // may be Node
+      return true;
+    }
+    return false;
   }
 
   /**
@@ -1070,26 +1134,36 @@ try { // scope and prevent errors from leaking out to page.
     elem?.classList?.add(OVERLAP_CSS_CLASS);
   }
 
+  function addPlaybackCtrl(elem) {
+    if (isIngoredCntlNode(elem) || isOnlyHide(elem)) {
+      return;
+    }
+    trace(`  Add PLAYBACK_CNTLS_CSS_CLASS ${elem.nodeName} `, elem);
+    elem?.classList?.add(PLAYBACK_CNTLS_CSS_CLASS);
+  }
+
   /**
    *
    * @param elemIn { Node || HTMLElement }
    * @param boundingclientrect {{top: number, left: number, bottom: number,
    *     width: number, right: number, height: number}}
    * @param likelyContainer { Node || HTMLElement }
+   * @return {boolean}
    */
   function siblingsCheckHideOrPlaybackCntls(elemIn, boundingclientrect, likelyContainer) {
     if (!elemIn) {
       trace("siblingsCheckHideOrPlaybackCntls() elemIn is null");
-      return;
+      return false;
     }
     // trace("siblingsCheckHideOrPlaybackCntls for class '" + elemIn.className + "'
     // rect="+JSON.stringify(boundingclientrect));
     const elemParent = elemIn.parentNode;
     if (!elemParent) {
-      return;
+      return false;
     }
 
-    const isDecendant = isADecendantElem(elemIn, likelyContainer);
+    const isDecendant             = isADecendantElem(elemIn, likelyContainer);
+    const isPlaybackCntlDecendant = anyParentsAlreadyPlayback(elemIn);
 
     // could also use node.contains(elemIn) where node is the matched video?
     const parentIsVideo     = elemParent.nodeName === "VIDEO";
@@ -1129,10 +1203,11 @@ try { // scope and prevent errors from leaking out to page.
       // todo: check z-order?
 
       // We're trying to NOT hide the controls the video is using.
-      // everyone does it slightly different, so theres
-      const bounded       = isBoundedRect(boundingclientrect, eachBoundingRect);
-      const bottomDocked  = isBottomDocked(boundingclientrect, eachBoundingRect);
-      const hasSliderRole = hasSliderRoleChild(each_sib);
+      // everyone does it slightly different
+      const bounded           = isBoundedRect(boundingclientrect, eachBoundingRect);
+      const bottomDocked      = isBottomDocked(boundingclientrect, eachBoundingRect);
+      const hasSliderRole     = hasSliderRoleChild(each_sib);
+      const hasEaseInOutTrans = hasEaseInOutTransStyle(each_sib);
 
       let handled = false;
       if (isSpecialCaseAlwaysHide(each_sib)) { // last ditch special case check
@@ -1141,7 +1216,8 @@ try { // scope and prevent errors from leaking out to page.
         handled = true;
       }
 
-      if (!(bounded || bottomDocked || hasSliderRole || parentIsVideo || parentIsMaximized)) {
+      if (!(bounded || bottomDocked || hasSliderRole || parentIsVideo || parentIsMaximized ||
+            hasEaseInOutTrans)) {
         // each_elem.style.setProperty("display", "none", "important");
         trace(`  Hidding overlapping elem ${each_sib.nodeName}`, each_sib);
         hideNode(each_sib);
@@ -1155,7 +1231,8 @@ try { // scope and prevent errors from leaking out to page.
         const parentHasSliderRole = hasSliderRoleOnElem(each_sib);
         const smellsLikeAControl  = smellsLikeAPlaybackControl(each_sib);
         const isLikelyControls    = hasSliderRole || bottomDocked || parentHasSliderRole ||
-                                    smellsLikeAControl || (parentIsVideo && parentIsMaximized);
+                                    hasEaseInOutTrans || smellsLikeAControl ||
+                                    (parentIsVideo && parentIsMaximized);
 
         if (!isLikelyControls) {
           trace(`  Add OVERLAP_CSS_CLASS to children ${each_sib.nodeName} `, each_sib);
@@ -1174,13 +1251,16 @@ try { // scope and prevent errors from leaking out to page.
 
         if (!handled) {
           if (isLikelyControls) {
-            // the maximizeVideoDom tries to find the playback controls.
-            // to do this they must be visible. Sometimes they disappear before
-            // the user clicks the zoom.
-            trace(`  Add PLAYBACK_CNTLS_CSS_CLASS ${each_sib.nodeName} `, each_sib);
-            // we're going to assume it contains the playback controls and are
-            // going to max with it.
-            each_sib?.classList?.add(PLAYBACK_CNTLS_CSS_CLASS);
+            // We can mess up layout if a parent is already is already a playbackcontrol
+            if (NO_NESTED_PLAYBACK_CNTLS && isPlaybackCntlDecendant === true) {
+              trace("   Skipping adding plabackctrl to decendant - NO_NESTED_PLAYBACK_CNTLS");
+            } else {
+              // the maximizeVideoDom tries to find the playback controls.
+              // to do this they must be visible. Sometimes they disappear before
+              // the user clicks the zoom.
+              addPlaybackCtrl(each_sib);
+            }
+            handled = true;
           } else {
             trace(`  Hidding overlapping elem ${each_sib.nodeName}`, each_sib);
             hideNode(each_sib);
@@ -1257,7 +1337,7 @@ try { // scope and prevent errors from leaking out to page.
 
     /** @var {number} */
     let reHideCount = 0;
-    /** @var {HTMLElement || Node || undefined} */
+    /** @var {HTMLElement | Node | undefined} */
     let current     = videomaxGlobals.matchedVideo;
     if (videomaxGlobals.matchedIsHtml5Video) {
       // html5 videos often put controls next to the video in the dom (siblings), so we want
@@ -1269,10 +1349,12 @@ try { // scope and prevent errors from leaking out to page.
       if (isElem(current)) {
         const siblings = getSiblings(current);
         for (let eachNode of siblings) {
+          // we don't hide the tree we're walking up, just the siblings
           if (!current.isEqualNode(eachNode) && isElem(eachNode) &&
               !containsAnyVideoMaxClass(eachNode)) {
-            hideNode(eachNode);
-            reHideCount++;
+            if (hideNode(eachNode, true)) { // may not actually hide for internal reasons
+              reHideCount++;
+            }
           }
         }
       }
@@ -1339,7 +1421,7 @@ try { // scope and prevent errors from leaking out to page.
   function hideCSS(id) {
     // try {
     if (id) {
-      const elem = $(id);
+      const elem = document.getElementById(id);
       if (elem) {
         saveAttribute(elem, "media");
         elem.setAttribute("media", "_all");
@@ -1347,11 +1429,18 @@ try { // scope and prevent errors from leaking out to page.
     }
   }
 
+  /**
+   * @return {boolean}
+   */
   function hasInjectedAlready() {
     const matched = document.querySelectorAll(`video[class*="${PLAYBACK_VIDEO_MATCHED_CLASS}"]`);
     return matched.length > 0;
   }
 
+  /**
+   * @param arr {Array}
+   * @return {Array}
+   */
   function arrayClone(arr) {
     return arr.slice(0);
   }
@@ -1359,8 +1448,7 @@ try { // scope and prevent errors from leaking out to page.
   /**
    * Returns whole numbers for bounding box instead of floats.
    * @param rectC {DOMRect}
-   * @return {{top: number, left: number, bottom: number, width: number, right:
-   *     number, height: number}}
+   * @return {DOMRect}
    */
   function wholeClientRect(rectC) {
     return {
@@ -1375,10 +1463,8 @@ try { // scope and prevent errors from leaking out to page.
 
   /**
    *
-   * @param outer {{top: number, left: number, bottom: number, width: number,
-   *     right: number, height: number}}
-   * @param inner {{top: number, left: number, bottom: number, width: number,
-   *     right: number, height: number}}
+   * @param outer {DOMRect}
+   * @param inner {DOMRect}
    * @return {boolean}
    */
   function isEqualRect(outer, inner) {
@@ -1389,6 +1475,12 @@ try { // scope and prevent errors from leaking out to page.
     return false;
   }
 
+  /**
+   *
+   * @param outer {DOMRect}
+   * @param inner {DOMRect}
+   * @return {boolean}
+   */
   function isBoundedRect(outer, inner) {
     if (isEqualRect(outer, inner)) {
       trace("isBoundedRect exact match. probably preview image.");
@@ -1400,6 +1492,11 @@ try { // scope and prevent errors from leaking out to page.
             (inner.right >= outer.left) && (inner.right <= outer.right));
   }
 
+  /**
+   * @param outer {DOMRect}
+   * @param inner {DOMRect}
+   * @return {boolean}
+   */
   function isOverlappingBottomRect(outer, inner) {
     if (isEqualRect(outer, inner)) {
       trace("isOverlappingRect exact match. probably preview image.");
@@ -1412,7 +1509,7 @@ try { // scope and prevent errors from leaking out to page.
   /**
    *
    * @param node {Node || HTMLElement}
-   * @return {Rect}
+   * @return {DOMRect}
    */
   function getBoundingClientRectWhole(node) {
     if (!isElem(node)) {
@@ -1468,6 +1565,18 @@ try { // scope and prevent errors from leaking out to page.
       trace(`Element has slider role elements, not hiding ${elem.nodeName}`, elem);
     }
     return result;
+  }
+
+  /**
+   * @param elem {Node || HTMLElement}
+   * @return {boolean}
+   */
+  function hasEaseInOutTransStyle(elem) {
+    if (!isElem(elem)) {
+      return false;
+    }
+    const compstyle = getElemComputedStyle(elem);
+    return compstyle.transition.includes("ease-in-out");
   }
 
   /**
@@ -1772,7 +1881,7 @@ try { // scope and prevent errors from leaking out to page.
       weight += START_WEIGHT * -1 * videomaxGlobals.match_counter * ORDER_WEIGHT; // further
 
       if (EMBED_SCORES) {
-        const elemStr = elem?.cloneNode(false)?.outerHTML || "error";
+        const elemStr = PrintNode(elem);
         traceweights.push(`===========================\n${elemStr}\n`);
         traceweights.push(`START_WEIGHT: ${START_WEIGHT}`);
         traceweights.push(`  Width; ${width}  Height: ${height}  ratio: ${fmtFlt(ratio)}`);
@@ -1948,6 +2057,27 @@ try { // scope and prevent errors from leaking out to page.
     }
   }
 
+  function recursiveIFrameFlipCssPrep(doc) {
+    try {
+      flipCssRemovePrep(doc);
+      const allIFrames = doc.querySelectorAll("iframe");
+      for (let frame of allIFrames) {
+        try {
+          const framedoc = frame.contentDocument;
+          if (!framedoc) {
+            continue;
+          }
+          flipCssRemovePrep(framedoc);
+          recursiveIFrameFlipCssPrep(framedoc);
+        } catch (err) {
+          // probably iframe boundry security related
+        }
+      }
+    } catch (err) {
+      // probably security related
+    }
+  }
+
   function watchForChanges() {
     if (!videomaxGlobals.matchedVideo || !videomaxGlobals.isMaximized ||
         !videomaxGlobals.matchedIsHtml5Video || runningInIFrame()) {
@@ -2050,15 +2180,18 @@ try { // scope and prevent errors from leaking out to page.
       }
     }
 
-    alwaysHideSomeElements();
-    flipCssRemovePrep();
-
     // some sites re-show these elements, hide again to be safe
-    setTimeout(() => {
+    const doRehideTimeoutLoop = () => {
       alwaysHideSomeElements();
-      flipCssRemovePrep();
-      rehideUpFromVideo();
-    }, 100);
+      const rehideCount = rehideUpFromVideo();
+      recursiveIFrameFlipCssPrep(document);
+      if (REHIDE_RETRY_UNTIL_NONE && rehideCount !== 0) {
+        trace("Retrying rehide until no more matches. 1000ms");
+        setTimeout(() => doRehideTimeoutLoop(), 1000);
+      }
+    };
+
+    doRehideTimeoutLoop();
 
     return true; // stop retrying
   }
@@ -2093,7 +2226,7 @@ try { // scope and prevent errors from leaking out to page.
       trace("updateEventListeners");
       const doc = window.document; // || video_elem?.ownerDocument;
       doc?.removeEventListener("keydown", _onPress);
-      if (removeOnly) {
+      if (!removeOnly) {
         doc?.addEventListener("keydown", _onPress);
       }
     } catch (err) {
@@ -2187,7 +2320,8 @@ try { // scope and prevent errors from leaking out to page.
         return true; // stop retrying - we kep trying to rehide
       });
     } else {
-      flipCssRemovePrep();
+      recursiveIFrameFlipCssPrep(document);
+      recursiveIFrameFlipCssPrep(window.document.body.parentNode);
       trace("Tag only is set. Will not modify page to zoom video");
     }
 
@@ -2196,6 +2330,7 @@ try { // scope and prevent errors from leaking out to page.
       appendSelectorItemsToResultInfo("=Main Video=", `.${PREFIX_CSS_CLASS}-video-matched`);
       appendSelectorItemsToResultInfo("=Playback controls=",
         `.${PREFIX_CSS_CLASS}-playback-controls`);
+      appendUnitTestResultInfo("==========DONE==========\n\n");
     }
     rehideUpFromVideo();
     videomaxGlobals.isMaximized = true;
@@ -2238,14 +2373,15 @@ try { // scope and prevent errors from leaking out to page.
             if (!framedoc) {
               continue;
             }
-            setTimeout(UndoZoom.undoAll, 1, framedoc);
+            setTimeout(UndoZoom.undoAll, 0, framedoc);
             UndoZoom.recurseIFrameUndoAll(framedoc);
           } catch (err) {
-            // probably security related
+            // probably iframe boundry security related
           }
         }
       } catch (err) {
         // probably security related
+        logerr("recurseIFrameUndoAll", err);
       }
     }
 
@@ -2256,13 +2392,9 @@ try { // scope and prevent errors from leaking out to page.
       const allElementsToFix = doc.querySelectorAll(`[class*="${PREFIX_CSS_CLASS}"]`);
       for (let elem of allElementsToFix) {
         elem.classList.remove(...ALL_CLASSNAMES_TO_REMOVE); // the '...' turns the array
-        // into a bunch of individual
-        // params
-        if (elem.getAttribute("class") === "") {
-          elem.removeAttribute("class");
-        }
       }
     }
+
 
     /**
      *
@@ -2386,6 +2518,7 @@ try { // scope and prevent errors from leaking out to page.
 
         UndoZoom.undoAll(document);
         UndoZoom.recurseIFrameUndoAll(document);
+        UndoZoom.recurseIFrameUndoAll(window.document.body.parentNode);
         // remove the video "located" attribute.
         const videoelem = document.querySelector(
           `[${VIDEO_MAX_ATTRIB_FIND}=${VIDEO_MAX_ATTRIB_ID}]`);

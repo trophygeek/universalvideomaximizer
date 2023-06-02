@@ -1,11 +1,8 @@
 // @ts-check
 import {
-  DEFAULT_SETTINGS,
-  getSettings,
-  saveSettings,
-  numbericOnly,
-  rangeInt, clearSettings,
+  clearSettings, DEFAULT_SETTINGS, getSettings, numbericOnly, rangeInt, saveSettings,
 } from "./common.js";
+
 /**
  * @typedef {import("./common.js")}
  */
@@ -14,7 +11,7 @@ import {
 //  so use this 3rd party extension:
 //  https://chrome.google.com/webstore/detail/storage-area-explorer/ocfjjjjhkpapocigimmppepjgfdecjkb
 
-let g_settings = {...DEFAULT_SETTINGS};
+let g_settings = { ...DEFAULT_SETTINGS };
 
 /**
  *
@@ -96,25 +93,22 @@ const loadSettingsIntoFields = (settings) => {
   setChecked("useToggleZoomBehavior", settings.useToggleZoomBehavior);
   setTextNum("regSkipSeconds", settings.regSkipSeconds);
   setTextNum("longSkipSeconds", settings.longSkipSeconds);
-  setChecked("preportionalSkipTimes", settings.preportionalSkipTimes);
+  // setChecked("preportionalSkipTimes", settings.preportionalSkipTimes);
+  setChecked("allSitesAccess", settings.allSitesAccess);
 
   // list of no-zoom sites
   {
     /* Used to build list */
-    const LI_START = '<li class="list-group-item">';
-    const LI_START2 = LI_START + '<span class="li-value">';
-    const LI_END = '</span><span class="button-span"><button class="del-btn-sel btn btn-sm btn-outline-dark">Remove</button></span></li>';
+    const LI_START  = "<li class=\"list-group-item\">";
+    const LI_START2 = LI_START + "<div class=\"li-value\">";
+    const LI_END    = "</div><di class=\"button-span\"><button class=\"delete-button\">Remove</button></di></li>";
 
-    const listarr = (settings.zoomExclusionListStr?.split(",") || []).filter(s => s?.length);
-    const list =
-            LI_START2 +
-            listarr.join(
-            LI_END +
-            LI_START2) +
-            LI_END +
-            LI_START +
-            '<button id="addpathblacklist" class="add-btn-sel btn btn-sm btn-outline-dark"> + Add New ...</button>' +
-            '</li>';
+    const listarr                                   = (settings.zoomExclusionListStr?.split(",") ||
+                                                       []).filter(s => s?.length);
+    const list                                      = LI_START2 + listarr.join(LI_END + LI_START2) +
+                                                      LI_END + LI_START +
+                                                      "<button id=\"addpathblacklist\" class=\"add-button\"> + Add New ...</button>" +
+                                                      "</li>";
     document.getElementById("nozoomlist").innerHTML = list;
   }
 };
@@ -125,11 +119,12 @@ const loadSettingsIntoFields = (settings) => {
  */
 const saveFieldsIntoSettings = (settings) => {
   try {
-    settings.useToggleZoomBehavior   = getChecked("useToggleZoomBehavior");
-    settings.regSkipSeconds          = getTextNum("regSkipSeconds");
-    settings.longSkipSeconds         = getTextNum("longSkipSeconds");
-    settings.preportionalSkipTimes   = getChecked("preportionalSkipTimes");
-  } catch(err) {
+    settings.useToggleZoomBehavior = getChecked("useToggleZoomBehavior");
+    settings.regSkipSeconds        = getTextNum("regSkipSeconds");
+    settings.longSkipSeconds       = getTextNum("longSkipSeconds");
+    // settings.preportionalSkipTimes = getChecked("preportionalSkipTimes");
+    settings.allSitesAccess        = getChecked("allSitesAccess");
+  } catch (err) {
     console.error(err);
   }
   return settings;
@@ -137,11 +132,10 @@ const saveFieldsIntoSettings = (settings) => {
 
 const save = async () => {
   try {
-    debugger;
     g_settings = saveFieldsIntoSettings(g_settings);
     loadSettingsIntoFields(g_settings);
     await saveSettings(g_settings);
-  } catch(err) {
+  } catch (err) {
     console.error(err);
   }
 };
@@ -157,21 +151,33 @@ document.addEventListener("DOMContentLoaded", async () => {
     const userAgent       = JSON.stringify(navigator?.userAgentData, null, 2);
 
     document.getElementById("version").innerHTML = `
-    <b>Extension Version:</b> v${manifestVersion}<br/>
-    <b>Extension Settings:</b></br/>
-    <pre>${settingStr}</pre><br/>
-    <b>Browser Version:</b><br/>
-    <pre>${userAgent}</pre>
-    `;
+<pre>
+Extension Version: v${manifestVersion}
+Extension Settings:
+${settingStr}
+Browser Version:
+${userAgent}
 
-    document.getElementById("mainForm").addEventListener("change", async (_e) => {
-      await save();
+</pre>`;
+
+    document.getElementById("mainForm")
+      .addEventListener("change", async (_e) => {
+        await save();
+      });
+
+    document.getElementById("allSitesAccess").addEventListener("click", async (_e) => {
+      setTimeout(() => {
+        if (getChecked("allSitesAccess")) {
+          alert("\nEnabling this feature will prompt you to grant this extension full access.\n\nYou will need to REFRESH the video page before it takes effect.");
+        }
+      }, 250);
     });
 
-    document.getElementById("reset").addEventListener("click", async (_e) => {
-      await clearSettings();
-      loadSettingsIntoFields(DEFAULT_SETTINGS);
-    });
+    document.getElementById("reset")
+      .addEventListener("click", async (_e) => {
+        await clearSettings();
+        loadSettingsIntoFields(DEFAULT_SETTINGS);
+      });
 
   } catch (err) {
     console.error(err);

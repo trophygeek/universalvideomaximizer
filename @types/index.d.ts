@@ -12,6 +12,8 @@ type SettingsType = {
   regSkipSeconds: number,
   longSkipSeconds: number,
   preportionalSkipTimes: boolean,
+  allSitesAccess: boolean,
+  allSitesAccessNeedsRevoke: boolean,
   zoomExclusionListStr: string,
 };
 

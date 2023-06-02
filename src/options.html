@@ -24,10 +24,26 @@
       </fieldset>
 
       <fieldset>
+        <div class="row col bold">Allow access to all sites by default</div>
+        <div class="row col label">
+          <input checked id="allSitesAccess" name="allSitesAccess" type="checkbox">
+          <label for="allSitesAccess">
+            If the speed controls won't work on a site, then try this.
+          </label>
+        </div>
+        <div class="container">
+          <div class="row col">WARNING: It will allow FULL ACCESS to ALL SITES by default. <br/> This access is required
+            when sites host videos from third-party domains and have a strict Content-Security-Policy
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
         <div class="row col bold">Playback skipping</div>
         <div class="container">
-          <div class="row col">Using arrow keys to skip while Video Maximizer popup controls are displayed.&nbsp; <a
-              href="help.html">Read more help</a></div>
+          <div class="row col">While Video Maximizer popup controls are displayed, you can using arrow keys to skip playback.&nbsp;
+            Playback skipping is in viewing times, not video time. For example, 2x playback speed skips twice as far.
+            <a href="help.html">Read more on the help page</a> </div>
         </div>
 
         <div class="row col label">
@@ -48,7 +64,7 @@
 
         <div class="row col label">
           <label for="longSkipSeconds">
-            Skip seconds Ext:
+            Skip seconds:
           </label>
 
           <input class="secondsTextInput"
@@ -62,11 +78,10 @@
                  pattern="[0-9]*"
                  type="number"><span class="label"> (when Shift key is used)</span>
         </div>
-        <div class="row col label">
-          <input checked id="preportionalSkipTimes" name="preportionalSkipTimes" type="checkbox">
-          <label for="preportionalSkipTimes">Playback skipping is in viewing times, not video time.
-            e.g. 2x playback speed skips twice as far.</label>
-        </div>
+<!--        <div class="row col label">-->
+<!--          <input checked id="preportionalSkipTimes" name="preportionalSkipTimes" type="checkbox">-->
+<!--          <label for="preportionalSkipTimes"></label>-->
+<!--        </div>-->
       </fieldset>
 
       <fieldset>
@@ -75,14 +90,15 @@
           <label for="nozoomlist">Sites that are already fullscreen so VideoMax won't try to zoom again, but speed
             controls are still nice.</label>
           <div class="list-group">
-          <ul id="nozoomlist" class="list">
-          </ul>
+            <ul class="list" id="nozoomlist">
+            </ul>
           </div>
         </div>
       </fieldset>
 
       <fieldset>
-        <div class="row col bold">Report problems via &nbsp; <a href="https://github.com/trophygeek/universalvideomaximizer/issues" rel="noreferrer" target="_blank">GitHub
+        <div class="row col bold">Report problems via &nbsp; <a
+            href="https://github.com/trophygeek/universalvideomaximizer/issues" rel="noreferrer" target="_blank">GitHub
           issue ↗</a></div>
         <div class="container">
           <div class="wrap-collabsible">

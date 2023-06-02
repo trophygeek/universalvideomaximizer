@@ -18,11 +18,8 @@
     "type": "module"
   },
   "options_page": "options.html",
-  "optional_permissions": [
-    "activeTab",
-    "scripting",
-    "storage"
-  ],
+  "permissions": ["activeTab", "storage"],
+  "optional_permissions": [ "scripting" ],
   "optional_host_permissions": ["<all_urls>"],
   "web_accessible_resources": [
     {

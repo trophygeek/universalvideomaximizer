@@ -141,7 +141,6 @@ tt {
 }
 code,
 kbd {
-    padding: 0 0.4rem;
     font-size: 90%;
     font-weight: bold;
     white-space: pre-wrap;
@@ -152,9 +151,9 @@ kbd {
 }
 pre {
     background-color: var(--bg-secondary-color);
-    font-size: 1em;
+    font-size: 0.8em;
     padding: 1rem;
-    overflow-x: auto;
+    overflow-y: auto;
 }
 pre code {
     background: none;
@@ -1025,7 +1024,7 @@ details.dropdown > :last-child {
 }
 
 li, ol {
-    padding-bottom: 1.5em;
+    padding-bottom: 1.25em;
 }
 
 .emphasis {
@@ -1098,6 +1097,7 @@ label, .label {
 /**** CSS3 collapsable section ****/
 .wrap-collabsible {
     margin-bottom: 1.2rem;
+    max-width: 40rem;
 }
 
 input#collapsible[type='checkbox'] {
@@ -1154,6 +1154,7 @@ input#collapsible[type='checkbox'] {
 
 .toggle:checked + .lbl-toggle + .collapsible-content {
     max-height: 100vh;
+    overflow: scroll;
 }
 
 .toggle:checked + .lbl-toggle {
@@ -1180,6 +1181,9 @@ div[contenteditable="true"]:focus {
     border: 1px solid lightgrey;
     padding: 2px;
 }
+
+
+
 
 li:hover button.del-btn-sel {
     float: right;
@@ -1208,7 +1212,7 @@ li button.del-btn-sel {
 
 
 .list-group {
-    display: flex;
+    display: block;
     flex-direction: column;
     padding-left: 0;
     margin-bottom: 0
@@ -1216,13 +1220,12 @@ li button.del-btn-sel {
 
 .list-group-item {
     width: 100%;
-    min-height: 4em;
-    border: 1px solid var(--color-primary);
-    color: var(--color-primary);;
+    min-height: 3em;
+    border: 1px solid var(--color-lightGrey);
+    color: var(--font-color);
     text-align: left;
-    font-size: larger;
 
-    display: flex;
+    display: inline-block;
     flex-direction: row;
     align-items: center;
 
@@ -1257,7 +1260,21 @@ li button.del-btn-sel {
     border-color: var(--color-primary);
 }
 
+.li-value {
+    vertical-align: center;
+}
+
 .max-heigth {
     overflow-y: scroll;
     max-height: 23em !important;
+}
+
+.button-span {
+    float: right;
+}
+
+.delete-button {
+}
+
+.add-button {
 }

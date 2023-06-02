@@ -53,13 +53,15 @@ const DEFAULT_ZOOM_EXCLUSION_LIST = "amazon.com," + "hbomax.com," + "disneyplus.
  * @type {SettingsType}
  */
 export const DEFAULT_SETTINGS = {
-  lastBetaVersion:         "",
-  useToggleZoomBehavior:   false, // true
-  spacebarTogglesPlayback: true,
-  regSkipSeconds:          5,
-  longSkipSeconds:         20,
-  preportionalSkipTimes:   true,
-  zoomExclusionListStr:    DEFAULT_ZOOM_EXCLUSION_LIST,
+  lastBetaVersion:           "",
+  useToggleZoomBehavior:     false, // true
+  spacebarTogglesPlayback:   true,
+  regSkipSeconds:            5,
+  longSkipSeconds:           20,
+  preportionalSkipTimes:     true,
+  allSitesAccess:            false,
+  allSitesAccessNeedsRevoke: false,
+  zoomExclusionListStr:      DEFAULT_ZOOM_EXCLUSION_LIST,
 };
 
 /**
@@ -69,14 +71,14 @@ export const getSettings = async () => {
   try {
     const result = await chrome?.storage?.local?.get();
     if (!result[SETTINGS_STORAGE_KEY]?.length > 0) {
-      return {...DEFAULT_SETTINGS}; // make a copy
+      return { ...DEFAULT_SETTINGS }; // make a copy
     }
     /** @type SettingsType **/
     const savedSetting = JSON.parse(result[SETTINGS_STORAGE_KEY]);
     return { ...DEFAULT_SETTINGS, ...savedSetting };
   } catch (err) {
     console.error(err);
-    return {...DEFAULT_SETTINGS}; // make a copy
+    return { ...DEFAULT_SETTINGS }; // make a copy
   }
 };
 

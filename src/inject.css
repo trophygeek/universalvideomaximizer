@@ -76,3 +76,12 @@ body::-webkit-scrollbar {
 .videomax-ext-max .videomax-ext-playback-controls .jw-controls {
   /*position: unset;*/
 }
+
+/** 21May
+  espn uses some strange loading spinner background image that needs some extra spec to override */
+.videomax-ext-max:after,
+.videomax-ext-max .videomax-ext-max:after,
+.videomax-ext-max .videomax-ext-max .videomax-ext-max:after {
+  background: transparent !important;
+}
+
