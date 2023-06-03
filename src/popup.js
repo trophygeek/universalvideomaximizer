@@ -8,7 +8,7 @@ try {
   const UNZOOM_LABEL = "[]";
   const UNZOOM_ICON  = "./icons/icon19undo.png";
 
-  const MENU         = [{
+  const MENU = [{
     label: "⚙️️",
     value: "OPTIONS_BTN_CMD",
   }, {
@@ -53,7 +53,7 @@ try {
   }];
 
   // used to simplify IncreaseSpeed()/DecreaseSpeed()
-  const MIN_SPEED = "0.0";
+  const MIN_SPEED = "0.00";
   const MAX_SPEED = "16.0";
   const globals   = {
     url: new URL(document.location.href),
@@ -143,11 +143,20 @@ try {
         trace("document.addEventListener keydown", evt);
         switch (evt.code) {
           case "Space":
+            const value = "0.00";
+            let speed   = DEFAULT_SPEED;
+            if (value !== globals.currentSpeed) { // toggle speed
+              speed = value;
+            }
+            globals.currentSpeed = speed;
+
+            checkItem(speed);
+            /** @type {string} */
             chrome.runtime.sendMessage({
               message: {
-                cmd:   "TOGGLE_PLAYBACK_CMD",
-                speed: globals.currentSpeed,
-                tabId: globals.tabId,
+                cmd: "SET_SPEED_CMD",
+                speed,
+                tabId,
               },
             });
             evt.stopImmediatePropagation();
@@ -165,6 +174,20 @@ try {
           const value = /** @type {CmdType} */ evt?.target?.dataset?.value;
 
           trace(`click '${value}' currentspeed='${globals.currentSpeed}'`);
+
+          if (value === "OPTIONS_BTN_CMD") {
+            chrome.runtime.sendMessage({
+              message: {
+                cmd:   "OPTIONS_CMD",
+                speed: globals.currentSpeed,
+                tabId,
+              },
+            }, (_response) => {
+              window.close();
+            });
+            return;
+          }
+
           let speed = DEFAULT_SPEED;
           if (!(value === "UNZOOM_BTN_CMD" || value === globals.currentSpeed)) { // toggle speed
             speed = value;

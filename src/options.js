@@ -1,6 +1,6 @@
 // @ts-check
 import {
-  clearSettings, DEFAULT_SETTINGS, getSettings, numbericOnly, rangeInt, saveSettings,
+  clearSettings, DEFAULT_SETTINGS, getSettings, numbericOnly, rangeInt, saveSettings, getDomain,
 } from "./common.js";
 
 /**
@@ -99,17 +99,26 @@ const loadSettingsIntoFields = (settings) => {
   // list of no-zoom sites
   {
     /* Used to build list */
-    const LI_START  = "<li class=\"list-group-item\">";
-    const LI_START2 = LI_START + "<div class=\"li-value\">";
-    const LI_END    = "</div><di class=\"button-span\"><button class=\"delete-button\">Remove</button></di></li>";
+    const LI_START  = `<li class="list-group-item container"><div class="container"><div class="row is-center">`;
+    const LI_START2 = LI_START + `<div class="col-1 is-left domain">`;
+    const LI_END    = `</div><div class="col-10 is-right"><button name="removeBtn" class="delete-button">Remove</button></div></div></div></li>`;
+    const listarr   = (settings.zoomExclusionListStr?.split(",") || []).filter(s => s?.length);
+    const list      = LI_START2 + listarr.join(LI_END + LI_START2) + LI_END;
 
-    const listarr                                   = (settings.zoomExclusionListStr?.split(",") ||
-                                                       []).filter(s => s?.length);
-    const list                                      = LI_START2 + listarr.join(LI_END + LI_START2) +
-                                                      LI_END + LI_START +
-                                                      "<button id=\"addpathblacklist\" class=\"add-button\"> + Add New ...</button>" +
-                                                      "</li>";
     document.getElementById("nozoomlist").innerHTML = list;
+    setTimeout(()=>{
+      const buttons = document.getElementsByName("removeBtn");
+      for (const eachButton of buttons) {
+        eachButton.addEventListener("click", (e) => {
+          const parentLi = e?.currentTarget?.closest("li");
+          const domain = parentLi?.querySelector(`div[class*="domain"]`)?.innerText || "";
+          parentLi.classList.add("fade-out");
+          // remove domain from list and save.
+          g_settings.zoomExclusionListStr = g_settings.zoomExclusionListStr.replace(`,${domain}`,"");
+          (async () => await saveSettings(g_settings))();
+        });
+      }
+    }, 0);
   }
 };
 
@@ -165,18 +174,50 @@ ${userAgent}
         await save();
       });
 
-    document.getElementById("allSitesAccess").addEventListener("click", async (_e) => {
-      setTimeout(() => {
-        if (getChecked("allSitesAccess")) {
-          alert("\nEnabling this feature will prompt you to grant this extension full access.\n\nYou will need to REFRESH the video page before it takes effect.");
+    document.getElementById("useToggleZoomBehavior")
+      .addEventListener("click", async (_e) => {
+        setTimeout(() => {
+          if (getChecked("useToggleZoomBehavior")) {
+            alert(
+              `\nThis will remove the speed controls.\n\nTo access this Options page in the future, RIGHT-CLICK on this extension's icon in toolbar and select "options"`);
+          }
+        }, 250);
+      });
+
+    document.getElementById("allSitesAccess")
+      .addEventListener("click", async (_e) => {
+        setTimeout(() => {
+          if (getChecked("allSitesAccess")) {
+            alert(
+              "\nEnabling this feature will prompt you to grant this extension FULL ACCESS.\n\nYou may need to REFRESH the video page before it takes effect.");
+          }
+        }, 250);
+      });
+
+    document.getElementById("addpathblacklist")
+      .addEventListener("click", async (e) => {
+        const newDomainStr = prompt("New domain name to exclude from zooming:");
+        if (newDomainStr?.length) {
+          const domain = getDomain(newDomainStr);
+          g_settings.zoomExclusionListStr = `${g_settings.zoomExclusionListStr},${domain}`;
+          await save();
+          // scroll to bottom
+          const objDiv = document.getElementById("nozoomlist");
+          objDiv.scrollTop = objDiv.scrollHeight;
         }
-      }, 250);
-    });
+        e.cancelBubble = true;
+        return false;
+      });
 
     document.getElementById("reset")
       .addEventListener("click", async (_e) => {
         await clearSettings();
         loadSettingsIntoFields(DEFAULT_SETTINGS);
+      });
+
+    document.getElementById("save")
+      .addEventListener("click", (_e) => {
+        window.close();
       });
 
   } catch (err) {

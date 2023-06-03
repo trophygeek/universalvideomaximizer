@@ -11,7 +11,7 @@
 <div class="container">
   <h1>Universal Video Maximizer - Options</h1>
 
-  <form id="mainForm">
+  <div id="mainForm">
     <div class="container">
       <fieldset>
         <div class="row col bold">Use simplified behavior</div>
@@ -33,17 +33,17 @@
         </div>
         <div class="container">
           <div class="row col">WARNING: It will allow FULL ACCESS to ALL SITES by default. <br/> This access is required
-            when sites host videos from third-party domains and have a strict Content-Security-Policy
+            when sites host videos from other domains.
           </div>
         </div>
       </fieldset>
 
       <fieldset>
         <div class="row col bold">Playback skipping</div>
-        <div class="container">
-          <div class="row col">While Video Maximizer popup controls are displayed, you can using arrow keys to skip playback.&nbsp;
+        <div class="container padding-1">
+          While Video Maximizer popup controls are displayed, you can using arrow keys to skip playback.&nbsp;
             Playback skipping is in viewing times, not video time. For example, 2x playback speed skips twice as far.
-            <a href="help.html">Read more on the help page</a> </div>
+            <a href="help.html">Read more on the help page</a>
         </div>
 
         <div class="row col label">
@@ -78,6 +78,10 @@
                  pattern="[0-9]*"
                  type="number"><span class="label"> (when Shift key is used)</span>
         </div>
+        <div class="container padding-1">
+            If you want to have a hotkey to trigger VideoMaximizer, it's built into Chrome. See this
+          <a href="https://www.youtube.com/watch?v=s3SQVhbmj4c" target="_blank" rel="noreferrer">Youtube demo</a>.
+        </div>
 <!--        <div class="row col label">-->
 <!--          <input checked id="preportionalSkipTimes" name="preportionalSkipTimes" type="checkbox">-->
 <!--          <label for="preportionalSkipTimes"></label>-->
@@ -92,6 +96,7 @@
           <div class="list-group">
             <ul class="list" id="nozoomlist">
             </ul>
+            <button class="add-button" id="addpathblacklist"> + Add New ...</button>
           </div>
         </div>
       </fieldset>
@@ -117,7 +122,7 @@
         </div>
       </fieldset>
     </div>
-  </form>
+  </div>
 </div>
 </body>
 </html>

@@ -131,3 +131,17 @@ export const numbericOnly = (str) => str.replace(/\n+/g, "");
  * @returns {number}
  */
 export const rangeInt = (num, lower, upper) => Math.max(lower, Math.min(upper, num));
+
+/**
+ *
+ * @param url {string}
+ * @return {string}
+ */
+export const getDomain = (url) => {
+  if (url.indexOf(`:\\`) > 0) {
+    (new URL(url)).host.toLowerCase();
+  } else {
+    return url;
+  }
+};
+

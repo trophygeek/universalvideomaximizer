@@ -22,7 +22,7 @@ type SettingsKeyType = keyof SettingsType;
 type SettingStorageKeyConstType = "settingsJson";
 
 // Used by chrome.runtime.sendMessage
-type CmdType = "UNZOOM_CMD" | "SET_SPEED_CMD" | "REZOOM_CMD" | "SKIP_PLAYBACK_CMD" | "TOGGLE_PLAYBACK_CMD";
+type CmdType = "UNZOOM_CMD" | "SET_SPEED_CMD" | "REZOOM_CMD" | "SKIP_PLAYBACK_CMD" | "TOGGLE_PLAYBACK_CMD"  | "OPTIONS_CMD";
 
 // Used by popup for buttons that aren't speed changes.
 type PopupMenuCmd = "UNZOOM_BTN_CMD" | "OPTIONS_BTN_CMD";

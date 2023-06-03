@@ -5,14 +5,13 @@ import {
   CSS_STYLE_HEADER_ID,
   DEAULT_SPEED,
   DEFAULT_SETTINGS,
+  getDomain,
   getSettings,
   logerr,
   saveSettings,
   SETTINGS_STORAGE_KEY,
   trace,
 } from "./common.js";
-
-const ALWAYS_SHOW_SPEED = true; // forces to always be enabled
 
 // "What's the current state of a tab?" is a serious problem when trying to be a secure extension.
 // When the user clicks our extensions icon, the background can get permissions it needs to
@@ -272,10 +271,6 @@ async function GetIFrameSrc(tabId) {
   }
 }
 
-function injectSupportsSpeedChange() {
-  const matched = document.querySelectorAll(`video[class*="videomax-ext-video-matched"]`);
-  return matched.length > 0;
-}
 
 /**
  * @param skipSecondsStr {string}  negative numbers backwards
@@ -411,15 +406,11 @@ async function setCurrentState(tabId, state, speed = DEAULT_SPEED) {
     switch (state) {
       case "ZOOMING":
         trace(`setCurrentState "${state}"`);
-        const featureShowSpeedPopup = (await getSettingOldToggleBehavior()) === false;
+        const featureShowSpeedPopup = (await getSettingOldToggleZoomBehavior()) === false;
         if (featureShowSpeedPopup) {
-          // we have a case where "speed only" the check will fail.
-          const supportsSpeedChange = await CheckSupportsSpeedChange(tabId);
-          if (supportsSpeedChange) {
-            state = "ZOOMED_SPEED";
-          } else {
-            state = "ZOOMED_NOSPEED";
-          }
+          state = "ZOOMED_SPEED";
+        } else {
+          state = "ZOOMED_NOSPEED";
         }
         break;
 
@@ -446,7 +437,7 @@ async function setCurrentState(tabId, state, speed = DEAULT_SPEED) {
     const popup = showpopup ? `popup.html#tabId=${tabId}&speed=${speed}&domain=${g_domain}` : "";
 
     // don't think the order matters, just set them all and wait for them to complete.
-    Promise.all([chrome.action.setBadgeText({
+    await Promise.all([chrome.action.setBadgeText({
       tabId,
       text: badge,
     }), chrome.action.setPopup({
@@ -498,12 +489,6 @@ async function getTabCurrentState(tabId) {
 function isActiveState(state) {
   return STATE_DATA[state]?.zoomed || false;
 }
-/**
- *
- * @param url {string}
- * @return {string}
- */
-const getDomain = (url) => (new URL(url)).host.toLowerCase();
 
 /**
  * Returns true if there are any overlaps between two arrays of strings.
@@ -727,37 +712,6 @@ async function DoCheckCSSInjectedIsBlocked(tabId) {
 /**
  *
  * @param tabId {number}
- * @returns {Promise<boolean>}
- * @constructor
- */
-async function CheckSupportsSpeedChange(tabId) {
-  try {
-    if (ALWAYS_SHOW_SPEED) {
-      return true;
-    }
-    trace("CheckSupportsSpeedChange enter");
-    /** @var {InjectionResult[]} */
-    const injectionresult = await chrome.scripting.executeScript({
-      target: {
-        tabId,
-        allFrames: true,
-      },
-      func:   injectSupportsSpeedChange,
-      world:  "MAIN",
-    });
-
-    const result = injectionResultCheck(injectionresult);
-    trace(`CheckSupportsSpeedChange result: ${result}`, injectionresult);
-    return result;
-  } catch (err) {
-    logerr(err);
-    return false;
-  }
-}
-
-/**
- *
- * @param tabId {number}
  * @return {Promise<void>}
  */
 async function unZoom(tabId) {
@@ -794,11 +748,11 @@ async function DoZoom(tabId, state, url = undefined) {
     }
     const excluded_zoom = await isPageExcluded(url);
     if (excluded_zoom || state === "SPEED_ONLY") {
-      Promise.all([DoInjectTagOnlyJS(tabId),
-                   DoInjectZoomCSS(tabId, true),
-                   setCurrentState(tabId, "ZOOMING_SPEED_ONLY")]);
+      await Promise.all([DoInjectTagOnlyJS(tabId),
+                         DoInjectZoomCSS(tabId, true),
+                         setCurrentState(tabId, "ZOOMING_SPEED_ONLY")]);
     } else {
-      Promise.all([DoInjectZoomJS(tabId), DoInjectZoomCSS(tabId)]);
+      await Promise.all([DoInjectZoomJS(tabId), DoInjectZoomCSS(tabId)]);
 
       // now verify the css wasn't blocked by CSP.
       const isBlocked = await DoCheckCSSInjectedIsBlocked(tabId);
@@ -917,7 +871,7 @@ async function togglePlayback(tabId, speedStr) {
  *
  * @returns {Promise<boolean|any>}
  */
-const getSettingOldToggleBehavior = async () => {
+const getSettingOldToggleZoomBehavior = async () => {
   try {
     const settings = await getSettings();
     trace("getFeatureShowZoomPopup settings:", JSON.stringify(settings, null, 2));
@@ -1014,9 +968,12 @@ chrome.action.onClicked.addListener((tab) => {
       const permissions   = ["scripting"];
 
       if (settings.allSitesAccess) {
-        // cross-domain videos in iframes with CSP fails without this.
-        // There is no better security model that works in Chrome.
+        // Many cross-domain iframed videos without "<all_urls>". BBC, NBC, etc.
+        // There appears to be NO way to get a list of iframe domains on a page to request access
+        // without FIRST HAVING ACCESS to the parent page. ಠ_ಠ
+        // There is no better security model that works in Chrome, yet.
         // See https://bugs.chromium.org/p/chromium/issues/detail?id=826433
+        // VERY frustrating when trying to build a secure extension.
         trace("Adding <all_urls> permissions");
         origins.push("<all_urls>");
         if (!settings.allSitesAccessNeedsRevoke) {
@@ -1082,6 +1039,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   setTimeout(async () => {
     try {
       switch (cmd) {
+        case "OPTIONS_CMD":
+          const url = chrome?.runtime?.getURL("options.html") || "";
+          if (!url) {
+            return;
+          }
+
+          await chrome.tabs.create({
+            url,
+            active: true,
+          });
+          break;
+
         case "UNZOOM_CMD":
           await unZoom(tabId);
           // await setTabSpeed(tabId, speed);
