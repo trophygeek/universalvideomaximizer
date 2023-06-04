@@ -2020,7 +2020,8 @@ try { // scope and prevent errors from leaking out to page.
    */
   function alwaysHideSomeElements(doc = document) {
     for (let eachtag of ALWAYS_HIDE_NODES) {
-      for (let elem of doc.getElementsByTagName(eachtag)) {
+      const elems = doc.getElementsByTagName(eachtag);
+      for (let elem of elems) {
         trace(`ALWAYS_HIDE_NODES ${eachtag}`, elem);
         hideNode(elem);
       }
@@ -2082,71 +2083,71 @@ try { // scope and prevent errors from leaking out to page.
       return;
     }
 
-    if (OBSERVER_DIV_REAPPLY) {
-      if (!videomaxGlobals.observerDomMod) {
-        videomaxGlobals.observerDomMod = new MutationObserver((_mutations, observer) => {
-          // called when change happens. first disconnect to avoid recursions
-          observer.disconnect();
-          if (videomaxGlobals.observerDomMod && videomaxGlobals.isMaximized) {
-            trace("OBSERVER: changes detected. Running mainFixPage");
-            fixUpPage();
-            // mainFixPage(); // will recall this
-          }
-        });
-      }
-      trace("OBSERVER: installing dom observer for element changes");
-      videomaxGlobals?.observerDomMod?.observe(getTopmostElem(videomaxGlobals.matchedVideo), {
-        childList: true,
-        subtree:   true,
-      });
-    }
+    // if (OBSERVER_DIV_REAPPLY) {
+    //   if (!videomaxGlobals.observerDomMod) {
+    //     videomaxGlobals.observerDomMod = new MutationObserver((_mutations, observer) => {
+    //       // called when change happens. first disconnect to avoid recursions
+    //       observer.disconnect();
+    //       if (videomaxGlobals.observerDomMod && videomaxGlobals.isMaximized) {
+    //         trace("OBSERVER: changes detected. Running mainFixPage");
+    //         fixUpPage();
+    //         // mainFixPage(); // will recall this
+    //       }
+    //     });
+    //   }
+    //   trace("OBSERVER: installing dom observer for element changes");
+    //   videomaxGlobals?.observerDomMod?.observe(getTopmostElem(videomaxGlobals.matchedVideo), {
+    //     childList: true,
+    //     subtree:   true,
+    //   });
+    // }
 
-    if (OBSERVER_CLASSES_REAPPLY) {
-      const topElem = getTopmostElem(videomaxGlobals.matchedVideo);
-      if (!videomaxGlobals.observerClassMod) {
-        videomaxGlobals.observerClassMod = new MutationObserver((mutations, observer) => {
-          trace("OBSERVER: installing class observer for element changes");
-          // called when change happens. first disconnect to avoid recursions
-          observer.disconnect();
-          // check to see if things are in the process of going away. They might be.
-          if (videomaxGlobals.observerClassMod && videomaxGlobals.isMaximized) {
-            for (let eachMutation of mutations) {
-              if (eachMutation.type !== "attributes") {
-                continue;
-              }
-
-              // is one of our classnames on the old value?
-              if (!(eachMutation?.oldValue?.indexOf(PREFIX_CSS_CLASS) >= 0)) {
-                // nope
-                continue;
-              }
-              // our classname was there, but it's removed?
-              const newClassName = eachMutation.target?.getAttribute("class") || "";
-              if (newClassName.indexOf(PREFIX_CSS_CLASS) !== -1) {
-                // nope
-                continue;
-              }
-
-              // if we reach here then our classname was removed
-              const oldClassNames = eachMutation.oldValue.split(" ");
-              // figure out what classnames were removed and re-add it.
-              for (let eachClassname of oldClassNames) {
-                if (eachMutation.startsWith(PREFIX_CSS_CLASS)) {
-                  trace(
-                    `OBSERVER: detected classname changes, reappling "eachMutation" to element:`,
-                    eachMutation.target);
-                  eachMutation.target?.classList?.add(eachMutation);
-                }
-              }
-            }
-            trace("OBSERVER: installing classname observer for our classname changed");
-            observer.observe(topElem, OBSERVE_ATTRIB_OPTIONS);
-          }
-        });
-      }
-      trace("OBSERVER: installing classname observer for our classname changed");
-      videomaxGlobals.observerClassMod.observe(topElem, OBSERVE_ATTRIB_OPTIONS);
-    }
+    // if (OBSERVER_CLASSES_REAPPLY) {
+    //   const topElem = getTopmostElem(videomaxGlobals.matchedVideo);
+    //   if (!videomaxGlobals.observerClassMod) {
+    //     videomaxGlobals.observerClassMod = new MutationObserver((mutations, observer) => {
+    //       trace("OBSERVER: installing class observer for element changes");
+    //       // called when change happens. first disconnect to avoid recursions
+    //       observer.disconnect();
+    //       // check to see if things are in the process of going away. They might be.
+    //       if (videomaxGlobals.observerClassMod && videomaxGlobals.isMaximized) {
+    //         for (let eachMutation of mutations) {
+    //           if (eachMutation.type !== "attributes") {
+    //             continue;
+    //           }
+    //
+    //           // is one of our classnames on the old value?
+    //           if (!(eachMutation?.oldValue?.indexOf(PREFIX_CSS_CLASS) >= 0)) {
+    //             // nope
+    //             continue;
+    //           }
+    //           // our classname was there, but it's removed?
+    //           const newClassName = eachMutation.target?.getAttribute("class") || "";
+    //           if (newClassName.indexOf(PREFIX_CSS_CLASS) !== -1) {
+    //             // nope
+    //             continue;
+    //           }
+    //
+    //           // if we reach here then our classname was removed
+    //           const oldClassNames = eachMutation.oldValue.split(" ");
+    //           // figure out what classnames were removed and re-add it.
+    //           for (let eachClassname of oldClassNames) {
+    //             if (eachClassname.startsWith(PREFIX_CSS_CLASS)) {
+    //               trace(
+    //                 `OBSERVER: detected classname changes, reappling "eachMutation" to element:`,
+    //                 eachMutation.target);
+    //               eachMutation.target?.classList?.add(eachClassname);
+    //             }
+    //           }
+    //         }
+    //         trace("OBSERVER: installing classname observer for our classname changed");
+    //         observer.observe(topElem, OBSERVE_ATTRIB_OPTIONS);
+    //       }
+    //     });
+    //   }
+    //   trace("OBSERVER: installing classname observer for our classname changed");
+    //   videomaxGlobals.observerClassMod.observe(topElem, OBSERVE_ATTRIB_OPTIONS);
+    // }
   }
 
   function fixUpPage() {
