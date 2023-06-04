@@ -1,5 +1,5 @@
 try { // scope and prevent errors from leaking out to page.
-  const FULL_DEBUG          = true;
+  const FULL_DEBUG          = false;
   const DEBUG_ENABLED       = FULL_DEBUG;
   const TRACE_ENABLED       = FULL_DEBUG;
   const ERR_BREAK_ENABLED   = FULL_DEBUG;
@@ -8,7 +8,7 @@ try { // scope and prevent errors from leaking out to page.
   // this will put add the score as an attribute for
   // elements across revisions, the zoomed page's html can
   // be diffed. This is for debugging and unit testing.
-  const EMBED_SCORES = true;
+  const EMBED_SCORES = false;
 
   // experiments - keep these settings to regress check if various fixes for one site
   // breaks another site. Eventually, these can go away as we verify no adverse interactions with
@@ -341,10 +341,9 @@ try { // scope and prevent errors from leaking out to page.
   /**
    *
    * @param elem {Node}
-   * @param stopAtFrame {boolean}
    * @returns {boolean}
    */
-  const isStopNodeType = (elem, stopAtFrame = true) => {
+  const isStopNodeType = (elem) => {
     if (STOP_NODE_DISABLE) {
       return false;
     }
@@ -507,8 +506,7 @@ try { // scope and prevent errors from leaking out to page.
    * @return {boolean}
    */
   function isOnlyHide(elem) {
-    const isLink = AVOID_ZOOMING.includes(elem?.nodeName?.toLowerCase() || "");
-    return isLink;
+    return AVOID_ZOOMING.includes(elem?.nodeName?.toLowerCase() || "");
   }
 
   /**

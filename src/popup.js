@@ -2,9 +2,8 @@
 // useful reference for exports https://web.dev/es-modules-in-sw/
 import { DEFAULT_SETTINGS, DEFAULT_SPEED, getSettings, logerr, trace } from "./common.js";
 
-const BLOCKED_SKIP_DOMAINS = ["netflix."];
-
 try {
+  const BLOCKED_SKIP_DOMAINS = ["netflix."]; // skipping breaks these sites
   const UNZOOM_LABEL = "[]";
   const UNZOOM_ICON  = "./icons/icon19undo.png";
 
@@ -59,10 +58,13 @@ try {
     url: new URL(document.location.href),
     /** @type {String} */
     currentSpeed: DEFAULT_SPEED,
+    /** @type {String} */
+    toggledSpeed: DEFAULT_SPEED,  // used when stopping/starting.
     /** @type {SettingsType} */
     settings:   DEFAULT_SETTINGS, // onload will overwrite.
     tabId:      "",
     videofound: "",
+    debounceTimerId: undefined,
   };
 
   /**
@@ -143,22 +145,32 @@ try {
         trace("document.addEventListener keydown", evt);
         switch (evt.code) {
           case "Space":
-            const value = "0.00";
-            let speed   = DEFAULT_SPEED;
-            if (value !== globals.currentSpeed) { // toggle speed
-              speed = value;
+            if (globals.debounceTimerId) {
+              clearTimeout(globals.debounceTimerId);
+              globals.debounceTimerId = null;
             }
-            globals.currentSpeed = speed;
+            globals.debounceTimerId = setTimeout( () => {
+              const value = "0.00";
+              let speed   = globals.toggledSpeed;
+              if (value !== globals.currentSpeed) { // toggle speed
+                globals.toggledSpeed = globals.currentSpeed;
+                speed = value;
+              } else {
+                speed = globals.toggledSpeed;
+              }
+              globals.currentSpeed = speed;
 
-            checkItem(speed);
-            /** @type {string} */
-            chrome.runtime.sendMessage({
-              message: {
-                cmd: "SET_SPEED_CMD",
-                speed,
-                tabId,
-              },
-            });
+              checkItem(speed);
+              /** @type {string} */
+              chrome.runtime.sendMessage({
+                message: {
+                  cmd: "SET_SPEED_CMD",
+                  speed,
+                  tabId,
+                },
+              });
+            }, 10);
+
             evt.stopImmediatePropagation();
             break;
         }

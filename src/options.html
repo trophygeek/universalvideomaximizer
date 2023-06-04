@@ -11,117 +11,117 @@
 <div class="container">
   <h1>Universal Video Maximizer - Options</h1>
 
-  <div id="mainForm">
-    <div class="container">
-      <fieldset>
-        <div class="row col bold">Use simplified behavior</div>
-        <div class="row col label">
-          <input checked id="useToggleZoomBehavior" name="useToggleZoomBehavior" type="checkbox">
-          <label for="useToggleZoomBehavior">
-            Use classic toggle-zoom behavior (enabling removes the playback-speed feature)
-          </label>
-        </div>
-      </fieldset>
+  <div class="container" id="mainForm">
+    <fieldset>
+      <legend>Use simplified behavior</legend>
+      <div class="row col label">
+        <input checked id="useToggleZoomBehavior" name="useToggleZoomBehavior" type="checkbox">
+        <label for="useToggleZoomBehavior">
+          Use classic toggle-zoom behavior (enabling removes the playback-speed feature)
+        </label>
+      </div>
+    </fieldset>
 
-      <fieldset>
-        <div class="row col bold">Allow access to all sites by default</div>
-        <div class="row col label">
-          <input checked id="allSitesAccess" name="allSitesAccess" type="checkbox">
-          <label for="allSitesAccess">
-            If the speed controls won't work on a site, then try this.
-          </label>
+    <fieldset>
+      <legend>Allow access to all sites by default</legend>
+      <div class="row col label">
+        <input checked id="allSitesAccess" name="allSitesAccess" type="checkbox">
+        <label for="allSitesAccess">
+          If the speed controls won't work on a site, then try this.
+        </label>
+      </div>
+      <div class="container">
+        <div class="row col">WARNING: It will allow FULL ACCESS to ALL SITES by default. <br/> This access is required
+          when sites embed videos from other domains.
         </div>
-        <div class="container">
-          <div class="row col">WARNING: It will allow FULL ACCESS to ALL SITES by default. <br/> This access is required
-            when sites host videos from other domains.
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Playback skipping</legend>
+      <div class="container padding-1">
+        While Video Maximizer popup controls are displayed, you can use the arrow keys to skip playback.&nbsp;
+        Playback skipping is in viewing times, not video time. For example, 2x playback speed skips twice as far.
+        <a href="help.html" target="vidomaxhelp">Read more on the help page</a>
+      </div>
+
+      <div class="row col label">
+        <label for="regSkipSeconds">
+          Skip seconds:
+        </label>
+        <input class="secondsTextInput"
+               id="regSkipSeconds"
+               inputmode="numberic"
+               max="900"
+               maxlength="3"
+               min="1"
+               minlength="1"
+               name="regSkipSeconds"
+               pattern="[0-9]*"
+               type="number">
+      </div>
+
+      <div class="row col label">
+        <label for="longSkipSeconds">
+          Skip seconds:
+        </label>
+
+        <input class="secondsTextInput"
+               id="longSkipSeconds"
+               inputmode="numberic"
+               max="900"
+               maxlength="3"
+               min="1"
+               minlength="1"
+               name="longSkipSeconds"
+               pattern="[0-9]*"
+               type="number"><span class="label"> (when Shift key is used)</span>
+      </div>
+      <div class="container padding-1">
+        If you want to have a hotkey to trigger VideoMaximizer, it's built into Chrome. See this
+        <a href="https://www.youtube.com/watch?v=s3SQVhbmj4c" rel="noreferrer" target="_blank">Youtube demo</a>.
+      </div>
+      <!--        <div class="row col label">-->
+      <!--          <input checked id="preportionalSkipTimes" name="preportionalSkipTimes" type="checkbox">-->
+      <!--          <label for="preportionalSkipTimes"></label>-->
+      <!--        </div>-->
+    </fieldset>
+
+    <fieldset>
+      <legend>Speed controls only sites</legend>
+      <div class="row col label">
+        <label for="nozoomlist">Sites that are already fullscreened, so VideoMax won't try to zoom again. But speed
+          controls are still nice.</label>
+        <div class="list-group">
+          <ul class="list" id="nozoomlist">
+          </ul>
+          <button class="add-button" id="addpathblacklist"> + Add New ...</button>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Report problems</legend>
+      <div class="row col bold">Report problems via &nbsp; <a
+          href="https://github.com/trophygeek/universalvideomaximizer/issues" rel="noreferrer" target="_blank">GitHub
+        issue ↗</a></div>
+      <div class="container">
+        <div class="wrap-collabsible">
+          <input class="toggle" id="collapsible" type="checkbox">
+          <label class="lbl-toggle" for="collapsible" tabindex="0">Include this information in the report:</label>
+          <div class="collapsible-content">
+            <div class="content-inner"><span id="version"></span></div>
           </div>
         </div>
-      </fieldset>
-
-      <fieldset>
-        <div class="row col bold">Playback skipping</div>
-        <div class="container padding-1">
-          While Video Maximizer popup controls are displayed, you can using arrow keys to skip playback.&nbsp;
-            Playback skipping is in viewing times, not video time. For example, 2x playback speed skips twice as far.
-            <a href="help.html">Read more on the help page</a>
-        </div>
-
-        <div class="row col label">
-          <label for="regSkipSeconds">
-            Skip seconds:
-          </label>
-          <input class="secondsTextInput"
-                 id="regSkipSeconds"
-                 inputmode="numberic"
-                 max="900"
-                 maxlength="3"
-                 min="1"
-                 minlength="1"
-                 name="regSkipSeconds"
-                 pattern="[0-9]*"
-                 type="number">
-        </div>
-
-        <div class="row col label">
-          <label for="longSkipSeconds">
-            Skip seconds:
-          </label>
-
-          <input class="secondsTextInput"
-                 id="longSkipSeconds"
-                 inputmode="numberic"
-                 max="900"
-                 maxlength="3"
-                 min="1"
-                 minlength="1"
-                 name="longSkipSeconds"
-                 pattern="[0-9]*"
-                 type="number"><span class="label"> (when Shift key is used)</span>
-        </div>
-        <div class="container padding-1">
-            If you want to have a hotkey to trigger VideoMaximizer, it's built into Chrome. See this
-          <a href="https://www.youtube.com/watch?v=s3SQVhbmj4c" target="_blank" rel="noreferrer">Youtube demo</a>.
-        </div>
-<!--        <div class="row col label">-->
-<!--          <input checked id="preportionalSkipTimes" name="preportionalSkipTimes" type="checkbox">-->
-<!--          <label for="preportionalSkipTimes"></label>-->
-<!--        </div>-->
-      </fieldset>
-
-      <fieldset>
-        <div class="row col bold">Speed controls only sites</div>
-        <div class="row col label">
-          <label for="nozoomlist">Sites that are already fullscreen so VideoMax won't try to zoom again, but speed
-            controls are still nice.</label>
-          <div class="list-group">
-            <ul class="list" id="nozoomlist">
-            </ul>
-            <button class="add-button" id="addpathblacklist"> + Add New ...</button>
-          </div>
-        </div>
-      </fieldset>
-
-      <fieldset>
-        <div class="row col bold">Report problems via &nbsp; <a
-            href="https://github.com/trophygeek/universalvideomaximizer/issues" rel="noreferrer" target="_blank">GitHub
-          issue ↗</a></div>
-        <div class="container">
-          <div class="wrap-collabsible">
-            <input class="toggle" id="collapsible" type="checkbox">
-            <label class="lbl-toggle" for="collapsible" tabindex="0">Include this information in the report:</label>
-            <div class="collapsible-content">
-              <div class="content-inner"><span id="version"></span></div>
-            </div>
-          </div>
-        </div>
-      </fieldset>
-      <fieldset>
-        <div class="container">
-          <button id="reset" type="reset">Reset to defaults</button>
-          <button id="save" type="button">Save</button>
-        </div>
-      </fieldset>
-    </div>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Reset</legend>
+      <div class="container">
+        <button id="reset" type="reset">Reset to defaults</button>
+        <button id="save" type="button">Close</button>
+      </div>
+    </fieldset>
   </div>
 </div>
 </body>

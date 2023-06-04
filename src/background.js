@@ -17,8 +17,8 @@ import {
 // When the user clicks our extensions icon, the background can get permissions it needs to
 // get information it needs to run (like the url so it can see if the site is a "no zoom needed").
 // BUT when the popup UI is used and the user clicks on a button inside this UI to change speed.
-// BUT the kground doesn't have all the same permissions when it gets a message from the popup.
-// The popup also doesn't really have access to all the information about the target page constent
+// BUT the background doesn't have all the same permissions when it gets a message from the popup.
+// The popup also doesn't really have access to all the information about the target page content
 // either.
 //
 // The solution is to keep track of the various states of each tab that has had VidMax injected
@@ -190,7 +190,9 @@ function injectVideoSpeedAdjust(newspeed) {
   };
   const _speedUpFoundVideos = (doc, speed) => {
     try {
-      for (let eachVideo of doc.querySelectorAll("video")) {
+      /** @type {NodeListOf<HTMLVideoElement>} */
+      const videos = doc.querySelectorAll("video");
+      for (let eachVideo of videos) {
         try {
           eachVideo.defaultPlaybackRate = speed;
           eachVideo.playbackRate        = speed;
@@ -203,7 +205,7 @@ function injectVideoSpeedAdjust(newspeed) {
         }
       }
     } catch (err) {
-      console.warn(`doc.querySelectorAll("video") error cross iframe issue?`, doc, err);
+      console.warn(`doc.querySelectorAll("video") blocked cross iframe?`, doc, err);
     }
   };
 
@@ -224,51 +226,6 @@ function injectVideoSpeedAdjust(newspeed) {
     }
   }
   return false;
-}
-
-function injectGetIFrameSrc() {
-  const allIFrames = document.querySelectorAll("iframe");
-  for (let frame of [...allIFrames]) {
-    try {
-      const framedoc = frame?.contentDocument || frame?.contentWindow?.document;
-      if (!framedoc) {
-        console.log(`VideoMax speed no contentDocument frame:`, frame);
-        continue;
-      }
-      // we're looking for this to throw.
-      framedoc.querySelectorAll("video");
-    } catch (err) {
-      debugger;
-      return frame?.src || "";
-    }
-  }
-}
-
-
-/**
- *
- * @param tabId {number}
- * @returns {Promise<string>}
- * @constructor
- */
-async function GetIFrameSrc(tabId) {
-  try {
-    /** @var {InjectionResult[]} */
-    const injectionresult = await chrome.scripting.executeScript({
-      target: { tabId },
-      func:   injectGetIFrameSrc,
-      world:  "MAIN",
-    });
-
-    trace(`GetIFrameSrc result`, injectionresult);
-    if (injectionresult.length === 1) {
-      return injectionresult[0]?.result || "";
-    }
-    return "";
-  } catch (err) {
-    logerr(err);
-    return "";
-  }
 }
 
 
@@ -353,16 +310,6 @@ function uninjectCssHeader(styleId) {
   // warning run inside context of page
   const cssHeaderNode = document.getElementById(styleId);
   cssHeaderNode?.parentNode?.removeChild(cssHeaderNode);
-}
-
-/**
- * Just check the style element was injected into the header
- * @param styleId {string}
- * @returns {boolean}
- */
-function injectIsCssHeaderInjectedFast(styleId) {
-  // warning runs inside context of page
-  return (document.getElementById(styleId) !== null);
 }
 
 /**
@@ -651,34 +598,6 @@ async function DoUndoInjectCSS(tabId) {
 }
 
 /**
- * Deep check to see if page is currently zoomed. Fast because it only checks the ID.
- * @param tabId {number}
- * @returns {Promise<boolean>}
- */
-async function DoCheckCSSInjectedFast(tabId) {
-  try {
-    trace("DoCheckCSSInjectedFast enter");
-    /** @var {InjectionResult[]} */
-    const injectionresult = await chrome.scripting.executeScript({
-      target: {
-        tabId, // frameIds: [0],
-        allFrames: true,
-      },
-      world:  "MAIN",
-      func:   injectIsCssHeaderInjectedFast,
-      args:   [CSS_STYLE_HEADER_ID],
-    });
-
-    const result = injectionResultCheck(injectionresult);
-    trace(`DoCheckCSSInjectedFast result: ${result}`, injectionresult);
-    return result;
-  } catch (err) {
-    logerr("DoCheckCSSInjectedFast result FAILED, returning false", err);
-    return false;
-  }
-}
-
-/**
  * The stylesheet may have been injected, but the chrome-extension:// blocked
  *  This can happen on file:// or if there's a strict CSP.
  * @param tabId {number}
@@ -791,7 +710,7 @@ async function setTabSpeed(tabId, speedStr = DEAULT_SPEED) {
     }
     // "allFrames" is broken unless manifest requests permissions
     // `"optional_host_permissions": ["<all_urls>"]`
-    const results = await chrome.scripting.executeScript({
+    return await chrome.scripting.executeScript({
       target: {
         tabId,
         allFrames: true,
@@ -800,7 +719,6 @@ async function setTabSpeed(tabId, speedStr = DEAULT_SPEED) {
       func:   injectVideoSpeedAdjust,
       args:   [speedStr],
     });
-    return results;
   } catch (err) {
     logerr(err);
     return null;
@@ -820,7 +738,7 @@ async function skipPlayback(tabId, secondToSkipStr) {
       return null;
     }
 
-    const result = await chrome.scripting.executeScript({
+    return await chrome.scripting.executeScript({
       target: {
         tabId,
         allFrames: true,
@@ -829,7 +747,6 @@ async function skipPlayback(tabId, secondToSkipStr) {
       func:   injectVideoSkip,
       args:   [secondToSkipStr],
     });
-    return result;
   } catch (err) {
     logerr(err);
     return null;
@@ -850,7 +767,7 @@ async function togglePlayback(tabId, speedStr) {
       return null;
     }
 
-    const result = await chrome.scripting.executeScript({
+    return await chrome.scripting.executeScript({
       target: {
         tabId,
         allFrames: true,
@@ -859,7 +776,6 @@ async function togglePlayback(tabId, speedStr) {
       func:   injectVideoPlaybackToggle,
       args:   [speedStr],
     });
-    return result;
   } catch (err) {
     logerr(err);
     return null;
@@ -1053,7 +969,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         case "UNZOOM_CMD":
           await unZoom(tabId);
-          // await setTabSpeed(tabId, speed);
           break;
 
         case "SET_SPEED_CMD":

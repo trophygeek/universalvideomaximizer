@@ -207,9 +207,10 @@ img:not([src*=".svg"]) {
 
 fieldset {
   border: 1px solid var(--color-lightGrey);
+  margin-bottom: 1.5rem;
 }
 
-.container {
+.container, section {
   max-width: var(--grid-maxWidth);
   margin: 0 auto;
   width: 96%;
@@ -529,6 +530,11 @@ legend {
   text-transform: uppercase;
   font-size: 0.8em;
   letter-spacing: 0.1rem;
+  font-weight: 500;
+}
+
+legend:after {
+  margin-bottom: 1.5rem;
 }
 
 input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="color"]):not([type="button"]):not([type="reset"]),
@@ -928,8 +934,8 @@ button:disabled:hover {
 }
 
 .tag.is-large {
-  padding: 0.7rem;
-  font-size: 1.125em;
+  padding: 0.5rem;
+  font-size: 1.4em;
 }
 
 .tag + .tag {
@@ -1190,7 +1196,7 @@ details.dropdown > :last-child {
 }
 
 li, ol {
-  padding-bottom: 1.25em;
+  padding-bottom: 1.15em;
 }
 
 .emphasis {
@@ -1259,7 +1265,6 @@ input[type=number]::-webkit-outer-spin-button {
 
 label, .label {
   padding: 0 calc(var(--grid-gutter) / 2);
-  line-height: 0;
   align-items: center;
   vertical-align: middle;
 }
