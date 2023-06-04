@@ -11,7 +11,7 @@
   <h1><img alt="logo" class="logo" src="icons/icon128.png">Universal Video Maximizer - version 3.0.74 Help</h1>
   <hr>
   <h2>
-    Beta version 3.0.74 (June 2023 update)
+    Beta version 3.0.75 (June 2023 update)
   </h2>
 
   <section class="padding-1">
@@ -114,13 +114,14 @@
     </ol>
     <img alt="graphics showing arrow keys" class="illustration" src="img/arrow_keys.png">
     <ul>
-      <li><span class="text-success">right/left keys: <span class="tag is-large">⬌</span></span> Skip the playback
-        forwards/backwards.
-      </li>
       <li><span class="text-success">up/down keys: <span class="tag is-large">⬍</span></span> Increase and decrease
         playback speed.
       </li>
-      <li><span class="text-success">arrow + shift:</span> Longer skips.</li>
+      <li><span class="text-success">right/left keys: <span class="tag is-large">⬌</span></span> Skip the playback
+        forwards/backwards.
+      </li>
+      <li><span class="text-success">shift + arrow:</span> Longer skips.</li>
+      <li><span class="text-success">space key:</span> Toggle speed to zero.</li>
       <li><span class="text-success">relative skip times:</span> Changing playback speed adjusts how long the skip is.
         <br/>0.25x playback speed is 1/4th less the skip time.
         <br/>e.g. 10s skip at 16x playback would skip forward 1m 40s in the video.
@@ -136,7 +137,7 @@
             href="options.html"
             target="videomaxoptions">Options</a>. This is just a limitation of the Chrome APIs.
       </li>
-      <li><span class="text-success">NOTE: </span> there is an <span class="emphasis">option to disable</span> the Speed
+      <li><span class="text-success">NOTE: </span> There is an <span class="emphasis">option to disable</span> the Speed
         Controls to revert to the behavior of the original Video Maximizer (see Options below)
       </li>
       <li><span class="text-success">Keyboard shortcut to zoom:</span> This is built into chrome!
@@ -179,10 +180,10 @@
     <h4>Speed controls don't work on some sites</h4>
     <p>Video Maximizer attempts to use the minimal permissions required to do it's job. However, there are still some
       sites that require full access to every domain to work.
-      (technical reason has to do with embedding iframes that have cross-domain references).</p>
+      (The technical reason has to do with embedding iframes that have cross-domain references.)</p>
     <p>The only current work around is to enable "Allow access to all sites by default" in Video Maximizer's
       Options.</p>
-    <p>There's an open Chrome issue/feature request to allow this to work without needing this extreme access.</p>
+    <p>There's an open Chrome issue/feature request to allow this to work without needing this elevated access.</p>
 
     <br/>
 

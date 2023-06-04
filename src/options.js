@@ -1,6 +1,13 @@
 // @ts-check
 import {
-  clearSettings, DEFAULT_SETTINGS, getSettings, numbericOnly, rangeInt, saveSettings, getDomain,
+  clearSettings,
+  DEFAULT_SETTINGS,
+  getDomain,
+  getSettings,
+  listToArray,
+  numbericOnly,
+  rangeInt,
+  saveSettings,
 } from "./common.js";
 
 /**
@@ -102,19 +109,20 @@ const loadSettingsIntoFields = (settings) => {
     const LI_START  = `<li class="list-group-item container"><div class="container"><div class="row is-center">`;
     const LI_START2 = LI_START + `<div class="col-1 is-left domain">`;
     const LI_END    = `</div><div class="col-10 is-right"><button name="removeBtn" class="delete-button">Remove</button></div></div></div></li>`;
-    const listarr   = (settings.zoomExclusionListStr?.split(",") || []).filter(s => s?.length);
+    const listarr   = listToArray(settings.zoomExclusionListStr);
     const list      = LI_START2 + listarr.join(LI_END + LI_START2) + LI_END;
 
     document.getElementById("nozoomlist").innerHTML = list;
-    setTimeout(()=>{
+    setTimeout(() => {
       const buttons = document.getElementsByName("removeBtn");
       for (const eachButton of buttons) {
         eachButton.addEventListener("click", (e) => {
           const parentLi = e?.currentTarget?.closest("li");
-          const domain = parentLi?.querySelector(`div[class*="domain"]`)?.innerText || "";
+          const domain   = parentLi?.querySelector(`div[class*="domain"]`)?.innerText || "";
           parentLi.classList.add("fade-out");
           // remove domain from list and save.
-          g_settings.zoomExclusionListStr = g_settings.zoomExclusionListStr.replace(`,${domain}`,"");
+          g_settings.zoomExclusionListStr = g_settings.zoomExclusionListStr.replace(`,${domain}`,
+            "");
           (async () => await saveSettings(g_settings))();
         });
       }
@@ -198,11 +206,11 @@ ${userAgent}
       .addEventListener("click", async (e) => {
         const newDomainStr = prompt("New domain name to exclude from zooming:");
         if (newDomainStr?.length) {
-          const domain = getDomain(newDomainStr);
+          const domain                    = getDomain(newDomainStr);
           g_settings.zoomExclusionListStr = `${g_settings.zoomExclusionListStr},${domain}`;
           await save();
           // scroll to bottom
-          const objDiv = document.getElementById("nozoomlist");
+          const objDiv     = document.getElementById("nozoomlist");
           objDiv.scrollTop = objDiv.scrollHeight;
         }
         e.cancelBubble = true;

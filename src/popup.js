@@ -165,6 +165,7 @@ try {
               chrome.runtime.sendMessage({
                 message: {
                   cmd: "SET_SPEED_CMD",
+                  domain: globals.domain,
                   speed,
                   tabId,
                 },
@@ -191,6 +192,7 @@ try {
             chrome.runtime.sendMessage({
               message: {
                 cmd:   "OPTIONS_CMD",
+                domain: globals.domain,
                 speed: globals.currentSpeed,
                 tabId,
               },
@@ -213,6 +215,7 @@ try {
           chrome.runtime.sendMessage({
             message: {
               cmd,
+              domain: globals.domain,
               speed,
               tabId,
             },
@@ -233,6 +236,7 @@ try {
     chrome.runtime.sendMessage({
       message: {
         cmd:   "REZOOM_CMD", // SET_SPEED_CMD
+        domain: globals.domain,
         speed: globals.currentSpeed,
         tabId: globals.tabId,
       },
@@ -265,6 +269,7 @@ try {
         chrome.runtime.sendMessage({
           message: {
             cmd:   "SKIP_PLAYBACK_CMD",
+            domain: globals.domain,
             speed: String(relativeTimeBack),
             tabId: globals.tabId,
           },
@@ -286,6 +291,7 @@ try {
         chrome.runtime.sendMessage({
           message: {
             cmd:   "SKIP_PLAYBACK_CMD",
+            domain: globals.domain,
             speed: String(relativeTimeFwd),
             tabId: globals.tabId,
           },

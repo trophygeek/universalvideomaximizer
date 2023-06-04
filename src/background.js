@@ -7,6 +7,7 @@ import {
   DEFAULT_SETTINGS,
   getDomain,
   getSettings,
+  isPageExcluded,
   logerr,
   saveSettings,
   SETTINGS_STORAGE_KEY,
@@ -132,18 +133,6 @@ const STATE_DATA = {
     color:     "#FCD2D2F7",
   },
 };
-
-// this is used to pass the domain to the popup, it WILL be unloaded, but
-// that shouldn't happen while the popup is displayed
-let g_domain = "";
-
-// there will be sites that request this extension NOT work with them.
-// still building out this feature, but this is used for testing
-const NOPE_DOMAINS_LIST = ["rt.com", "kremlin.ru", "prageru.com", "prage.ru"];
-const NOPE_URL_LIST     = ["prageru"];  // maybe block all .ru propaganda related domains?
-
-/** used by unit tests **/
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 /**
  * Injection returns an array of results, this aggregates them into a single result.
@@ -283,7 +272,7 @@ async function injectVideoPlaybackToggle(speedStr) {
 function injectCssHeader(cssHRef, styleId) {
   try {
     if (document.getElementById(styleId)) {
-      console.log("VideoMax Native Inject. Style header already injected");
+      console.log(`VideoMax Native Inject. Style header already injected "${styleId}`);
       return true;
     }
     const styleLink = document.createElement("link");
@@ -344,21 +333,18 @@ function injectIsCssHeaderIsBlocked(cssHRef) {
  *
  * @param tabId {number}
  * @param state {BackgroundState}
+ * @param domain {String}
  * @param speed {String}
  * @return {Promise<void>}
  */
-async function setCurrentState(tabId, state, speed = DEAULT_SPEED) {
+async function setCurrentState(tabId, state, domain = "", speed = DEAULT_SPEED) {
   try {
     // map state to another state
     switch (state) {
       case "ZOOMING":
         trace(`setCurrentState "${state}"`);
         const featureShowSpeedPopup = (await getSettingOldToggleZoomBehavior()) === false;
-        if (featureShowSpeedPopup) {
-          state = "ZOOMED_SPEED";
-        } else {
-          state = "ZOOMED_NOSPEED";
-        }
+        state                       = featureShowSpeedPopup ? "ZOOMED_SPEED" : "ZOOMED_NOSPEED";
         break;
 
       case "ZOOMING_SPEED_ONLY":
@@ -381,7 +367,7 @@ async function setCurrentState(tabId, state, speed = DEAULT_SPEED) {
 
     // we need to pass in the tab id because the popup js can't get it and the
     // the message sent to background is missing it.
-    const popup = showpopup ? `popup.html#tabId=${tabId}&speed=${speed}&domain=${g_domain}` : "";
+    const popup = showpopup ? `popup.html#tabId=${tabId}&speed=${speed}&domain=${domain}` : "";
 
     // don't think the order matters, just set them all and wait for them to complete.
     await Promise.all([chrome.action.setBadgeText({
@@ -437,63 +423,6 @@ function isActiveState(state) {
   return STATE_DATA[state]?.zoomed || false;
 }
 
-/**
- * Returns true if there are any overlaps between two arrays of strings.
- * @param arrA {string[]}
- * @param arrB {string[]}
- * @return {boolean}
- */
-const intersection = (arrA, arrB) => arrA.filter(x => arrB.includes(x)).length > 0;
-
-/**
- * @param url {string | undefined}
- * @return {Promise<boolean>}
- */
-const isPageExcluded = async (url) => {
-  if (!url?.length) {
-    // we don't have access to the url, check our current state
-    trace("isPageExcluded url is EMPTY");
-    return false;
-  }
-  g_domain = getDomain(url);
-  if (!g_domain?.length) {
-    // can happen for file:// uris
-    return false;
-  }
-  // domains are comma delimited string list, just look for `domain,` in the list.
-  const settings = await getSettings();
-  if (settings.zoomExclusionListStr.indexOf(`${g_domain},`) !== -1) {
-    trace(`Excluded from zooming ${g_domain}`);
-    return true;
-  }
-  return false;
-};
-
-/**
- *
- * @param url {string | undefined}
- * @returns {boolean}
- */
-const isABigFatNope = (url) => {
-  if (!url?.length) {
-    return false;
-  }
-  const domain = getDomain(url);
-  for (let elem of NOPE_DOMAINS_LIST) {
-    if (domain.indexOf(elem) >= 0) { // substring so www. prefix matches
-      logerr(`NOPE_DOMAINS_LIST match for "${url}"`);
-      return true;
-    }
-  }
-  const parts = url.toLowerCase()
-    .split(/[^A-Za-z]/);
-  if (intersection(parts, NOPE_URL_LIST)) {
-    logerr(`NOPE_URL_LIST match for "${url}"`);
-    return true;
-  }
-
-  return false;
-};
 
 /**
  *
@@ -656,26 +585,30 @@ async function unZoom(tabId) {
  *
  * @param tabId {number}
  * @param state {BackgroundState}
- * @param url {string | undefined}
+ * @param domain {string}
  * @returns {Promise<void>}
  * @constructor
  */
-async function DoZoom(tabId, state, url = undefined) {
+async function DoZoom(tabId, state, domain) {
+  trace("DoZoom enter");
   try {
-    if (isABigFatNope(url)) {
-      return;
+    let excluded_zoom = false; // assume not excluded
+    if (domain?.length) {
+      const settings = await getSettings();
+      excluded_zoom  = isPageExcluded(domain, settings.zoomExclusionListStr);
     }
-    const excluded_zoom = await isPageExcluded(url);
+
     if (excluded_zoom || state === "SPEED_ONLY") {
       await Promise.all([DoInjectTagOnlyJS(tabId),
                          DoInjectZoomCSS(tabId, true),
-                         setCurrentState(tabId, "ZOOMING_SPEED_ONLY")]);
+                         setCurrentState(tabId, "ZOOMING_SPEED_ONLY", domain)]);
     } else {
-      await Promise.all([DoInjectZoomJS(tabId), DoInjectZoomCSS(tabId)]);
+      await Promise.all(
+        [DoInjectZoomJS(tabId), DoInjectZoomCSS(tabId), setCurrentState(tabId, "ZOOMING", domain)]);
 
       // now verify the css wasn't blocked by CSP.
-      const isBlocked = await DoCheckCSSInjectedIsBlocked(tabId);
-      if (isBlocked) {
+      const wasCSSBlocked = await DoCheckCSSInjectedIsBlocked(tabId);
+      if (wasCSSBlocked) {
         trace("CSS loading file BLOCKED. directly adding css. undo/redo may fail");
         // ok. we just need to inject in a way that cannot be easily undone.
         await chrome.scripting.insertCSS({
@@ -687,11 +620,11 @@ async function DoZoom(tabId, state, url = undefined) {
           files:  [CSS_FILE],
         });
       }
-      await setCurrentState(tabId, "ZOOMING"); // will check if page can speed up and refresh state
     }
   } catch (err) {
     logerr(err);
   }
+  trace("DoZoom leave");
 }
 
 /**
@@ -844,13 +777,13 @@ async function showUpgradePageIfNeeded() {
 /**
  *
  * @param tabId {number}
- * @param url {string}
+ * @param domain {string}
  * @returns {Promise<boolean>}
  */
-async function toggleZoomState(tabId, url) {
+async function toggleZoomState(tabId, domain) {
   const state = await getTabCurrentState(tabId);
   if (!isActiveState(state)) {
-    await DoZoom(tabId, state, url);
+    await DoZoom(tabId, state, domain);
     return true;
   }
 
@@ -870,6 +803,7 @@ chrome.action.onClicked.addListener((tab) => {
     if (!(tab?.url?.startsWith("https://") || tab?.url?.startsWith("http://") ||
           tab?.url?.startsWith("file:"))) {
       // do not run on chrome: or about: urls.
+      // TODO: show limited popup to access config/settings ux
       (async () => await setCurrentState(tabId, "ERR_URL"))();
       trace("ERR_URL");
       return;
@@ -922,15 +856,15 @@ chrome.action.onClicked.addListener((tab) => {
         trace("permissions granted");
         await showUpgradePageIfNeeded();
 
-        // tab?.url could be null, so we need to query to get the current tab
+        // tab?.url could be undefined, so we need to query to get the current tab
         if (!tab?.url) {
           // now we have to go back and get the url since it wasn't passed to us
           // simple thing is to ask the user to click the button again.
           await setCurrentState(tabId, "REFRESH");
           return;
         }
-
-        await toggleZoomState(tabId, tab?.url);
+        // domain will be empty for "file://"
+        await toggleZoomState(tabId, getDomain(tab.url));
       });
     });
   } catch (err) {
@@ -943,6 +877,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   const cmd   = /** @type CmdType*/ request?.message?.cmd || "";
   const tabId = parseFloat(request?.message?.tabId || "0");
   const speed = request?.message?.speed || DEAULT_SPEED;
+  const domain = request?.message?.domain || "";
   if (!tabId) {
     logerr("something wrong with message", request);
     sendResponse && sendResponse({ success: false });
@@ -973,7 +908,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         case "SET_SPEED_CMD":
           await Promise.all(
-            [setCurrentState(tabId, "ZOOMED_SPEED", speed), setTabSpeed(tabId, speed)]);
+            [setCurrentState(tabId, "ZOOMED_SPEED", domain, speed), setTabSpeed(tabId, speed)]);
           break;
 
         case "REZOOM_CMD":
@@ -993,7 +928,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             const currentState = await getTabCurrentState(tabId);
             const nextState    = currentState === "SPEED_ONLY" ? "ZOOMING_SPEED_ONLY" : "ZOOMING";
             await Promise.all([setCurrentState(tabId, nextState, speed),
-                               DoZoom(tabId, currentState), // we don't have access to url
+                               DoZoom(tabId, currentState, domain),
                                setTabSpeed(tabId, speed)]);
             trace("REZOOM_CMD -- Zooming -- COMPLETE");
           }
@@ -1016,23 +951,26 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   sendResponse && sendResponse({ success: true }); // used to close popup.
 });
 
-chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  try {
-    trace(`tabs.onUpdated event tabId=${tabId}
-    changeInfo:`, changeInfo);
-    if (tabId && changeInfo?.status === "loading") {
-      setTimeout(async () => {
-        const state = await getTabCurrentState(tabId);
-        if (isActiveState(state)) {
-          trace("chrome.tabs.onUpdated loading so starting unzoom. likely SPA nav");
-          // some SPA won't do a clean refetch, we need to uninstall.
-          await unZoom(tabId);
-        } else {
-          trace(`tabId not currently zoomed ${tabId}`);
-        }
-      }, 0);
-    }
-  } catch (err) {
-    logerr(err);
-  }
-});
+// may need?
+// chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+//   try {
+//     trace(`tabs.onUpdated event tabId=${tabId}
+//     changeInfo:`, changeInfo);
+//     // mlb.com site takes FOREVER to load and clicking the button again will call this while
+//     // we're still zooming
+//     if (tabId && changeInfo?.status === "loading") {
+//       setTimeout(async () => {
+//         const state = await getTabCurrentState(tabId);
+//         if (isActiveState(state)) {
+//           trace("chrome.tabs.onUpdated loading so starting unzoom. likely SPA nav");
+//           // some SPA won't do a clean refetch, we need to uninstall.
+//           // await unZoom(tabId);
+//         } else {
+//           trace(`tabId not currently zoomed ${tabId}`);
+//         }
+//       }, 0);
+//     }
+//   } catch (err) {
+//     logerr(err);
+//   }
+// });

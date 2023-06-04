@@ -1,6 +1,6 @@
 // @ts-check
 
-const FULL_DEBUG        = false;
+const FULL_DEBUG        = true;
 const DEBUG_ENABLED     = FULL_DEBUG;
 const TRACE_ENABLED     = FULL_DEBUG;
 const ERR_BREAK_ENABLED = FULL_DEBUG;
@@ -38,14 +38,13 @@ export const trace = (...args) => {
 export const SETTINGS_STORAGE_KEY = "settingsJson";
 
 // bumping this will cause the notification to show again. keep it pinned unless some major feature
-export const BETA_UPDATE_NOTIFICATION_VERISON = "73";
+export const BETA_UPDATE_NOTIFICATION_VERISON = "74";
 
 
 /* these are sites that are already zoomed, but playback speed is kind of nice */
-const DEFAULT_ZOOM_EXCLUSION_LIST = "amazon.com," + "hbomax.com," + "disneyplus.com," +
-                                    "hulu.com," + "netflix.com," + "tv.youtube.com," +
-                                    "youku.com," + "bet.plus," + "tv.apple.com," +
-                                    "play.google.com," + "peacocktv.com,";
+const DEFAULT_ZOOM_EXCLUSION_LIST = "amazon," + "hbomax," + "play.max," + "disneyplus," + "hulu," +
+                                    "netflix," + "tv.youtube," + "youku," + "bet," + "tv.apple," +
+                                    "play.google," + "peacocktv,";
 
 /**
  * @type {SettingsType}
@@ -136,10 +135,81 @@ export const rangeInt = (num, lower, upper) => Math.max(lower, Math.min(upper, n
  * @return {string}
  */
 export const getDomain = (url) => {
-  if (url.indexOf(`:\\`) > 0) {
-    (new URL(url)).host.toLowerCase();
+  if (url.indexOf(`://`) > 0) {
+    return (new URL(url)).host.toLowerCase();
   } else {
     return url;
   }
 };
 
+/**
+ *
+ * @param listStr {string}
+ * @return {string[]}
+ */
+export const listToArray = (listStr) => (listStr?.split(",") || []).filter(s => s?.length);
+
+/**
+ * Returns true if there are any overlaps between two arrays of strings.
+ * @param arrA {string[]}
+ * @param arrB {string[]}
+ * @return {boolean}
+ */
+export const intersection = (arrA, arrB) => arrA.filter(x => arrB.includes(x)).length > 0;
+
+/**
+ *
+ * @param url {string | undefined}
+ * @returns {boolean}
+ */
+export const alwaysExcluded = (url) => {
+  // there will be sites that request this extension NOT work with them.
+  // still building out this feature, but this is used for testing
+  const NOPE_DOMAINS_LIST = ["rt.com", "kremlin.ru", "prageru.com", "prage.ru"];
+  const NOPE_URL_LIST     = ["prageru"];  // maybe block all .ru propaganda related domains?
+
+  if (!url?.length) {
+    return false;
+  }
+  const urlParts = new URL(url);
+  const domain   = urlParts.host.toLowerCase();
+  const path     = urlParts.pathname.toLowerCase();
+  for (let elem of NOPE_DOMAINS_LIST) {
+    if (domain.indexOf(elem) >= 0) { // substring so www. prefix matches
+      logerr(`NOPE_DOMAINS_LIST match for "${url}"`);
+      return true;
+    }
+  }
+  // this wants to match against paths too.
+  const parts = path.split(/[^A-Za-z]/);
+  if (intersection(parts, NOPE_URL_LIST)) {
+    logerr(`NOPE_URL_LIST match for "${url}"`);
+    return true;
+  }
+  return false;
+};
+
+/**
+ * @param domain {string}
+ * @param zoomExclusionListStr {string}
+ * @return {boolean}
+ */
+export const isPageExcluded = (domain, zoomExclusionListStr) => {
+  if (!domain?.length) {
+    // we don't have access to the url, check our current state
+    trace("isPageExcluded url is EMPTY");
+    return false;
+  }
+  // we want "hulu" to match "www.hulu.com" or "hulu.co.uk" but not "shulu.org"
+  // we flip the comparison around. but both are lowercase.
+  const domainParts  = domain.split(".");
+  const excludedList = listToArray(zoomExclusionListStr);
+  if (intersection(domainParts, excludedList)) {
+    trace(`Excluded from zooming ${g_domain}`);
+    return true;
+  }
+  return false;
+};
+
+/** used by unit tests **/
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
