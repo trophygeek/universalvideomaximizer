@@ -951,13 +951,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   sendResponse && sendResponse({ success: true }); // used to close popup.
 });
 
-// may need?
+//
 // chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
 //   try {
 //     trace(`tabs.onUpdated event tabId=${tabId}
 //     changeInfo:`, changeInfo);
 //     // mlb.com site takes FOREVER to load and clicking the button again will call this while
-//     // we're still zooming
+//     // we're still zooming. But needed to detect ads auto-finishing.
 //     if (tabId && changeInfo?.status === "loading") {
 //       setTimeout(async () => {
 //         const state = await getTabCurrentState(tabId);

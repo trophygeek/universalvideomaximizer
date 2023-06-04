@@ -1,5 +1,5 @@
 try { // scope and prevent errors from leaking out to page.
-  const FULL_DEBUG          = true;
+  const FULL_DEBUG          = false;
   const DEBUG_ENABLED       = FULL_DEBUG;
   const TRACE_ENABLED       = FULL_DEBUG;
   const ERR_BREAK_ENABLED   = FULL_DEBUG;
@@ -15,8 +15,6 @@ try { // scope and prevent errors from leaking out to page.
   // more obscure sites.
   const RUN_OLD_VIDEO_MATCH                = true; // no longer needed with security enhancements
   const DO_NOT_MATCH_ADS                   = true;
-  const OBSERVER_DIV_REAPPLY               = false;
-  const OBSERVER_CLASSES_REAPPLY           = false;
   const FIX_UP_STYLES_ON_PLAYBACK_CNTLS    = false;
   const SKIP_REHIDE                        = false;
   const ALWAYS_MAX_BODY                    = true;
@@ -61,7 +59,7 @@ try { // scope and prevent errors from leaking out to page.
   const VIDEO_MAX_EMBEDDED_SCORE_ATTR = "data-videomax-weights";
 
   // smp-toucan-player is some random bbc player
-  const VIDEO_NODES       = ["object", "embed", "video", "iframe", "smp-toucan-player"];
+  const VIDEO_NODES       = ["object", "embed", "video", "iframe", "smp-toucan-player"].reverse();
   const ALWAYS_HIDE_NODES = ["footer", "header"];  // aside needed for 9anime
   const STOP_NODES        = ["head", "body", "html"];  // stop when walking up parents
   const STOP_NODES_FRAME  = ["head", "body", "html", "frame", "iframe"];  // stop when walking up
@@ -101,19 +99,10 @@ try { // scope and prevent errors from leaking out to page.
                                     REHIDE_DEBUG_CSS_CLASS, // debug only
   ];
 
-  //  const SPEED_CONTROLS     = `${PREFIX_CSS_CLASS}-speed-control`;
   const SCALESTRING_WIDTH  = "100%"; // "calc(100vw)";
   const SCALESTRING_HEIGHT = "100%"; // "calc(100vh)";
   const SCALESTRING        = "100%";
 
-  const OBSERVE_ATTRIB_OPTIONS = {
-    attributes:      true,
-    attributeFilter: ["class"],
-    childList:       true,
-    subtree:         true,
-  };
-
-  // const videomaxGlobals = window._VideoMaxExt ? window._VideoMaxExt : {
   const videomaxGlobals = {
     elemMatcher:      null,
     foundOverlapping: false,
@@ -121,10 +110,6 @@ try { // scope and prevent errors from leaking out to page.
     matchedVideo: null,
     /** @var {boolean} */
     matchedIsHtml5Video: false,
-    /** @var {MutationObserver} */
-    observerDomMod: null,
-    /** @var {MutationObserver} */
-    observerClassMod: null,
 
     injectedCss: false,
     cssToInject: "",
@@ -168,52 +153,6 @@ try { // scope and prevent errors from leaking out to page.
       "color: white; font-weight: bold; background-color: blue", ...args);
   };
 
-  // const sliceFn = [].slice; // used to shallow copy params
-  //
-  // /** @type {DebounceMap} */
-  // const data = {}; // mapping of function name to data
-  //
-  // const debounce=(fn, interval) => {
-  //   const fnName = fn?.name; // we keep a global map for each function
-  //   if (data[fnName] === undefined) {
-  //     // if entry doesn't exist create it
-  //     data[fnName] = {
-  //       timeoutId: 0,
-  //       isRunning: false,
-  //       nextArgs: []
-  //     }
-  //   }
-  //   return function() {
-  //     const args = sliceFn.call(arguments); // copy params
-  //     args.push(function() {
-  //       data[fnName].isRunning = false;
-  //       if (data[fnName].nextArgs) {
-  //         run(data[fnName].nextArgs);
-  //         data[fnName].nextArgs = null;
-  //       }
-  //     });
-  //
-  //     if (data[fnName].isRunning) {
-  //       data[fnName].nextArgs = args;
-  //       return data[fnName].nextArgs;
-  //     }
-  //     if (data[fnName].timeoutId) {
-  //       clearTimeout(data[fnName].timeoutId);
-  //     }
-  //
-  //     data[fnName].timeoutId = setTimeout(function() {
-  //       run(data[fnName].nextArgs);
-  //       data[fnName].timeoutId = null;
-  //     }, interval);
-  //
-  //     function run(args) {
-  //       fn.apply(null, args);
-  //       data[fnName].isRunning = true;
-  //     }
-  //   }
-  // };
-
-
   /**
    * We want to SAVE these results somewhere that automated unit tests can e
    * asily extract the scores to measure changes across revisions
@@ -229,10 +168,6 @@ try { // scope and prevent errors from leaking out to page.
         return;
       }
 
-      // const startingAttr = window.document.body.parentNode.getAttribute(
-      //   VIDEO_MAX_EMBEDDED_SCORE_ATTR) || "";
-      // window.document.body.parentNode.setAttribute(VIDEO_MAX_EMBEDDED_SCORE_ATTR,
-      //   [startingAttr, newStr].join("\n\n"));
       window.document.body.parentNode.append(window.document.createComment(`
       ${newStr}
       
@@ -275,7 +210,8 @@ try { // scope and prevent errors from leaking out to page.
     for (let match of matches) {
       results.push(PrintNode(match));
     }
-    appendUnitTestResultInfo(`${results.join(`\n`)}\n`);
+    const combinedResults = results.join(`\n`);
+    appendUnitTestResultInfo(`${combinedResults}\n`);
   };
 
   const removeObservers = () => {
@@ -348,7 +284,6 @@ try { // scope and prevent errors from leaking out to page.
       return false;
     }
     const nodeType = elem?.nodeName?.toLowerCase() || "";
-    // if (stopAtFrame) { return STOP_NODES_FRAME.includes(nodeType); }
     return STOP_NODES.includes(nodeType);
   };
 
@@ -405,7 +340,7 @@ try { // scope and prevent errors from leaking out to page.
       return false;
     }
     let matchedNew = false;
-    for (let tagname of VIDEO_NODES.reverse()) {
+    for (let tagname of VIDEO_NODES) {
       try {
         const elemSearch = [...doc.getElementsByTagName(tagname)];
         if (elemSearch) {
@@ -464,7 +399,7 @@ try { // scope and prevent errors from leaking out to page.
    * @return {boolean}
    */
   function isEmptyRect(rect) {
-    return (rect.width === 0 && rect.width === 0);
+    return (rect.width === 0 && rect.height === 0);  // fixed bug was just width
   }
 
   /**
@@ -521,8 +456,6 @@ try { // scope and prevent errors from leaking out to page.
       window.dispatchEvent(new Event("visabilitychange"));
       if (optionalElem) {
         optionalElem?.dispatchEvent(new Event("visabilitychange"));
-      } else {
-        // touchDocBodyToTriggerUpdate();
       }
     }, 50);
   }
@@ -609,23 +542,6 @@ try { // scope and prevent errors from leaking out to page.
     return false;
   }
 
-
-  /**
-   *
-   * @param elem {HTMLElement}
-   * @return {HTMLElement}
-   */
-  function getTopmostElem(elem) {
-    let lastmatch = elem;
-    for (var safetyloop = 0; safetyloop < 500; safetyloop++) {
-      if (isStopNodeType(elem)) {
-        return lastmatch;
-      }
-      lastmatch = elem;
-      elem      = elem.parentElement;
-    }
-  }
-
   /**
    * hiding elements in dom that aren't in tree for this element.
    * @param videoElem {Node}
@@ -637,7 +553,6 @@ try { // scope and prevent errors from leaking out to page.
     trace("maximizeVideoDom");
 
     const containerElem      = findCommonContainerFromElem(videoElem);
-    // let compstyle = getElemComputedStyle(videoElem); // used to resize divs
     const elemForBindingRect = shouldUseContainerDivForDockedCheckYoutube(videoElem) ?
                                containerElem :
                                videoElem;
@@ -1216,7 +1131,6 @@ try { // scope and prevent errors from leaking out to page.
 
       if (!(bounded || bottomDocked || hasSliderRole || parentIsVideo || parentIsMaximized ||
             hasEaseInOutTrans)) {
-        // each_elem.style.setProperty("display", "none", "important");
         trace(`  Hidding overlapping elem ${each_sib.nodeName}`, each_sib);
         hideNode(each_sib);
         handled = true;
@@ -1275,16 +1189,17 @@ try { // scope and prevent errors from leaking out to page.
    * @param actionFn {function}
    */
   function walkAllChildren(elem, actionFn) {
-    const active_elems = getChildren(elem, null);
+    let active_elems = getChildren(elem, null);
     actionFn(elem); // call the parent element
     let safty = 5000;
 
     while (active_elems.length > 0 && safty--) {
       const next_elem = active_elems.pop();
-      active_elems.concat(getChildren(next_elem, null));
+      active_elems = active_elems.concat(getChildren(next_elem, null));
       actionFn(elem);
     }
     if (DEBUG_ENABLED && safty === 0) {
+      debugger; // changed code to fix bug recently. may cause issues!
       logerr("!!! maximizeVideoDom while loop ran too long");
     }
   }
@@ -1343,7 +1258,7 @@ try { // scope and prevent errors from leaking out to page.
       current = current.parentNode;
     }
 
-    while (current && !isStopNodeType(current, false)) {
+    while (current && !isStopNodeType(current)) {
       if (isElem(current)) {
         const siblings = getSiblings(current);
         for (let eachNode of siblings) {
@@ -1468,7 +1383,7 @@ try { // scope and prevent errors from leaking out to page.
   function isEqualRect(outer, inner) {
     if ((inner.top === outer.top) && (inner.left >= outer.left) && (inner.bottom >= outer.bottom) &&
         (inner.right >= outer.right)) {
-      return false;
+      return true; // was false, fix bug
     }
     return false;
   }
@@ -1606,6 +1521,12 @@ try { // scope and prevent errors from leaking out to page.
     if (!isElem(elem)) {
       return false;
     }
+    if (smellsLikeAd(elem)) {
+      // NOT hiding ad, just not zooming it playback controls
+      // since it can permanently obscure video even when done playing
+      trace("Playback elem smells like an ad?");
+      return false;
+    }
     const matches = [new RegExp(/controls/i),
                      new RegExp(/chrome-bottom/i),
                      new RegExp(/progress-bar/i)];
@@ -1664,20 +1585,35 @@ try { // scope and prevent errors from leaking out to page.
   }
 
   /**
-   *
+   * some specific rules where ads overlap videos and when we zoom them
+   * they permanently hide the main video
    * @param elem {Node}
    */
-  function seemsLikeAd(elem) {
+  function smellsLikeAd(elem) {
     const arialabel = safeGetAttribute(elem, "aria-label");
     if (arialabel.match(/^adver/i)) {
-      trace(`matched aria-label for ad? '${arialabel}'. skipping`);
+      trace(`matched aria-label for ad? "adver" '${arialabel}'. skipping`);
+      return true;
+    }
+    if (arialabel.match(/^ad-/i)) {
+      trace(`matched aria-label for ad? "ad-" '${arialabel}'. skipping`);
+      return true;
+    }
+    const className = safeGetAttribute(elem, "class");
+    if (className.match(/^ad-/i)) {
+      trace(`matched classname for ad? '${className}'. skipping`);
       return true;
     }
     const title = safeGetAttribute(elem, "title");
     if (title.match(/^adver/i)) {
-      trace(`matched title for ad? '${title}'. skipping`);
+      trace(`matched title for ad? "adver" '${title}'. skipping`);
       return true;
     }
+    if (title.match(/^ad-/i)) {
+      trace(`matched title for ad? "ad-" '${title}'. skipping`);
+      return true;
+    }
+    return false;
   }
 
   /**
@@ -1702,8 +1638,9 @@ try { // scope and prevent errors from leaking out to page.
         trace("Matched element same as parent.");
       }
 
-      // try to not match ads on the page
-      if (DO_NOT_MATCH_ADS && seemsLikeAd(elem)) {
+      // some sites have lots of video ads playing all over the page (NOT watch-ad-before playing)
+      // we don't want to match them instead of the main video.
+      if (DO_NOT_MATCH_ADS && smellsLikeAd(elem)) {
         return false;
       }
 
@@ -1838,9 +1775,6 @@ try { // scope and prevent errors from leaking out to page.
         // 4_5:  (4 / 5),
         // 9_16: (9 / 16),
       };
-
-      // const MAX_R_THRESHOLD = 0.15;
-      // const MAX_R_ADJUST = 0.8;
 
       const {
               width,
@@ -2038,9 +1972,14 @@ try { // scope and prevent errors from leaking out to page.
     const allElementsToFix = doc.querySelectorAll(`[class*="${PREFIX_CSS_CLASS_PREP}"]`);
     // that matches PREFIX_CSS_CLASS_PREP
     for (let eachElem of allElementsToFix) {
+      if (!eachElem.classList) {
+        continue;
+      }
+      // we are generically mapping "videomax-ext-prep-*" to videomax-ext-*"
       const subFrom = [];
       const subTo   = [];
-      for (let [_ii, eachClassName] of eachElem.classList?.entries()) {
+      const allClassNameOnElem = Object.values(eachElem.classList) || [];
+      for (let eachClassName of allClassNameOnElem) {
         if (eachClassName.startsWith(PREFIX_CSS_CLASS_PREP)) {
           // remove '-prep' from the classname, '-prep-' => '-'
           const replacementClassName = eachClassName.replace("-prep-", "-");
@@ -2049,10 +1988,9 @@ try { // scope and prevent errors from leaking out to page.
           subTo.push(replacementClassName);
         }
       }
-      for (let ii = 0; ii < subFrom.length; ii++) {
-        eachElem.classList.add(...subTo);
-        eachElem.classList.remove(...subFrom);
-      }
+      // classList supports bulk adding and removing if we expand parameters out.
+      eachElem.classList.add(...subTo);
+      eachElem.classList.remove(...subFrom);
     }
   }
 
@@ -2074,79 +2012,6 @@ try { // scope and prevent errors from leaking out to page.
       }
     } catch (err) {
       // probably security related
-    }
-  }
-
-  function watchForChanges() {
-    if (!videomaxGlobals.matchedVideo || !videomaxGlobals.isMaximized ||
-        !videomaxGlobals.matchedIsHtml5Video || runningInIFrame()) {
-      return;
-    }
-
-    if (OBSERVER_DIV_REAPPLY) {
-      if (!videomaxGlobals.observerDomMod) {
-        videomaxGlobals.observerDomMod = new MutationObserver((_mutations, observer) => {
-          // called when change happens. first disconnect to avoid recursions
-          observer.disconnect();
-          if (videomaxGlobals.observerDomMod && videomaxGlobals.isMaximized) {
-            trace("OBSERVER: changes detected. Running mainFixPage");
-            fixUpPage();
-            // mainFixPage(); // will recall this
-          }
-        });
-      }
-      trace("OBSERVER: installing dom observer for element changes");
-      videomaxGlobals?.observerDomMod?.observe(getTopmostElem(videomaxGlobals.matchedVideo), {
-        childList: true,
-        subtree:   true,
-      });
-    }
-
-    if (OBSERVER_CLASSES_REAPPLY) {
-      const topElem = getTopmostElem(videomaxGlobals.matchedVideo);
-      if (!videomaxGlobals.observerClassMod) {
-        videomaxGlobals.observerClassMod = new MutationObserver((mutations, observer) => {
-          trace("OBSERVER: installing class observer for element changes");
-          // called when change happens. first disconnect to avoid recursions
-          observer.disconnect();
-          // check to see if things are in the process of going away. They might be.
-          if (videomaxGlobals.observerClassMod && videomaxGlobals.isMaximized) {
-            for (let eachMutation of mutations) {
-              if (eachMutation.type !== "attributes") {
-                continue;
-              }
-
-              // is one of our classnames on the old value?
-              if (!(eachMutation?.oldValue?.indexOf(PREFIX_CSS_CLASS) >= 0)) {
-                // nope
-                continue;
-              }
-              // our classname was there, but it's removed?
-              const newClassName = eachMutation.target?.getAttribute("class") || "";
-              if (newClassName.indexOf(PREFIX_CSS_CLASS) !== -1) {
-                // nope
-                continue;
-              }
-
-              // if we reach here then our classname was removed
-              const oldClassNames = eachMutation.oldValue.split(" ");
-              // figure out what classnames were removed and re-add it.
-              for (let eachClassname of oldClassNames) {
-                if (eachClassname.startsWith(PREFIX_CSS_CLASS)) {
-                  trace(
-                    `OBSERVER: detected classname changes, reappling "eachMutation" to element:`,
-                    eachMutation.target);
-                  eachMutation.target?.classList?.add(eachClassname);
-                }
-              }
-            }
-            trace("OBSERVER: installing classname observer for our classname changed");
-            observer.observe(topElem, OBSERVE_ATTRIB_OPTIONS);
-          }
-        });
-      }
-      trace("OBSERVER: installing classname observer for our classname changed");
-      videomaxGlobals.observerClassMod.observe(topElem, OBSERVE_ATTRIB_OPTIONS);
     }
   }
 
@@ -2203,7 +2068,6 @@ try { // scope and prevent errors from leaking out to page.
   function updateEventListeners(video_elem, removeOnly = false) {
     const _onPress = (event) => {
       try {
-        // trace("window keypressed", event);
         if (event.keyCode === 27) { // esc key
           trace("esc key press detected, unzoomin");
           // unzoom here!
@@ -2310,11 +2174,6 @@ try { // scope and prevent errors from leaking out to page.
           forceRefresh(videomaxGlobals.matchedVideo);
         }
 
-        // window.scroll({
-        //   top:  0,
-        //   left: 0,
-        // });
-
         videomaxGlobals.isMaximized = true;
         return true; // stop retrying - we kep trying to rehide
       });
@@ -2333,7 +2192,6 @@ try { // scope and prevent errors from leaking out to page.
     }
     rehideUpFromVideo();
     videomaxGlobals.isMaximized = true;
-    // watchForChanges();
     return true;
   }
 
@@ -2452,15 +2310,6 @@ try { // scope and prevent errors from leaking out to page.
       }
     }
 
-    // static undoSpeedControls(doc) {
-    //   try {
-    //     const elem = doc.getElementById(SPEED_CONTROLS);
-    //     elem?.parentElement?.removeChild(elem);
-    //   } catch (ex) {
-    //     logerr(ex);
-    //   }
-    // }
-
     /**
      * @param doc {Document}
      */
@@ -2480,7 +2329,6 @@ try { // scope and prevent errors from leaking out to page.
 
       removeObservers();
 
-      //      UndoZoom.undoSpeedControls(doc);
       UndoZoom.undoStyleSheetChanges(doc);
       UndoZoom.removeAllClassStyles(doc);
       UndoZoom.undoAttribChange(doc);
@@ -2550,7 +2398,7 @@ try { // scope and prevent errors from leaking out to page.
 
     case "tagonly":
       // this is for sites that already zoom correctly, but we'd like to do speed control
-      mainZoom(tagonly = true);
+      mainZoom(true);
       break;
 
     default:
