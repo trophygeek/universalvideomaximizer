@@ -31,5 +31,9 @@
       ],
       "extension_ids": []
     }
-  ]
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'",
+    "sandbox": "sandbox allow-scripts; script-src 'self'; child-src 'self';"
+  }
 }
