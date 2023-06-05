@@ -899,8 +899,12 @@ chrome.action.onClicked.addListener((tab) => {
 
         // push a tld domain wide request. Often videos are in iframes on different sub domains
         // like www.example.com and static.example.com
-        let domain = getDomain(tab.url);
-        origins.push(domainToSiteWildcard(domain, settings.wholeDomainAccess));
+        if (tab.url.startsWith("https://")) {
+          let domain = getDomain(tab.url);
+          origins.push(domainToSiteWildcard(domain, settings.wholeDomainAccess));
+        } else {
+          origins.push(tab.url);
+        }
       }
       chrome.permissions.request({
         permissions,

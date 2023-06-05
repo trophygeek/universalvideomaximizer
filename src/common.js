@@ -1,6 +1,6 @@
 // @ts-check
 
-const FULL_DEBUG        = false;
+const FULL_DEBUG        = true;
 const DEBUG_ENABLED     = FULL_DEBUG;
 const TRACE_ENABLED     = FULL_DEBUG;
 const ERR_BREAK_ENABLED = FULL_DEBUG;
@@ -136,7 +136,7 @@ export const rangeInt = (num, lower, upper) => Math.max(lower, Math.min(upper, n
  * @return {string}
  */
 export const getDomain = (url) => {
-  if (url.indexOf(`://`) > 0) {
+  if (url.startsWith(`https://`) > 0) {
     return (new URL(url)).host.toLowerCase();
   } else {
     return url;
@@ -219,6 +219,9 @@ export const isPageExcluded = (domain, zoomExclusionListStr) => {
  * @return {string}
  */
 export const domainToSiteWildcard = (domainStr, wholeDomainAccess) => {
+  if (domainStr.indexOf("://") !== -1) {
+    return domainStr;
+  }
   if (!wholeDomainAccess) {
     return `https://${domainStr}/`;
   }
