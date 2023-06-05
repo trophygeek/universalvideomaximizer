@@ -56,6 +56,7 @@ export const DEFAULT_SETTINGS = {
   regSkipSeconds:            5,
   longSkipSeconds:           20,
   preportionalSkipTimes:     true,
+  wholeDomainAccess:         false, // "all example.com sites" vs "on www.example.com"
   allSitesAccess:            false,
   allSitesAccessNeedsRevoke: false,
   zoomExclusionListStr:      DEFAULT_ZOOM_EXCLUSION_LIST,
@@ -209,6 +210,22 @@ export const isPageExcluded = (domain, zoomExclusionListStr) => {
     return true;
   }
   return false;
+};
+
+/**
+ *
+ * @param domainStr {string}
+ * @param wholeDomainAccess {boolean}
+ * @return {string}
+ */
+export const domainToSiteWildcard = (domainStr, wholeDomainAccess) => {
+  if (!wholeDomainAccess) {
+    return `https://${domainStr}/`;
+  }
+  if (domainStr.startsWith("www.") || domainStr.startsWith("web.")) {
+    domainStr = domainStr.substring("www.".length); // trim off 4 chars from front
+  }
+  return `https://*.${domainStr}/`;
 };
 
 /** used by unit tests **/

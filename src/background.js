@@ -5,6 +5,7 @@ import {
   CSS_STYLE_HEADER_ID,
   DEAULT_SPEED,
   DEFAULT_SETTINGS,
+  domainToSiteWildcard,
   getDomain,
   getSettings,
   isPageExcluded,
@@ -61,7 +62,6 @@ const BADGES = {
   REFRESH: "↺",
   WARNING: "!",
 };
-
 
 const DEFAULT_COLOR = "#FFFFFF00";
 
@@ -134,6 +134,16 @@ const STATE_DATA = {
   },
 };
 
+// REALLY trying to not require full permissions, but sometime iframes are
+// cross-domain and need more permissions. Try to collect iframe domains
+// and ask user's ADDITIONAL permission, but it STILL requires a full page
+// refresh to re-prompt?!?
+const GET_IFRAME_PERMISSIONS     = true;
+const g_hackGetAccessToSubFrames = {
+  forTabId:    0,
+  subFrameStr: "",
+};
+
 /**
  * Injection returns an array of results, this aggregates them into a single result.
  * @param injectionResults {InjectionResult[]}
@@ -157,9 +167,12 @@ function injectionResultCheck(injectionResults, defaultVal = false) {
  * This speeds up all <videos> not just the one zoomed.
  * Could just select the zoomed videos, but maybe useful when unzooming?
  * @param newspeed {string}
+ * @return {string[]}
  */
 function injectVideoSpeedAdjust(newspeed) {
   const PLAYBACK_SPEED_ATTR = "data-videomax-playbackspeed";
+  /** @type {Set<string>} */
+  const result              = new Set(); // use Set to dedup
 
   /** nested local function * */
   const _loadStart          = (event) => {
@@ -211,10 +224,22 @@ function injectVideoSpeedAdjust(newspeed) {
       }
       _speedUpFoundVideos(framedoc, speadNumber);
     } catch (err) {
-      console.warn(`VideoMax speed error for "frame"`, frame, err);
+      // in theory, we could try to record this url and add it to the request?
+      // but this is run in the context of the page see GET_IFRAME_PERMISSIONS
+      console.warn(`VideoMax speed error for "frame" probably cross-domain-frame`, frame, err);
+      if (frame?.src?.length && window?._VideoMaxExt?.matchedVideo?.nodeName === "IFRAME") {
+        const url = frame?.src;
+        if (url.startsWith("https://")) {
+          const domain    = (new URL(url)).host.toLowerCase();
+          const iframeUrl = window._VideoMaxExt.matchedVideo.src?.toLowerCase() || "";
+          if (iframeUrl.indexOf(domain) !== -1) {
+            result.add(domain);
+          }
+        }
+      }
     }
   }
-  return false;
+  return [...result]; // Set->array
 }
 
 
@@ -643,7 +668,7 @@ async function setTabSpeed(tabId, speedStr = DEAULT_SPEED) {
     }
     // "allFrames" is broken unless manifest requests permissions
     // `"optional_host_permissions": ["<all_urls>"]`
-    return await chrome.scripting.executeScript({
+    const results = await chrome.scripting.executeScript({
       target: {
         tabId,
         allFrames: true,
@@ -652,6 +677,20 @@ async function setTabSpeed(tabId, speedStr = DEAULT_SPEED) {
       func:   injectVideoSpeedAdjust,
       args:   [speedStr],
     });
+    if (GET_IFRAME_PERMISSIONS && results.length > 0) {
+      // setTabSpeed failed and there are extra domains we need access to make it work
+      // the only domain we care about is the
+      const extraDomainsArry = results.map(o => o.result)
+        .flat()
+        .filter(str => str?.length > 0);
+      if (extraDomainsArry.length) {
+        g_hackGetAccessToSubFrames.forTabId    = tabId;
+        g_hackGetAccessToSubFrames.subFrameStr = extraDomainsArry.join(",");
+      } else {
+        g_hackGetAccessToSubFrames.forTabId    = 0;
+        g_hackGetAccessToSubFrames.subFrameStr = "";
+      }
+    }
   } catch (err) {
     logerr(err);
     return null;
@@ -814,7 +853,7 @@ chrome.action.onClicked.addListener((tab) => {
       /** @type {SettingsType} */
       const settingsSaved = JSON.parse(resultSettings[SETTINGS_STORAGE_KEY] || "{}");
       const settings      = { ...DEFAULT_SETTINGS, ...settingsSaved };
-      const origins       = [tab?.url];
+      const origins       = [];
       const permissions   = ["scripting"];
 
       if (settings.allSitesAccess) {
@@ -843,6 +882,25 @@ chrome.action.onClicked.addListener((tab) => {
             origins: ["<all_urls>"],
           });
         }
+
+        if (GET_IFRAME_PERMISSIONS && g_hackGetAccessToSubFrames.forTabId) {
+          if (g_hackGetAccessToSubFrames.forTabId === tabId) {
+            // if being used across multiple tabs at the same time, just fail for now.
+            const iframeDomains = g_hackGetAccessToSubFrames.subFrameStr
+              .split(",")
+              .map(d => domainToSiteWildcard(d, settings.wholeDomainAccess));
+            origins.push(...iframeDomains);
+            trace("Requesting extra domains that blocked speedup", iframeDomains);
+          }
+          // always clear
+          g_hackGetAccessToSubFrames.forTabId    = 0;
+          g_hackGetAccessToSubFrames.subFrameStr = "";
+        }
+
+        // push a tld domain wide request. Often videos are in iframes on different sub domains
+        // like www.example.com and static.example.com
+        let domain = getDomain(tab.url);
+        origins.push(domainToSiteWildcard(domain, settings.wholeDomainAccess));
       }
       chrome.permissions.request({
         permissions,
@@ -874,9 +932,9 @@ chrome.action.onClicked.addListener((tab) => {
 
 // handle popup messages
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  const cmd   = /** @type CmdType*/ request?.message?.cmd || "";
-  const tabId = parseFloat(request?.message?.tabId || "0");
-  const speed = request?.message?.speed || DEAULT_SPEED;
+  const cmd    = /** @type CmdType*/ request?.message?.cmd || "";
+  const tabId  = parseFloat(request?.message?.tabId || "0");
+  const speed  = request?.message?.speed || DEAULT_SPEED;
   const domain = request?.message?.domain || "";
   if (!tabId) {
     logerr("something wrong with message", request);
@@ -950,27 +1008,3 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   sendResponse && sendResponse({ success: true }); // used to close popup.
 });
-
-//
-// chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-//   try {
-//     trace(`tabs.onUpdated event tabId=${tabId}
-//     changeInfo:`, changeInfo);
-//     // mlb.com site takes FOREVER to load and clicking the button again will call this while
-//     // we're still zooming. But needed to detect ads auto-finishing.
-//     if (tabId && changeInfo?.status === "loading") {
-//       setTimeout(async () => {
-//         const state = await getTabCurrentState(tabId);
-//         if (isActiveState(state)) {
-//           trace("chrome.tabs.onUpdated loading so starting unzoom. likely SPA nav");
-//           // some SPA won't do a clean refetch, we need to uninstall.
-//           // await unZoom(tabId);
-//         } else {
-//           trace(`tabId not currently zoomed ${tabId}`);
-//         }
-//       }, 0);
-//     }
-//   } catch (err) {
-//     logerr(err);
-//   }
-// });

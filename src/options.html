@@ -17,22 +17,45 @@
       <div class="row col label">
         <input checked id="useToggleZoomBehavior" name="useToggleZoomBehavior" type="checkbox">
         <label for="useToggleZoomBehavior">
-          Use classic toggle-zoom behavior (enabling removes the playback-speed feature)
+          Use classic toggle-zoom behavior (removes the playback-speed feature)
         </label>
       </div>
     </fieldset>
 
     <fieldset>
-      <legend>Allow access to all sites by default</legend>
+      <legend>Allow more access - whole site by default</legend>
       <div class="row col label">
-        <input checked id="allSitesAccess" name="allSitesAccess" type="checkbox">
-        <label for="allSitesAccess">
-          If the speed controls won't work on a site, then try this.
+        <input checked id="wholeDomainAccess" name="wholeDomainAccess" type="checkbox">
+        <label for="wholeDomainAccess">
+          If zoom or speed controls don't work on a site, then try this first.
         </label>
       </div>
       <div class="container">
-        <div class="row col">WARNING: It will allow FULL ACCESS to ALL SITES by default. <br/> This access is required
-          when sites embed videos from other domains.
+        <div class="row col">This will change the permissions prompt from <br/>
+          "Read and change your data on www.example.com" to <br/>
+          "Read and change all your data on example.com sites". <br/>
+          <br/>
+          Works most of the time but may require you to zoom a
+          couple times to get all security prompts. Once site is approved, you will not get prompted for it again.
+        </div>
+      </div>
+    </fieldset>
+
+
+    <fieldset>
+      <legend>Allow full access to all sites by default</legend>
+      <div class="row col label">
+        <input checked id="allSitesAccess" name="allSitesAccess" type="checkbox">
+        <label for="allSitesAccess">
+          If Video Maximizer still won't work or security prompts annoy you, then use this setting.
+        </label>
+      </div>
+      <div class="container">
+        <div class="row col">WARNING: It will allow FULL ACCESS to ALL SITES by default. <br/>
+          This access should not be required, but is a fix-all. Once granted and accepted, it silences all further permissions prompting.<br/><br/>
+          If you find a site that doesn't work, consider reporting it via a <a
+              href="https://github.com/trophygeek/universalvideomaximizer/issues" rel="noreferrer" target="_blank">GitHub
+            issue ↗</a>.
         </div>
       </div>
     </fieldset>
@@ -78,8 +101,8 @@
                type="number"><span class="label"> (when Shift key is used)</span>
       </div>
       <div class="container padding-1">
-        If you want to have a hotkey to trigger VideoMaximizer, it's built into Chrome. See this
-        <a href="https://www.youtube.com/watch?v=s3SQVhbmj4c" rel="noreferrer" target="_blank">Youtube demo</a>.
+        If you want to have a hotkey to trigger VideoMaximizer, it's built into Chrome. <br/>See this
+        <a href="https://www.youtube.com/watch?v=s3SQVhbmj4c" rel="noreferrer" target="_blank">Youtube demo ↗</a>.
       </div>
       <!--        <div class="row col label">-->
       <!--          <input checked id="preportionalSkipTimes" name="preportionalSkipTimes" type="checkbox">-->
@@ -90,12 +113,14 @@
     <fieldset>
       <legend>Speed controls only sites</legend>
       <div class="row col label">
-        <label for="nozoomlist">Sites that are already fullscreened, so VideoMax won't try to zoom again. But speed
-          controls are still nice. Main domain segement only so it matches intl sites.</label>
+        <label for="nozoomlist" class="padding-1">Sites that are already fullscreen, so VideoMax won't try to zoom again. But speed
+          controls are still nice. Just use main domain part. So for "www.example.com" or "example.uk.co", just supply "example"</label>
         <div class="list-group">
           <ul class="list" id="nozoomlist">
           </ul>
-          <button class="add-button" id="addpathblacklist"> + Add New ...</button>
+          <br>
+          <button class="add-button" id="addpathblacklist"> + Add New ...</button><br/><br/>
+          <div>Adding a new site? Consider submitting a bug on github to get it added to future releases.</div>
         </div>
       </div>
     </fieldset>

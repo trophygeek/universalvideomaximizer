@@ -214,17 +214,6 @@ try { // scope and prevent errors from leaking out to page.
     appendUnitTestResultInfo(`${combinedResults}\n`);
   };
 
-  const removeObservers = () => {
-    if (videomaxGlobals.observerDomMod) {
-      videomaxGlobals.observerDomMod.disconnect();
-      videomaxGlobals.observerDomMod = null;
-    }
-    if (videomaxGlobals.observerClassMod) {
-      videomaxGlobals.observerClassMod.disconnect();
-      videomaxGlobals.observerClassMod = null;
-    }
-  };
-
   const clearResultInfo = () => {
     try {
       window.document.body.parentNode.setAttribute(VIDEO_MAX_EMBEDDED_SCORE_ATTR, "");
@@ -2327,8 +2316,6 @@ try { // scope and prevent errors from leaking out to page.
         videomaxGlobals.findVideoRetryTimer = null;
       }
 
-      removeObservers();
-
       UndoZoom.undoStyleSheetChanges(doc);
       UndoZoom.removeAllClassStyles(doc);
       UndoZoom.undoAttribChange(doc);
@@ -2361,7 +2348,6 @@ try { // scope and prevent errors from leaking out to page.
         videomaxGlobals.playbackSpeed = 1.0;
 
         updateEventListeners(videomaxGlobals.matchedVideo, true);
-        removeObservers();
 
         UndoZoom.undoAll(document);
         UndoZoom.recurseIFrameUndoAll(document);

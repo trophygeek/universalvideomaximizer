@@ -37,7 +37,7 @@
     <p>Hopefully this will be fixed soon and only seems to show up after the extension is modified.
       See
       <a href="https://bugs.chromium.org/p/chromium/issues/detail?id=1316588" rel="noreferrer" target="_blank">Issue
-        #1316588</a> for more information. But this trick is handy for all extensions until it's resolved.</p>
+        #1316588 ↗</a> for more information. But this trick is handy for all extensions until it's resolved.</p>
   </section>
 
   <hr/>
@@ -45,7 +45,7 @@
   <section class="padding-1">
     Any problems or feature requests should be reported here via a
     <a href="https://github.com/trophygeek/universalvideomaximizer/issues" rel="noreferrer" target="_blank">GitHub
-      issue</a>. Chrome's reporting feature in the store does not notifying when new issues are added.
+      issue ↗</a>. Chrome's reporting feature in the store does not notifying when new issues are added.
   </section>
 
   <section class="padding-1">
@@ -60,7 +60,7 @@
       </li>
 
       <li>Is <a href="https://github.com/trophygeek/universalvideomaximizer/" rel="noreferrer"
-                target="_blank">open-sourced</a> for transparency.
+                target="_blank">open-sourced ↗</a> for transparency.
       </li>
     </ul>
   </section>
@@ -73,9 +73,8 @@
     <img alt="screen shot" class="illustration" src="img/speed_change_yes.png">
     Playback speed cannot work on pages where videos are actually hosted on a different site. (e.g. youtube videos not
     on the youtube site). This is a limitation of the Chrome Extension API itself.<br/><br/>
-    When a site looks like it supports speed control, the toolbar icon will display a <img alt="playback indicator icon"
-                                                                                           src="img/playback_indicator.png">
-    overlay
+    When a site looks like it supports speed control, the toolbar icon will display a
+    <img alt="playback indicator icon" src="img/playback_indicator.png"> overlay
   </section>
 
 
@@ -87,15 +86,17 @@
 
   <h3>Why speed control fails on some sites</h3>
   <section class="padding-3">
-    <img alt="screen shot" class="illustration" src="img/speed_change_no.png">
+    <img alt="screen shot" class="illustration" src="img/permissions_prompt.png">
     When pages load their videos from a different site (e.g. a youtube video embedded in a non youtube site), then
     the speed control feature often will not work.<br/><br/>
-    If this happens, there's a setting to try.
+    If this happens, you can try rezooming a couple of times and see if more access prompts show up. Yes, the
+    reprompting is annoying, but it's just a how Chrome works. If you prefer to trust Video Maximizer, then there are
+    settings to try.<br/><br/>
     "Allow access to all sites by default" in the <a href="options.html" target="videomaxoptions">Options</a> will
-    increase this extension's permissions.<br/><br/>
-    The fundamental issue is that cross-domain-frame-permissions-granting doesn't work
-    in Chrome yet. See <a href="https://bugs.chromium.org/p/chromium/issues/detail?id=826433" rel="noreferrer"
-                          target="_blank">Issue #826433</a>
+    increase this extension's base permissions.<br/><br/>
+    The fundamental issue is that cross-domain-frame-permissions-granting doesn't work in Chrome yet. See <a
+      href="https://bugs.chromium.org/p/chromium/issues/detail?id=826433" rel="noreferrer"
+      target="_blank">Issue #826433 ↗</a>
   </section>
 
   <hr/>

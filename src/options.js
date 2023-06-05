@@ -101,6 +101,7 @@ const loadSettingsIntoFields = (settings) => {
   setTextNum("regSkipSeconds", settings.regSkipSeconds);
   setTextNum("longSkipSeconds", settings.longSkipSeconds);
   // setChecked("preportionalSkipTimes", settings.preportionalSkipTimes);
+  setChecked("wholeDomainAccess", settings.wholeDomainAccess);
   setChecked("allSitesAccess", settings.allSitesAccess);
 
   // list of no-zoom sites
@@ -141,6 +142,7 @@ const saveFieldsIntoSettings = (settings) => {
     settings.longSkipSeconds       = getTextNum("longSkipSeconds");
     // settings.preportionalSkipTimes = getChecked("preportionalSkipTimes");
     settings.allSitesAccess        = getChecked("allSitesAccess");
+    settings.wholeDomainAccess = getChecked("wholeDomainAccess");
   } catch (err) {
     console.error(err);
   }
