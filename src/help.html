@@ -24,13 +24,12 @@
   </section>
 
   <hr/>
-  <h3>Chrome Update Bug Warning</h3>
+  <h3>Chrome Update Issue</h3>
   <section class="padding-1">
-    <p>There is currently a bug with Chrome that impacts ALL extensions. Right after an update, extensions can <span
-        class="emphasis">just stop
-      working.</span> There are two user workaround.</p>
+    <p>There is currently a issue with Chrome that impacts ALL extensions. Right after an update, extensions can <span
+        class="emphasis">just stop working.</span> There are two user workaround.</p>
     <p>The first is to restart Chrome.</p>
-    <p> The second is to go to <code>Manage Extensions</code> under the
+    <p>The second is to go to <code>Manage Extensions</code> under the
       puzzle piece in the Chrome toolbar. Then enable <code>Developer mode</code> and manually reload the extension.
     </p>
     <p class="is-center"><img alt="how to manually reload an extension" src="img/chrome_update_bug.png"><br/></p>
@@ -88,13 +87,15 @@
   <section class="padding-3">
     <img alt="screen shot" class="illustration" src="img/permissions_prompt.png">
     When pages load their videos from a different site (e.g. a youtube video embedded in a non youtube site), then
-    the speed control feature often will not work.<br/><br/>
-    If this happens, you can try rezooming a couple of times and see if more access prompts show up. Yes, the
-    reprompting is annoying, but it's just a how Chrome works. If you prefer to trust Video Maximizer, then there are
-    settings to try.<br/><br/>
+    the speed control feature will not work without permissions to both sites.<br/><br/>
+    If this happens, you can try rezooming a couple of times and see if more Access prompts show up. Yes, the
+    reprompting can be annoying, but it's just a how Chrome works and you will only be prompted once per site.
+    If you grant permissions, then you will NOT be prompted again.<br/><br/>
+    If you continue to have access issues or find the prompting annoying there are extra permissions you can try
+    in the Video Maxmizer Options page.<br/>
     "Allow access to all sites by default" in the <a href="options.html" target="videomaxoptions">Options</a> will
     increase this extension's base permissions.<br/><br/>
-    The fundamental issue is that cross-domain-frame-permissions-granting doesn't work in Chrome yet. See <a
+    The fundamental issue is how the cross-domain-frame-permissions-granting works in Chrome. See <a
       href="https://bugs.chromium.org/p/chromium/issues/detail?id=826433" rel="noreferrer"
       target="_blank">Issue #826433 ↗</a>
   </section>
@@ -180,11 +181,11 @@
 
     <h4>Speed controls don't work on some sites</h4>
     <p>Video Maximizer attempts to use the minimal permissions required to do it's job. However, there are still some
-      sites that require full access to every domain to work.
+      sites that require more access to work.
       (The technical reason has to do with embedding iframes that have cross-domain references.)</p>
-    <p>The only current work around is to enable "Allow access to all sites by default" in Video Maximizer's
-      Options.</p>
-    <p>There's an open Chrome issue/feature request to allow this to work without needing this elevated access.</p>
+    <p>The default settings for Video Maximizer is maximium privacy, if you come across a site that you use that
+      requires more permissions to work, open a bug and I'll investigate. See the Options page for more choices to grant
+    this extension more permissions.</p>
 
     <br/>
 

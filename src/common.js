@@ -206,7 +206,7 @@ export const isPageExcluded = (domain, zoomExclusionListStr) => {
   const domainParts  = domain.split(".");
   const excludedList = listToArray(zoomExclusionListStr);
   if (intersection(domainParts, excludedList)) {
-    trace(`Excluded from zooming ${g_domain}`);
+    trace(`Excluded from zooming ${domain}`);
     return true;
   }
   return false;

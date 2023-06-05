@@ -215,7 +215,7 @@ ${userAgent}
           const objDiv     = document.getElementById("nozoomlist");
           objDiv.scrollTop = objDiv.scrollHeight;
         }
-        e.cancelBubble = true;
+        e.stopPropagation();
         return false;
       });
 
