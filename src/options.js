@@ -199,7 +199,7 @@ ${userAgent}
         setTimeout(() => {
           if (getChecked("allSitesAccess")) {
             alert(
-              "\nEnabling this feature will prompt you to grant this extension FULL ACCESS.\n\nYou may need to REFRESH the video page before it takes effect.");
+              "\nEnabling this feature will prompt you ONE last time to grant this extension FULL ACCESS.\n\nYou may need to REFRESH the video page before it takes effect.");
           }
         }, 250);
       });

@@ -31,12 +31,17 @@
         </label>
       </div>
       <div class="container">
-        <div class="row col">This will change the permissions prompt from <br/>
-          "Read and change your data on www.example.com" to <br/>
-          "Read and change all your data on example.com sites". <br/>
-          <br/>
-          Works most of the time but may require you to zoom a
-          couple times to get all security prompts. Once site is approved, you will not get prompted for it again.
+        <div class="row col">
+          <p>Changes permissions prompt from:<br>
+          <samp> &nbsp; "Read and change your data on www.example.com"</samp><br>
+          to:<br>
+          <samp> &nbsp; "Read and change all your data on example.com sites"</samp>
+          </p>
+          <p>
+            Can help reduce the number of prompts per new site since you won't get prompted for "www.example.com" and
+            "static.example.com".
+          </p>
+          <p><span class="emphasis">Beta Testers</span> Is this level useful for anyone? I'm considering removing it if ends up being more confusing than helpful.</p>
         </div>
       </div>
     </fieldset>
@@ -52,8 +57,9 @@
       </div>
       <div class="container">
         <div class="row col">WARNING: It will allow FULL ACCESS to ALL SITES by default. <br/>
-          This access should not be required, but is a fix-all. Once granted and accepted, it silences all further permissions prompting.<br/><br/>
-          If you find a site that doesn't work, consider reporting it via a <a
+          This access should not be required, but is a fix-all. Once granted and accepted, it silences all further
+          permissions prompting.<br/><br/>
+          If you find a site that still doesn't work after enabling this setting, then consider reporting it via a <a
               href="https://github.com/trophygeek/universalvideomaximizer/issues" rel="noreferrer" target="_blank">GitHub
             issue ↗</a>.
         </div>
@@ -113,13 +119,16 @@
     <fieldset>
       <legend>Speed controls only sites</legend>
       <div class="row col label">
-        <label for="nozoomlist" class="padding-1">Sites that are already fullscreen, so VideoMax won't try to zoom again. But speed
-          controls are still nice. Just use main domain part. So for "www.example.com" or "example.uk.co", just supply "example"</label>
+        <label class="padding-1" for="nozoomlist">Sites that are already fullscreen, so VideoMax won't try to zoom
+          again. But speed
+          controls are still nice. Just use main domain part. So for "www.example.com" or "example.uk.co", just supply
+          "example"</label>
         <div class="list-group">
           <ul class="list" id="nozoomlist">
           </ul>
           <br>
-          <button class="add-button" id="addpathblacklist"> + Add New ...</button><br/><br/>
+          <button class="add-button" id="addpathblacklist"> + Add New ...</button>
+          <br/><br/>
           <div>Adding a new site? Consider submitting a bug on github to get it added to future releases.</div>
         </div>
       </div>
