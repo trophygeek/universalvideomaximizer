@@ -142,7 +142,7 @@ const saveFieldsIntoSettings = (settings) => {
     settings.longSkipSeconds       = getTextNum("longSkipSeconds");
     // settings.preportionalSkipTimes = getChecked("preportionalSkipTimes");
     settings.allSitesAccess        = getChecked("allSitesAccess");
-    settings.wholeDomainAccess = getChecked("wholeDomainAccess");
+    settings.wholeDomainAccess     = getChecked("wholeDomainAccess");
   } catch (err) {
     console.error(err);
   }
@@ -188,8 +188,10 @@ ${userAgent}
       .addEventListener("click", async (_e) => {
         setTimeout(() => {
           if (getChecked("useToggleZoomBehavior")) {
-            alert(
-              `\nThis will remove the speed controls.\n\nTo access this Options page in the future, RIGHT-CLICK on this extension's icon in toolbar and select "options"`);
+            alert(`
+This will remove the speed controls.
+
+To access this Options page in the future, RIGHT-CLICK on this extension's icon in toolbar and select "options"`);
           }
         }, 250);
       });
@@ -198,8 +200,10 @@ ${userAgent}
       .addEventListener("click", async (_e) => {
         setTimeout(() => {
           if (getChecked("allSitesAccess")) {
-            alert(
-              "\nEnabling this feature will prompt you ONE last time to grant this extension FULL ACCESS.\n\nYou may need to REFRESH the video page before it takes effect.");
+            alert(`
+Enabling this feature will prompt you ONE last time to grant this extension FULL ACCESS.
+
+You may need to REFRESH the video page before it takes effect.`);
           }
         }, 250);
       });
