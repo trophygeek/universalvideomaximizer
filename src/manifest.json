@@ -1,8 +1,8 @@
 {
   "name": "Universal Video Maximizer BETA v3",
-  "version": "3.0.70",
+  "version": "3.0.77",
   "manifest_version": 3,
-  "description": "Zoom videos and theater mode on most websites WITHOUT requiring permissions to every site.",
+  "description": "Zoom videos and theater mode on most websites while maintaining your privacy.",
   "homepage_url": "https://github.com/trophygeek/universalvideomaximizer",
   "icons": {
     "48": "icons/icon48.png",
@@ -14,15 +14,13 @@
     "default_title": "Universal Video Maximizer BETA v3"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "options_page": "options.html",
-  "optional_permissions": [
-    "activeTab",
-    "scripting",
-    "storage",
-    "tabs"
-  ],
+  "permissions": ["activeTab", "storage"],
+  "optional_permissions": [ "scripting" ],
+  "optional_host_permissions": ["<all_urls>"],
   "web_accessible_resources": [
     {
       "resources": [
@@ -33,5 +31,9 @@
       ],
       "extension_ids": []
     }
-  ]
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'",
+    "sandbox": "sandbox allow-scripts; script-src 'self'; child-src 'self';"
+  }
 }

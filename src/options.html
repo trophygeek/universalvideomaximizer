@@ -3,38 +3,160 @@
 <head>
   <title>Universal Video Maximizer - Options</title>
   <meta charset="utf-8">
-  <link rel="stylesheet" type="text/css" href="chota.css">
+  <link href="chota.css" rel="stylesheet" type="text/css">
+  <script src="options.js" type="module"></script>
 </head>
 <body class="dark">
 
 <div class="container">
-  <h1>Universal Video Maximizer</h1>
+  <h1>Universal Video Maximizer - Options</h1>
 
-  <form>
+  <div class="container" id="mainForm">
     <fieldset>
-      <input type="checkbox" id="use_toggle_zoom_behavior" checked name="showspeedcontrols">
-      <label for="use_toggle_zoom_behavior">
-        Use classic toggle zoom behavior (will disable playback speed controls)
-      </label>
+      <legend>Use simplified behavior</legend>
+      <div class="row col label">
+        <input checked id="useToggleZoomBehavior" name="useToggleZoomBehavior" type="checkbox">
+        <label for="useToggleZoomBehavior">
+          Use classic toggle-zoom behavior (removes the playback-speed feature)
+        </label>
+      </div>
     </fieldset>
 
     <fieldset>
-      <a href="help.html">See more tricks here</a>
+      <legend>Allow more access - whole site by default</legend>
+      <div class="row col label">
+        <input checked id="wholeDomainAccess" name="wholeDomainAccess" type="checkbox">
+        <label for="wholeDomainAccess">
+          If zoom or speed controls don't work on a site, then try this first.
+        </label>
+      </div>
+      <div class="container">
+        <div class="row col">
+          <p>Changes permissions prompt from:<br>
+          <samp> &nbsp; "Read and change your data on www.example.com"</samp><br>
+          to:<br>
+          <samp> &nbsp; "Read and change all your data on example.com sites"</samp>
+          </p>
+          <p>
+            Can help reduce the number of prompts per new site since you won't get prompted for "www.example.com" and
+            "static.example.com".
+          </p>
+          <p><span class="emphasis">Beta Testers</span> Is this level useful for anyone? I'm considering removing it if ends up being more confusing than helpful.</p>
+        </div>
+      </div>
     </fieldset>
 
-    <fieldset
-    <p>
-      Report problems via
-      <a href="https://github.com/trophygeek/universalvideomaximizer/issues" target="_blank" rel="noreferrer">GitHub
-        issue ↗</a>.
-    </p>
-    <p>
-      Include this information in the report:
-    </p>
-      <span id="version"></span>
+
+    <fieldset>
+      <legend>Allow full access to all sites by default</legend>
+      <div class="row col label">
+        <input checked id="allSitesAccess" name="allSitesAccess" type="checkbox">
+        <label for="allSitesAccess">
+          If Video Maximizer still won't work or security prompts annoy you, then use this setting.
+        </label>
+      </div>
+      <div class="container">
+        <div class="row col">WARNING: It will allow FULL ACCESS to ALL SITES by default. <br/>
+          This access should not be required, but is a fix-all. Once granted and accepted, it silences all further
+          permissions prompting.<br/><br/>
+          If you find a site that still doesn't work after enabling this setting, then consider reporting it via a <a
+              href="https://github.com/trophygeek/universalvideomaximizer/issues" rel="noreferrer" target="_blank">GitHub
+            issue ↗</a>.
+        </div>
+      </div>
     </fieldset>
-  </form>
+
+    <fieldset>
+      <legend>Playback skipping</legend>
+      <div class="container padding-1">
+        While Video Maximizer popup controls are displayed, you can use the arrow keys to skip playback.&nbsp;
+        Playback skipping is in viewing times, not video time. For example, 2x playback speed skips twice as far.
+        <a href="help.html" target="vidomaxhelp">Read more on the help page</a>
+      </div>
+
+      <div class="row col label">
+        <label for="regSkipSeconds">
+          Skip seconds:
+        </label>
+        <input class="secondsTextInput"
+               id="regSkipSeconds"
+               inputmode="numberic"
+               max="900"
+               maxlength="3"
+               min="1"
+               minlength="1"
+               name="regSkipSeconds"
+               pattern="[0-9]*"
+               type="number">
+      </div>
+
+      <div class="row col label">
+        <label for="longSkipSeconds">
+          Skip seconds:
+        </label>
+
+        <input class="secondsTextInput"
+               id="longSkipSeconds"
+               inputmode="numberic"
+               max="900"
+               maxlength="3"
+               min="1"
+               minlength="1"
+               name="longSkipSeconds"
+               pattern="[0-9]*"
+               type="number"><span class="label"> (when Shift key is used)</span>
+      </div>
+      <div class="container padding-1">
+        If you want to have a hotkey to trigger VideoMaximizer, it's built into Chrome. <br/>See this
+        <a href="https://www.youtube.com/watch?v=s3SQVhbmj4c" rel="noreferrer" target="_blank">Youtube demo ↗</a>.
+      </div>
+      <!--        <div class="row col label">-->
+      <!--          <input checked id="preportionalSkipTimes" name="preportionalSkipTimes" type="checkbox">-->
+      <!--          <label for="preportionalSkipTimes"></label>-->
+      <!--        </div>-->
+    </fieldset>
+
+    <fieldset>
+      <legend>Speed controls only sites</legend>
+      <div class="row col label">
+        <label class="padding-1" for="nozoomlist">Sites that are already fullscreen, so VideoMax won't try to zoom
+          again. But speed
+          controls are still nice. Just use main domain part. So for "www.example.com" or "example.uk.co", just supply
+          "example"</label>
+        <div class="list-group">
+          <ul class="list" id="nozoomlist">
+          </ul>
+          <br>
+          <button class="add-button" id="addpathblacklist"> + Add New ...</button>
+          <br/><br/>
+          <div>Adding a new site? Consider submitting a bug on github to get it added to future releases.</div>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Report problems</legend>
+      <div class="row col bold">Report problems via &nbsp; <a
+          href="https://github.com/trophygeek/universalvideomaximizer/issues" rel="noreferrer" target="_blank">GitHub
+        issue ↗</a></div>
+      <div class="container">
+        <div class="wrap-collabsible">
+          <input class="toggle" id="collapsible" type="checkbox">
+          <label class="lbl-toggle" for="collapsible" tabindex="0">Include this information in the report:</label>
+          <div class="collapsible-content">
+            <div class="content-inner"><span id="version"></span></div>
+          </div>
+        </div>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Reset</legend>
+      <div class="container">
+        <button id="reset" type="reset">Reset to defaults</button>
+        <button id="save" type="button">Close</button>
+      </div>
+    </fieldset>
+  </div>
 </div>
-<script src="options.js"></script>
 </body>
 </html>

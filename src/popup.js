@@ -1,191 +1,369 @@
+// @ts-check
+// useful reference for exports https://web.dev/es-modules-in-sw/
+import { DEFAULT_SETTINGS, DEFAULT_SPEED, getSettings, logerr, trace } from "./common.js";
+
 try {
-  const FULL_DEBUG = false;
-  const DEBUG_ENABLED = FULL_DEBUG;
-  const TRACE_ENABLED = FULL_DEBUG;
-  const ERR_BREAK_ENABLED = FULL_DEBUG;
+  const BLOCKED_SKIP_DOMAINS = ["netflix."]; // skipping breaks these sites
+  const UNZOOM_LABEL = "[]";
+  const UNZOOM_ICON  = "./icons/icon19undo.png";
 
-  const logerr = (...args) => {
-    if (DEBUG_ENABLED === false) {
-      return;
-    }
-    // eslint-disable-next-line no-console
-    console.trace(
-      '%c VideoMax Popup ERROR',
-      'color: white; font-weight: bold; background-color: red',
-      ...args,
-    );
-    if (ERR_BREAK_ENABLED) {
-      // eslint-disable-next-line no-debugger
-      debugger;
-    }
-  };
-
-  const trace = (...args) => {
-    if (TRACE_ENABLED) {
-      // eslint-disable-next-line no-console
-      console.log(
-        '%c VideoMax Popup ',
-        'color: white; font-weight: bold; background-color: blue',
-        ...args,
-      );
-    }
-  };
-
-  const UNZOOM_CMD = 'UNZOOM';
-  const SET_SPEED_CMD = 'SET_SPEED';
-  const REZOOM_CMD = 'REZOOM';
-  const DEFAULT_SPEED = '1.0';
-  const UNZOOM_LABEL = '[]';
-  const SVG_ICON = './icons/icon19undo.png';
   const MENU = [{
-    label: '🖐️',
-    value: '0',
+    label: "⚙️️",
+    value: "OPTIONS_BTN_CMD",
   }, {
-    label: '0.25',
-    value: '0.25',
+    label: "🖐️",
+    value: "0.00",
   }, {
-    label: '0.50',
-    value: '0.50',
+    label: "0.25",
+    value: "0.25",
   }, {
-    label: '0.75',
-    value: '0.75',
+    label: "0.50",
+    value: "0.50",
   }, {
-    label: '1.0',
+    label: "0.75",
+    value: "0.75",
+  }, {
+    label: "1.0",
     value: DEFAULT_SPEED,
   }, {
-    label: '1.25',
-    value: '1.25',
+    label: "1.25",
+    value: "1.25",
   }, {
-    label: '1.50',
-    value: '1.50',
+    label: "1.50",
+    value: "1.50",
   }, {
-    label: '1.75',
-    value: '1.75',
+    label: "1.75",
+    value: "1.75",
   }, {
-    label: '2x',
-    value: '2.0',
+    label: "2x",
+    value: "2.0",
   }, {
-    label: '4x',
-    value: '4.0',
+    label: "4x",
+    value: "4.0",
   }, {
-    label: '8x',
-    value: '8.0',
+    label: "8x",
+    value: "8.0",
   }, {
-    label: '16x',
-    value: '16.0',
+    label: "16x",
+    value: "16.0",
   }, {
     label: UNZOOM_LABEL,
-    value: UNZOOM_CMD,
+    value: "UNZOOM_BTN_CMD",
   }];
-  const url = new URL(document.location.href);
 
-  let g_currentSpeed = DEFAULT_SPEED;
+  // used to simplify IncreaseSpeed()/DecreaseSpeed()
+  const MIN_SPEED = "0.00";
+  const MAX_SPEED = "16.0";
+  const globals   = {
+    url: new URL(document.location.href),
+    /** @type {String} */
+    currentSpeed: DEFAULT_SPEED,
+    /** @type {String} */
+    toggledSpeed: DEFAULT_SPEED,  // used when stopping/starting.
+    /** @type {SettingsType} */
+    settings:   DEFAULT_SETTINGS, // onload will overwrite.
+    tabId:      "",
+    videofound: "",
+    debounceTimerId: undefined,
+  };
+
+  /**
+   * @param ii {number}
+   * @returns {string}
+   */
+  const itemId = (ii) => `speed-${ii}`;
+
+  const checkItem = (itemValue) => {
+    itemValue   = String(itemValue);
+    const group = document.getElementById("speedBtnGroup");
+    for (let eachElem of group.children) {
+      if (eachElem.type !== "checkbox") {
+        continue;
+      }
+      eachElem.checked = (eachElem.dataset.value === itemValue);
+      if (eachElem.checked) {
+        eachElem.focus();
+      }
+    }
+  };
+
+  /**
+   * @return {string}
+   */
+  const IncreaseSpeed = () => {
+    if (MAX_SPEED === globals.currentSpeed) {
+      // already maxed
+      return globals.currentSpeed;
+    }
+    const offset = MENU.findIndex((item) => item.value === globals.currentSpeed);
+    return MENU[offset + 1]?.value || DEFAULT_SPEED;
+  };
+
+  /**
+   * @return {string}
+   */
+  const DecreaseSpeed = () => {
+    if (MIN_SPEED === globals.currentSpeed) {
+      // already maxed
+      return globals.currentSpeed;
+    }
+    const offset = MENU.findIndex((item) => item.value === globals.currentSpeed);
+    return MENU[offset - 1]?.value || DEFAULT_SPEED;
+  };
 
   /**
    * @param doc {Document}
    * @param parent {HTMLElement}
    * @param tabId {string}
-   * @param defaultValue {string}
    */
-  const addSpeedControlUI = (doc, parent, tabId, defaultValue) => {
+  const addSpeedControlUI = (doc, parent, tabId) => {
     const htmlArr = [];
     MENU.map((item, ii) => {
-      const id = `videomax.ext.${ii}`;
-      const ischecked = item.value === defaultValue ? 'checked' : '';
-      const label = (item.label === UNZOOM_LABEL)
-        ? `<img src='${SVG_ICON}' class='closeicon'>`
-        : `${item.label}`;
+      const id    = itemId(ii);
+      const label = (item.label === UNZOOM_LABEL) ?
+                    `<img src='${UNZOOM_ICON}' class='closeicon'>` :
+                    `${item.label}`;
+      // we use checkboxes vs radio so we can intercept the arrow keys.
+      // radio buttons grabs the arrows keys to move between items.
+      // but the checkboxes' "role" is more like radio buttons
+      // (only one selected at a time)
       const elemhtml = `
-      <input type="radio"
-              class="videomax-ext-speed-control-radio-button videomax-ext-speed-control-radio-button-${item.value}" 
-             name="${id}" value="${item.value}" id="${id}" tabindex="${ii}"
-             ${ischecked}/>
+      <input type="checkbox"
+             role="radio"
+             name="${id}"
+             id="${id}"
+             data-value="${item.value}" />
       <label for="${id}">${label}</label>`;
       htmlArr.push(elemhtml);
     });
+    parent.innerHTML = htmlArr.join("\n");
+    parent.classList.add("control-container");
 
-    parent.innerHTML = htmlArr.join('\n');
-    parent.classList.add('videomax-ext-speed-control-container');
-    parent.addEventListener('click', (evt) => {
-      try {
-        if (!evt?.target?.value) {
-          // user clicked on a child and we ignore that
-          return;
+    // could also interate by item id
+    for (let radioItem of parent.children) {
+      radioItem.addEventListener("keydown", (evt) => {
+        trace("document.addEventListener keydown", evt);
+        switch (evt.code) {
+          case "Space":
+            if (globals.debounceTimerId) {
+              clearTimeout(globals.debounceTimerId);
+              globals.debounceTimerId = null;
+            }
+            globals.debounceTimerId = setTimeout( () => {
+              const value = "0.00";
+              let speed   = globals.toggledSpeed;
+              if (value !== globals.currentSpeed) { // toggle speed
+                globals.toggledSpeed = globals.currentSpeed;
+                speed = value;
+              } else {
+                speed = globals.toggledSpeed;
+              }
+              globals.currentSpeed = speed;
+
+              checkItem(speed);
+              /** @type {string} */
+              chrome.runtime.sendMessage({
+                message: {
+                  cmd: "SET_SPEED_CMD",
+                  domain: globals.domain,
+                  speed,
+                  tabId,
+                },
+              });
+            }, 10);
+
+            evt.stopImmediatePropagation();
+            break;
         }
+      });
 
-        const value = evt?.target?.value;
-
-        trace(`click '${value}' currentspeed='${g_currentSpeed}'`);
-        let speed = DEFAULT_SPEED;
-        if (!(value === UNZOOM_CMD // unzoom value
-              || value === g_currentSpeed)) { // toggle speed
-          speed = value;
-        }
-
-        g_currentSpeed = speed;
-
-        for (const eachElem of parent.children) {
-          eachElem.checked = (eachElem?.value === speed);
-        }
-        const cmd = (value === UNZOOM_CMD) ? UNZOOM_CMD : SET_SPEED_CMD;
-        chrome.runtime.sendMessage({
-          message: {
-            cmd,
-            speed,
-            tabId,
-          },
-        }, (response) => {
-          if (cmd === UNZOOM_CMD) {
-            window.close();
+      radioItem.addEventListener("click", (evt) => {
+        try {
+          if (evt?.target?.dataset?.value === undefined) {
+            // user clicked on a child and we ignore that
+            return;
           }
-        });
-      } catch (err) {
-        logerr(err);
-      }
-    });
 
-    parent.addEventListener('keypress', (evt) => {
-      if (evt.code === 'Escape') {
-        window.close();
-      }
-    });
+          const value = /** @type {CmdType} */ evt?.target?.dataset?.value;
 
-    document.getElementById(`videomax.ext.${MENU.length - 1}`)
-      ?.focus();
+          trace(`click '${value}' currentspeed='${globals.currentSpeed}'`);
+
+          if (value === "OPTIONS_BTN_CMD") {
+            chrome.runtime.sendMessage({
+              message: {
+                cmd:   "OPTIONS_CMD",
+                domain: globals.domain,
+                speed: globals.currentSpeed,
+                tabId,
+              },
+            }, (_response) => {
+              window.close();
+            });
+            return;
+          }
+
+          let speed = DEFAULT_SPEED;
+          if (!(value === "UNZOOM_BTN_CMD" || value === globals.currentSpeed)) { // toggle speed
+            speed = value;
+          }
+
+          globals.currentSpeed = speed;
+
+          checkItem(speed);
+          /** @type {string} */
+          const cmd = (value === "UNZOOM_BTN_CMD") ? "UNZOOM_CMD" : "SET_SPEED_CMD";
+          chrome.runtime.sendMessage({
+            message: {
+              cmd,
+              domain: globals.domain,
+              speed,
+              tabId,
+            },
+          }, (_response) => {
+            if (cmd === "UNZOOM_CMD") {
+              window.close();
+            }
+          });
+        } catch (err) {
+          logerr(err);
+        }
+      });
+    }
   };
 
-  document.addEventListener('DOMContentLoaded', async () => {
-    try {
-      const params = new URLSearchParams(url.hash.replace('#', ''));
-      const tabId = params.get('tabId');
-      const videofound = params.get('videofound');
-      g_currentSpeed = params.get('speed');
-      const container = window.document.getElementById('speedBtnGroup');
-      trace(
-        `DOMContentLoaded params tabId:'${tabId}' currentSpeed:'${g_currentSpeed}' videofound:'${videofound}'`,
-      );
+  const RefreshSpeed = () => {
+    // The page could have been UNZOOMED by the escape key and everything could be out of sync
+    chrome.runtime.sendMessage({
+      message: {
+        cmd:   "REZOOM_CMD", // SET_SPEED_CMD
+        domain: globals.domain,
+        speed: globals.currentSpeed,
+        tabId: globals.tabId,
+      },
+    });
+  };
 
-      addSpeedControlUI(window.document, container, tabId, g_currentSpeed);
+  /**
+   *
+   * @param evt {KeyboardEvent}
+   * @constructor
+   */
+  const HandleKeydown = (evt) => {
+    trace("document.addEventListener keydown", evt);
+    switch (evt.code) {
+      case "Escape":
+        window.close();
+        break;
+
+      case "ArrowLeft":
+        trace("ArrowLeft");
+        if (globals.domain?.length && BLOCKED_SKIP_DOMAINS.includes(globals.domain)) {
+          console.trace("netflix can't skip");
+          return;
+        }
+        const skipSecBack      = evt.shiftKey ?
+                                 globals.settings.longSkipSeconds :
+                                 globals.settings.regSkipSeconds;
+        // currentSpeed could be zero, so floor it to 0.25
+        const relativeTimeBack = skipSecBack * (Math.max(globals.currentSpeed, 0.25)) * -1;
+        chrome.runtime.sendMessage({
+          message: {
+            cmd:   "SKIP_PLAYBACK_CMD",
+            domain: globals.domain,
+            speed: String(relativeTimeBack),
+            tabId: globals.tabId,
+          },
+        });
+        evt.stopImmediatePropagation();
+        break;
+
+      case "ArrowRight":
+        trace("ArrowRight");
+        if (globals.domain?.length && BLOCKED_SKIP_DOMAINS.includes(globals.domain)) {
+          console.trace("netflix can't skip");
+          return;
+        }
+        const skipSecFwd      = evt.shiftKey ?
+                                globals.settings.longSkipSeconds :
+                                globals.settings.regSkipSeconds;
+        // currentSpeed could be zero, so floor it to 0.25
+        const relativeTimeFwd = skipSecFwd * (Math.max(globals.currentSpeed, 0.25));
+        chrome.runtime.sendMessage({
+          message: {
+            cmd:   "SKIP_PLAYBACK_CMD",
+            domain: globals.domain,
+            speed: String(relativeTimeFwd),
+            tabId: globals.tabId,
+          },
+        });
+        evt.stopImmediatePropagation();
+        break;
+
+      case "ArrowUp":
+        trace("ArrowUp");
+        globals.currentSpeed = IncreaseSpeed();
+        checkItem(globals.currentSpeed);
+        RefreshSpeed();
+        evt.stopImmediatePropagation();
+        break;
+
+      case "ArrowDown":
+        trace("ArrowDown");
+        globals.currentSpeed = DecreaseSpeed();
+        checkItem(globals.currentSpeed);
+        RefreshSpeed();
+        evt.stopImmediatePropagation();
+        break;
+
+      default:
+        RefreshSpeed();
+    }
+  };
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    try {
+      const params         = new URLSearchParams(globals.url.hash.replace("#", ""));
+      globals.tabId        = params.get("tabId");
+      globals.videofound   = params.get("videofound");
+      globals.currentSpeed = params.get("speed");
+      globals.domain       = params.get("domain"); // needed because Netflix errs on skip
+      const container      = window.document.getElementById("speedBtnGroup");
+
+      trace(`DOMContentLoaded params
+          tabId:'${globals.tabId}'
+          currentSpeed:'${globals.currentSpeed}'
+          videofound:'${globals.videofound}'`);
+
+      // if the user pressed escape in the page, then our zoom was lost, reapply it.
+      RefreshSpeed();
+
+      const settings   = await getSettings();
+      globals.settings = { ...globals.settings, ...settings };
+      addSpeedControlUI(window.document, container, globals.tabId);
 
       // update the selected checkbox
-      for (const eachElem of container.children) {
-        eachElem.checked = (eachElem.value === g_currentSpeed);
-      }
+      checkItem(globals.currentSpeed);
+      document.querySelector("input[name=\"speedChoice\"]:checked")
+        ?.focus();
 
-      // The page could have been UNZOOMED by the escape key and everything could be out of sync
-      chrome.runtime.sendMessage({
-        message: {
-          cmd: REZOOM_CMD,
-          speed: g_currentSpeed,
-          tabId,
-        },
-      }, (response) => {
-        trace('sendMessage callback', response);
+      document.addEventListener("keydown", (evt) => {
+        console.trace(`DOCUMENT.addEventListener("keydown")...`);
+        HandleKeydown(evt);
       });
+
+      container.addEventListener("keydown", (evt) => {
+        console.trace(`CONTAINER.addEventListener("keydown")...`);
+        HandleKeydown(evt);
+      });
+
+      // window.addEventListener('blur', function() {
+      //   window.close();
+      // });
+
     } catch (err) {
       logerr(err);
     }
   });
 } catch (e) {
-  console.log(e);
+  console.error(e);
 }

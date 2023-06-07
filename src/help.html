@@ -3,105 +3,150 @@
 <head>
   <title>Universal Video Maximizer - Help</title>
   <meta charset="utf-8">
-  <link rel="stylesheet" type="text/css" href="chota.css">
+  <link href="chota.css" rel="stylesheet" type="text/css">
 </head>
 <body class="dark">
 
 <div class="container">
-  <h1><img class="logo" src="icons/icon128.png">Universal Video Maximizer - version 3.0 Help</h1>
+  <h1><img alt="logo" class="logo" src="icons/icon128.png">Universal Video Maximizer - version 3.0.77 Help</h1>
+  <hr>
   <h2>
-    Welcome to version 3.0!
+    Beta version 3.0.77 (June 2023 update)
   </h2>
 
-  <p>
-    You will only see this message after updating or after installing.
-  </p>
+  <section class="padding-1">
+    New features in this Beta update:
+    <ul>
+      <li>Arrow keys enable video rewind/forward skipping</li>
+      <li>Improved speed playback</li>
+      <li>Optional extra permissions that make speed controls work on almost every site</li>
+    </ul>
+  </section>
 
-  <p>
-    This is a major rewrite and is <span class="emphasis">required</span> by the Google Chrome store.
-    <a href="https://developer.chrome.com/blog/mv2-transition/" target="_blank" rel="noreferrer">
-      All extensions will need to be upgraded to their latest API.</a>
-  </p>
+  <hr/>
+  <h3>Chrome Update Issue</h3>
+  <section class="padding-1">
+    <p>There is currently a issue with Chrome that impacts ALL extensions. Right after an update, extensions can <span
+        class="emphasis">just stop working.</span> There are two user workaround.</p>
+    <p>The first is to restart Chrome.</p>
+    <p>The second is to go to <code>Manage Extensions</code> under the
+      puzzle piece in the Chrome toolbar. Then enable <code>Developer mode</code> and manually reload the extension.
+    </p>
+    <p class="is-center"><img alt="how to manually reload an extension" src="img/chrome_update_bug.png"><br/></p>
+    <p>Hopefully this will be fixed soon and only seems to show up after the extension is modified.
+      See
+      <a href="https://bugs.chromium.org/p/chromium/issues/detail?id=1316588" rel="noreferrer" target="_blank">Issue
+        #1316588 ↗</a> for more information. But this trick is handy for all extensions until it's resolved.</p>
+  </section>
 
-  <p>
+  <hr/>
+  <h3>Reporting other issues</h3>
+  <section class="padding-1">
+    Any problems or feature requests should be reported here via a
+    <a href="https://github.com/trophygeek/universalvideomaximizer/issues" rel="noreferrer" target="_blank">GitHub
+      issue ↗</a>. Chrome's reporting feature in the store does not notifying when new issues are added.
+  </section>
+
+  <section class="padding-1">
     As always, this extension is:
-  <ul>
-    <li><span class="emphasis bold">FREE</span>
+    <ul>
+      <li><span class="emphasis bold">FREE</span>
 
-    <li>Requires minimal permissions to increase security and privacy
-    </li>
+      <li>Requires minimal permissions to increase security and privacy
+      </li>
 
-    <li><span class="emphasis">NEVER collects data</span>. Privacy is top priority.
-    </li>
+      <li><span class="emphasis">NEVER collects ANY data</span>. Privacy is a top priority.
+      </li>
 
-    <li>Is <a href="https://github.com/trophygeek/universalvideomaximizer/" target="_blank"
-           rel="noreferrer">open-sourced</a> for transparency.
-    </li>
-  </ul>
-  </p>
-
-
-  <p>
-    Any problems should be reported here via a
-    <a href="https://github.com/trophygeek/universalvideomaximizer/issues" target="_blank" rel="noreferrer">GitHub
-      issue</a>.
-  </p>
+      <li>Is <a href="https://github.com/trophygeek/universalvideomaximizer/" rel="noreferrer"
+                target="_blank">open-sourced ↗</a> for transparency.
+      </li>
+    </ul>
+  </section>
 
 
   <hr/>
 
-
-  <h3>New Playback Speed option</h3>
-  <p class="padding-3">
-    <img class="illustration" src="img/speed_change_yes.png" alt="screen shot">
+  <h3>New playback speed option</h3>
+  <section class="padding-3">
+    <img alt="screen shot" class="illustration" src="img/speed_change_yes.png">
     Playback speed cannot work on pages where videos are actually hosted on a different site. (e.g. youtube videos not
-    on the youtube site). This is a limitation of the Chrome Extension API itself.<br><br>
-    When a site looks like it supports speed control, the toolbar icon will display a <img alt="playback indicator icon" src="img/playback_indicator.png"> overlay
-  </p>
+    on the youtube site). This is a limitation of the Chrome Extension API itself.<br/><br/>
+    When a site looks like it supports speed control, the toolbar icon will display a
+    <img alt="playback indicator icon" src="img/playback_indicator.png"> overlay
+  </section>
 
 
-  <p class="padding-5">
-    <img class="illustration" src="img/new_speed_control_bar.png" alt="screen shot">
+  <section class="padding-5">
+    <img alt="screen shot" class="illustration" src="img/new_speed_control_bar.png">
     When the speed control graphics is displayed, clicking the button shows extra options to control playback speed.
-  </p>
+  </section>
 
 
-
-  <p class="padding-3">
-    <img class="illustration" src="img/speed_change_no.png" alt="screen shot">
-    When any pages loads their videos from a different site (e.g. a youtube video embedded in a non youtube site), then
-    the speed control feature will not work and is disabled. Video Maximizer will fall back to the classic toggle
-    behavior.<br><br>
-    When I site doesn't support zooming, then a <img alt="zoom indicator icon" src="img/zoom_only_indicator.png"> overlay will be displayed.
-  </p>
-
+  <h3>Why speed control fails on some sites</h3>
+  <section class="padding-3">
+    <img alt="screen shot" class="illustration" src="img/permissions_prompt.png">
+    When pages load their videos from a different site (e.g. a youtube video embedded in a non youtube site), then
+    the speed control feature will not work without permissions to both sites.<br/><br/>
+    If this happens, you can try rezooming a couple of times and see if more Access prompts show up. Yes, the
+    reprompting can be annoying, but it's just a how Chrome works and you will only be prompted once per site.
+    If you grant permissions, then you will NOT be prompted again.<br/><br/>
+    If you continue to have access issues or find the prompting annoying there are extra permissions you can try
+    in the Video Maxmizer Options page.<br/>
+    "Allow access to all sites by default" in the <a href="options.html" target="videomaxoptions">Options</a> will
+    increase this extension's base permissions.<br/><br/>
+    The fundamental issue is how the cross-domain-frame-permissions-granting works in Chrome. See <a
+      href="https://bugs.chromium.org/p/chromium/issues/detail?id=826433" rel="noreferrer"
+      target="_blank">Issue #826433 ↗</a>
+  </section>
 
   <hr/>
 
   <h3>
-    Hard-to-discover shortcuts
+    New keyboard shortcuts
   </h3>
 
-  <p class="padding-1">
-    <img class="illustration" src="img/tips3.png">
-  <ol>
-    <li>The Unzoom function can be accessed by <span class="bold">clicking</span> this icon (or the Spacebar after
-      opening)
-    </li>
-    <li>Clicking the speed-change button a second time toggles it back to normal speed.</li>
-  </ol>
-  <ul>
-    <li><span class="text-success">TIP: ⭐</span> Pressing the <span class="emphasis">Escape key</span> on the page UNZOOMS.
-    <li><span class="text-success">TIP:</span> Pressing escape when the Speed Control window is open will close it.</li>
-    </li>
-    <li><span class="text-success">NOTE: </span> Speed changing <span class="emphasis">will not work </span> on
-      sites hosting videos from other sites. This is just a limitiation of the Chrome APIs.<br>
-    </li>
-    <li><span class="text-success">NOTE: </span> there is an <span class="emphasis">option to disable</span> the Speed
-      Controls completely and revert to the way the old Video Maximizer worked (see Options below)
-    </li>
-  </ul>
-  </p>
+  <section class="padding-1">
+    <img alt="illustration showing video maximizer" class="illustration" src="img/tips3.png">
+    <ol>
+      <li>The Unzoom function can be accessed by <span class="bold">clicking</span> this icon (or the Spacebar after
+        opening)
+      </li>
+      <li>Clicking the speed-change button a second time toggles it back to normal speed.</li>
+    </ol>
+    <img alt="graphics showing arrow keys" class="illustration" src="img/arrow_keys.png">
+    <ul>
+      <li><span class="text-success">up/down keys: <span class="tag is-large">⬍</span></span> Increase and decrease
+        playback speed.
+      </li>
+      <li><span class="text-success">right/left keys: <span class="tag is-large">⬌</span></span> Skip the playback
+        forwards/backwards.
+      </li>
+      <li><span class="text-success">shift + arrow:</span> Longer skips.</li>
+      <li><span class="text-success">space key:</span> Toggle speed to zero.</li>
+      <li><span class="text-success">relative skip times:</span> Changing playback speed adjusts how long the skip is.
+        <br/>0.25x playback speed is 1/4th less the skip time.
+        <br/>e.g. 10s skip at 16x playback would skip forward 1m 40s in the video.
+      </li>
+      <li><span class="text-success">Length of skips</span> Can be customized in the <a href="options.html"
+                                                                                        target="videomaxoptions">Options</a>.
+      </li>
+      <li><span class="text-success">TIP: </span> Pressing the Escape key on the page UNZOOMS.
+      <li><span class="text-success">TIP:</span> Pressing escape when the Speed Control window is open will close it.
+      </li>
+      <li><span class="text-success">NOTE: </span> Speed changing <span class="emphasis">will not work </span> on
+        sites hosting videos from other sites without granting this extension more permissions in the <a
+            href="options.html"
+            target="videomaxoptions">Options</a>. This is just a limitation of the Chrome APIs.
+      </li>
+      <li><span class="text-success">NOTE: </span> There is an <span class="emphasis">option to disable</span> the Speed
+        Controls to revert to the behavior of the original Video Maximizer (see Options below)
+      </li>
+      <li><span class="text-success">Keyboard shortcut to zoom:</span> This is built into chrome!
+        Go to <code>chrome://extensions/shortcuts</code>
+      </li>
+    </ul>
+  </section>
 
   <hr/>
 
@@ -109,29 +154,67 @@
     Pinning the extension to the toolbar makes it easier to use.
   </h3>
 
-  <p class="padding-14">
-    <img class="illustration"  src="img/tips1.png">
-  <ol>
-    <li>To pin, first click on the Extensions puzzle piece icon</li>
-    <li>Click the Pin icon</li>
-  </ol>
-  </p>
+  <section class="padding-14">
+    <img alt="illustration showing how to pin an extension" class="illustration" src="img/tips1.png">
+    <ol>
+      <li>To pin, first click on the Extensions puzzle piece icon</li>
+      <li>Click the Pin icon</li>
+    </ol>
+  </section>
 
+  <hr/>
+  <h3>
+    Known issues
+  </h3>
+  <section class="padding-7">
+    <h4>Youtube controls are not fullscreen</h4>
+    <p>The solution for this is to put the youtube video into "theater" mode before using Video Maximizer. This can be
+      done by pressing the "t" key.</p>
+
+    <br/>
+
+    <h4>Skipping doesn't work on Netflix</h4>
+    <p>Skipping the video backwards on netflix causes an error. There's no workaround, so this feature is just disabled
+      for now.</p>
+
+    <br/>
+
+    <h4>Speed controls don't work on some sites</h4>
+    <p>Video Maximizer attempts to use the minimal permissions required to do it's job. However, there are still some
+      sites that require more access to work.
+      (The technical reason has to do with embedding iframes that have cross-domain references.)</p>
+    <p>The default settings for Video Maximizer is maximium privacy, if you come across a site that you use that
+      requires more permissions to work, open a bug and I'll investigate. See the Options page for more choices to grant
+    this extension more permissions.</p>
+
+    <br/>
+
+    <h4>Disabling "Allow access to all sites by default" doesn't reset permissions</h4>
+    <p>Another Chrome issue. Video Maximizer removes the extra permissions; however, since they've already been granted,
+      it seems like the extension must be uninstalled and reinstalled to reset it.</p>
+
+    <br/>
+    <h4>Constant security prompting</h4>
+    <p>You should only get prompted ONCE per unique site you use Video Maximizer on; however, if this annoys you, then
+      you have the choice to enable the "Allow access to all sites by default" option. You will then get one last prompt
+      and never be bugged again.</p>
+
+  </section>
   <hr/>
 
   <h3>
-    Changing options - Reverting to classic “toggle” behavior
+    Changing Options
   </h3>
 
-  <p class="padding-7">
-    <img class="illustration" src="img/tips2.png">
-  <ol>
-    <li><span class="bold">Right-click</span> the icon</li>
-    <li>Select Option from the dropdown menu. You can disable the speed controls and revert the behavior back to
-      the classic toggle
-    </li>
-  </ol>
-  </p>
+  <section class="padding-7">
+    <img alt="screenshot showing how to show options page" class="illustration" src="img/tips2.png">
+    <ol>
+      <li><span class="bold">Right-click</span> the icon</li>
+      <li>Select Option from the dropdown menu.
+      </li>
+    </ol>
+    You can disable the speed controls and revert the behavior back to the classic toggle.
+  </section>
 
 </div>
 

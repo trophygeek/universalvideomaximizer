@@ -1,4 +1,4 @@
-# universalvideomaximizer
+# Universal Video Maximizer
 Chrome extension that finds and enlarges the main video filling browser window.
 
 
@@ -10,10 +10,18 @@ Just added the `./node_modules/@types/chrome` directory. After running `yarn ins
 <img src="https://user-images.githubusercontent.com/522197/149636567-beee38aa-b386-4a63-8507-84d3b6495bd3.png" width="450px">
 
 
-# ToDo items
+# License
+Because AI bots are crawling code and putting it behind paywalls, this code is now
+Create Commons Attributed. You can use the code in your own projects to make them better, 
+sell your product, but you cannot turn around and sell my code.
 
- - Get eslint to use the `./node_modules/@types/chrome` directory for the `chrome.*` calls.
- - Get build/package that turns off debugger modes
- - Combine common functions in a single include file
+Shield: [![CC BY-SA 4.0][cc-by-sa-shield]][cc-by-sa]
 
+This work is licensed under a
+[Creative Commons Attribution-ShareAlike 4.0 International License][cc-by-sa].
 
+[![CC BY-SA 4.0][cc-by-sa-image]][cc-by-sa]
+
+[cc-by-sa]: http://creativecommons.org/licenses/by-sa/4.0/
+[cc-by-sa-image]: https://licensebuttons.net/l/by-sa/4.0/88x31.png
+[cc-by-sa-shield]: https://img.shields.io/badge/License-CC%20BY--SA%204.0-lightgrey.svg
