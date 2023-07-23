@@ -36,6 +36,8 @@ body::-webkit-scrollbar {
   overflow: visible !important;
   /* added 13May23 - cavas closed captions on crunchroll are after video */
   position: fixed !important;
+  /* added 20Jun23 iframes not aligning */
+  align-content: center !important;
 }
 
 .videomax-ext-hide,
@@ -63,16 +65,22 @@ body::-webkit-scrollbar {
 
 .videomax-ext-playback-controls,
 .videomax-ext-max .videomax-ext-playback-controls {
-  width: calc(98vw);
+  width: calc(100vw) !important;
+}
+
+.videomax-ext-playback-controls-fullheight,
+.videomax-ext-max .videomax-ext-playback-controls-fullheight,
+.videomax-ext-max .videomax-ext-max .videomax-ext-playback-controls-fullheight {
+  height: calc(100vh) !important;
 }
 
 /* crunchyroll's CC text alignment fix */
 .videomax-ext-max canvas#velocity-canvas {
   bottom: 1rem;
-  width: 100vw; /* center gets messed up when resizing. Top text still sometimes gets lost */
+  width: calc(100vw); /* center gets messed up when resizing. Top text still sometimes gets lost */
 }
 
-/* cnbc controls are at top withtout this */
+/* cnbc controls are at top without this */
 .videomax-ext-max .videomax-ext-playback-controls .jw-controls {
   /*position: unset;*/
 }
@@ -85,3 +93,10 @@ body::-webkit-scrollbar {
   background: transparent !important;
 }
 
+/* Finding playback controls is easier if they are visible.
+   Add this class, check the control, remove it. */
+.videomax-ext-prep-remove-transform-temp {
+  transform: unset !important;
+  transition: unset !important;
+  opacity: 0.01 !important; /* still can be measured */
+}

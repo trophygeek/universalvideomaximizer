@@ -23,20 +23,18 @@ type SettingsKeyType = keyof SettingsType;
 type SettingStorageKeyConstType = "settingsJson";
 
 // Used by chrome.runtime.sendMessage
-type CmdType = "UNZOOM_CMD" | "SET_SPEED_CMD" | "REZOOM_CMD" | "SKIP_PLAYBACK_CMD" | "TOGGLE_PLAYBACK_CMD"  | "OPTIONS_CMD";
+type CmdType =
+    "UNZOOM_CMD"
+    | "SET_SPEED_CMD"
+    | "REZOOM_CMD"
+    | "SKIP_PLAYBACK_CMD"
+    | "TOGGLE_PLAYBACK_CMD"
+    | "OPTIONS_CMD";
 
 // Used by popup for buttons that aren't speed changes.
 type PopupMenuCmd = "UNZOOM_BTN_CMD" | "OPTIONS_BTN_CMD";
 
-type DebounceInternalData = {
-  timeoutId: number,
-  isRunning: boolean,
-  nextArgs: [any],
-};
-
-type DebounceMap = { [key: string]: DebounceInternalData };
-
-type Rect = {
+type DomRect = {
   top: number,
   left: number,
   bottom: number,
@@ -46,7 +44,7 @@ type Rect = {
 }
 
 type BackgroundState =
-    "RESET"
+    | "RESET"
     | "ZOOMING" // maps to ZOOMED_NOSPEED or ZOOMED_SPEED
     | "ZOOMING_SPEED_ONLY" // maps to SPEED_ONLY
     | "ZOOMED_NOSPEED"
@@ -66,3 +64,16 @@ type BackgroundStateMap = {
   }
 }
 
+type SubFrameParamData = {
+  tabId: number;
+  domain: string;
+  subFrameStr: string;
+};
+type SubFramePermMatching = { [tabId: number]: SubFrameParamData };
+
+type TabToSpeedMap = {[tabIdDomainKey:string]: string};
+
+type ActionFunction = (elem: Node) => boolean;
+
+type HtmlElementType = keyof Partial< HTMLElementTagNameMap>;
+type HtmlElementTypes = HtmlElementType[];

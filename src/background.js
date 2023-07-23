@@ -5,6 +5,7 @@ import {
   CSS_STYLE_HEADER_ID,
   DEAULT_SPEED,
   DEFAULT_SETTINGS,
+  DEFAULT_SPEED,
   domainToSiteWildcard,
   getDomain,
   getSettings,
@@ -113,7 +114,7 @@ const STATE_DATA = {
   },
   REFRESH:            {
     badge:     BADGES.REFRESH,
-    title:     "Permissions check complete. Click again.",
+    title:     "Permissions check complete.\nClick again more permissions might be needed..",
     showpopup: false,
     zoomed:    false,
     color:     "#03FC80F4",
@@ -128,7 +129,7 @@ const STATE_DATA = {
   ERR_URL:            {
     badge:     BADGES.WARNING,
     title:     "Extension only works on https sites\n or files dragged+dropped into chrome tab",
-    showpopup: false,
+    showpopup: true,
     zoomed:    false,
     color:     "#FCD2D2F7",
   },
@@ -138,11 +139,58 @@ const STATE_DATA = {
 // cross-domain and need more permissions. Try to collect iframe domains
 // and ask user's ADDITIONAL permission, but it STILL requires a full page
 // refresh to re-prompt?!?
-const GET_IFRAME_PERMISSIONS     = true;
-const g_hackGetAccessToSubFrames = {
-  forTabId:    0,
+const GET_IFRAME_PERMISSIONS             = true;
+const IMMEDIATE_SECOND_IFRAME_PERM_CHECK = false;
+
+// holds subframe urls so we can request access to them. no GC because chrome frees this
+// background service pretty aggressively.
+/** @type {SubFramePermMatching} */
+const g_globalAccessSubframeData = {};
+
+/** @type SubFrameParamData */
+const EMPTY_ACCESS_SUBFRAME = {
+  tabId:       0, // also key
+  domain:      "",
   subFrameStr: "",
 };
+
+/**
+ *
+ * @param tabId {number}
+ * @param domainMatch {string}
+ * @return {SubFrameParamData || false}
+ */
+function getSubframeData(tabId, domainMatch) {
+  const match = g_globalAccessSubframeData[tabId] || EMPTY_ACCESS_SUBFRAME;
+  if (match.domain.indexOf(domainMatch) !== -1) {
+    trace(`getSubframeData match tabId: "${tabId}"  ${domainMatch} result: `, match);
+    return match;
+  }
+  return false;
+}
+
+function setSubframeData(tabId, domain, subFrameStr) {
+  trace(`setSubframeData tabId:"${tabId}", domain:"${domain}", subFrameStr: "${subFrameStr}"`);
+  g_globalAccessSubframeData[tabId] = {
+    tabId,
+    domain,
+    subFrameStr,
+  };
+}
+
+/**
+ * This will get GC deleted often, but if the background knows it, it saves
+ * an async call into the page to re-get the last playback speed.
+ * @type {TabToSpeedMap} */
+const g_SpeedByTabData = {};
+
+function setSpeedGlobalData(tabId, domain, speed) {
+  g_SpeedByTabData[`${tabId}-${domain}`] = speed;
+}
+
+function getGlobalSpeedData(tabId, domain) {
+  return g_SpeedByTabData[`${tabId}-${domain}`] || DEAULT_SPEED;
+}
 
 /**
  * Injection returns an array of results, this aggregates them into a single result.
@@ -155,7 +203,7 @@ function injectionResultCheck(injectionResults, defaultVal = false) {
   if ((injectionResults?.length || 0) === 0) {
     return defaultVal;
   }
-  for (let frameresult of injectionResults) {
+  for (const frameresult of injectionResults) {
     if (frameresult.result !== defaultVal) {
       return frameresult.result;
     }
@@ -164,7 +212,7 @@ function injectionResultCheck(injectionResults, defaultVal = false) {
 }
 
 /**
- * This speeds up all <videos> not just the one zoomed.
+ * This speeds up ALL <videos> not just the one zoomed.
  * Could just select the zoomed videos, but maybe useful when unzooming?
  * @param newspeed {string}
  * @return {string[]}
@@ -187,6 +235,7 @@ function injectVideoSpeedAdjust(newspeed) {
         }
       }
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.log(`_loadStart err`, err);
     }
   };
@@ -194,7 +243,7 @@ function injectVideoSpeedAdjust(newspeed) {
     try {
       /** @type {NodeListOf<HTMLVideoElement>} */
       const videos = doc.querySelectorAll("video");
-      for (let eachVideo of videos) {
+      for (const eachVideo of videos) {
         try {
           eachVideo.defaultPlaybackRate = speed;
           eachVideo.playbackRate        = speed;
@@ -203,30 +252,35 @@ function injectVideoSpeedAdjust(newspeed) {
           eachVideo.removeEventListener("loadstart", _loadStart);
           eachVideo.addEventListener("loadstart", _loadStart);
         } catch (err) {
-          console.warn(`VideoMax speed error _speedUpFoundVideos for "video"`, eachVideo, err);
+          // eslint-disable-next-line no-console
+          console.warn(`VideoMaxExt: speed error _speedUpFoundVideos for "video"`, eachVideo, err);
         }
       }
     } catch (err) {
-      console.warn(`doc.querySelectorAll("video") blocked cross iframe?`, doc, err);
+      // eslint-disable-next-line no-console
+      console.warn(`VideoMaxExt: doc.querySelectorAll("video") blocked cross iframe?`, doc, err);
     }
   };
-
+  if (window._VideoMaxExt?.playbackSpeed) {
+    window._VideoMaxExt.playbackSpeed = newspeed;
+  }
   const speadNumber = parseFloat(newspeed);
   _speedUpFoundVideos(document, speadNumber);
 
   const allIFrames = document.querySelectorAll("iframe");
-  for (let frame of [...allIFrames]) {
+  for (const frame of [...allIFrames]) {
     try {
       const framedoc = frame?.contentDocument || frame?.contentWindow?.document;
       if (!framedoc) {
-        console.log(`VideoMax speed no contentDocument frame:`, frame);
+        // console.log(`VideoMax speed no contentDocument frame:`, frame);
         continue;
       }
       _speedUpFoundVideos(framedoc, speadNumber);
     } catch (err) {
       // in theory, we could try to record this url and add it to the request?
       // but this is run in the context of the page see GET_IFRAME_PERMISSIONS
-      console.warn(`VideoMax speed error for "frame" probably cross-domain-frame`, frame, err);
+      // console.warn(`Possible VideoMax speed error for "frame" probably cross-domain-frame`,
+      // frame, err);
       if (frame?.src?.length && window?._VideoMaxExt?.matchedVideo?.nodeName === "IFRAME") {
         const url = frame?.src;
         if (url.startsWith("https://")) {
@@ -234,6 +288,7 @@ function injectVideoSpeedAdjust(newspeed) {
           const iframeUrl = window._VideoMaxExt.matchedVideo.src?.toLowerCase() || "";
           if (iframeUrl.indexOf(domain) !== -1) {
             result.add(domain);
+            // console.warn(`VideoMax speed error Need access to ${domain}`);
           }
         }
       }
@@ -242,13 +297,25 @@ function injectVideoSpeedAdjust(newspeed) {
   return [...result]; // Set->array
 }
 
+/**
+ *
+ * @return {string}
+ */
+function injectGetPlaypackSpeed() {
+  try {
+    return window._VideoMaxExt?.playbackSpeed || DEFAULT_SPEED;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn(`VideoMaxExt: injectGetPlaypackSpeed err for video`, err);
+  }
+}
 
 /**
  * @param skipSecondsStr {string}  negative numbers backwards
  */
 function injectVideoSkip(skipSecondsStr) {
   const skipSeconds = parseFloat(skipSecondsStr);
-  for (let eachVideo of document.querySelectorAll("video")) {
+  for (const eachVideo of document.querySelectorAll("video")) {
     try {
       // restore playback speed after we skip
       const savedSpeed       = eachVideo.playbackRate || 1.0;
@@ -256,34 +323,8 @@ function injectVideoSkip(skipSecondsStr) {
       eachVideo.currentTime  = Math.max(0, eachVideo.currentTime + skipSeconds);
       eachVideo.playbackRate = savedSpeed;
     } catch (err) {
-      console.warn(`injectVideoSkip err for video`, err, eachVideo);
-    }
-  }
-}
-
-/**
- * @param speedStr {string}  negative numbers backwards
- */
-async function injectVideoPlaybackToggle(speedStr) {
-  const speedNumber = parseFloat(speedStr);
-  for (let eachVideo of document.querySelectorAll("video")) {
-    try {
-      const isVideoPlaying = eachVideo => !!(eachVideo.currentTime > 0 && !eachVideo.paused &&
-                                             !eachVideo.ended && eachVideo.readyState > 2);
-      if (isVideoPlaying) {
-        console.trace(`
-        Playing -> pause 
-      `);
-        await eachVideo.pause();
-      } else {
-        console.trace(`
-        Paused -> play 
-      `);
-        await eachVideo.play();
-        eachVideo.playbackRate = speedNumber;
-      }
-    } catch (err) {
-      console.warn(`injectVideoPlaybackToggle err for video`, err, eachVideo);
+      // eslint-disable-next-line no-console
+      console.warn(`VideoMaxExt: injectVideoSkip err for video`, err, eachVideo);
     }
   }
 }
@@ -297,7 +338,8 @@ async function injectVideoPlaybackToggle(speedStr) {
 function injectCssHeader(cssHRef, styleId) {
   try {
     if (document.getElementById(styleId)) {
-      console.log(`VideoMax Native Inject. Style header already injected "${styleId}`);
+      // eslint-disable-next-line no-console
+      console.log(`VideoMax Native Inject. Style header already injected "${styleId}"`);
       return true;
     }
     const styleLink = document.createElement("link");
@@ -309,6 +351,7 @@ function injectCssHeader(cssHRef, styleId) {
     document.getElementsByTagName("head")[0]?.appendChild(styleLink);
     return true;
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error(`****** VideoMax ERROR Native Inject
         Injecting style header failed. CSP?
         ******`, err);
@@ -322,8 +365,10 @@ function injectCssHeader(cssHRef, styleId) {
  */
 function uninjectCssHeader(styleId) {
   // warning run inside context of page
-  const cssHeaderNode = document.getElementById(styleId);
-  cssHeaderNode?.parentNode?.removeChild(cssHeaderNode);
+  try {
+    const cssHeaderNode = document.getElementById(styleId);
+    cssHeaderNode?.parentNode?.removeChild(cssHeaderNode);
+  } catch (_err) { }
 }
 
 /**
@@ -341,30 +386,39 @@ function injectIsCssHeaderIsBlocked(cssHRef) {
         // try to access the rules to see if it loaded correctly
         try {
           isBlocked = (document.styleSheets[ii].cssRules?.length) === 0;
-        } catch (_err) {
-        }
+        } catch (_err) { }
         break;
       }
     }
   } catch (_err) {
   }
   if (isBlocked) {
-    console.log("VideoMaxExt css include file blocked.");
+    console.log("VideoMaxExt: css include file blocked.");
   }
   return isBlocked;
 }
 
+
 /**
  *
  * @param tabId {number}
- * @param state {BackgroundState}
+ * @param state {BackgroundState|""}
  * @param domain {String}
  * @param speed {String}
  * @return {Promise<void>}
  */
-async function setCurrentState(tabId, state, domain = "", speed = DEAULT_SPEED) {
+async function setCurrentTabState(tabId, state, domain = "", speed = DEAULT_SPEED) {
   try {
-    // map state to another state
+    // map state to another state.
+    if (state === "") {  // means "preserve state"
+      trace(`setCurrentState "" => preserve state`);
+      // kind of a hack. Means don't change state.
+      state = await getCurrentTabState(tabId);
+      if (state === "REFRESH") { // Exception
+        state = "ZOOMING"; // remapped again below
+      }
+    }
+
     switch (state) {
       case "ZOOMING":
         trace(`setCurrentState "${state}"`);
@@ -377,6 +431,15 @@ async function setCurrentState(tabId, state, domain = "", speed = DEAULT_SPEED) 
         state = "SPEED_ONLY";
         break;
     }
+
+
+    if (IMMEDIATE_SECOND_IFRAME_PERM_CHECK && getSubframeData(tabId, domain) !== false) {
+      // Exception. More permissions are needed for speed controls to work, re-prompt
+      // instead of failing silently.
+      trace("clearing popup so we can prompt for more permisions");
+      state = "REFRESH";
+    }
+
 
     const {
             badge,
@@ -392,8 +455,11 @@ async function setCurrentState(tabId, state, domain = "", speed = DEAULT_SPEED) 
 
     // we need to pass in the tab id because the popup js can't get it and the
     // the message sent to background is missing it.
-    const popup = showpopup ? `popup.html#tabId=${tabId}&speed=${speed}&domain=${domain}` : "";
+    let popup = showpopup ?
+                `popup.html#tabId=${tabId}&speed=${speed}&domain=${domain}&badge=${badge}` :
+                "";
 
+    trace(`popup url "${popup}"`);
     // don't think the order matters, just set them all and wait for them to complete.
     await Promise.all([chrome.action.setBadgeText({
       tabId,
@@ -418,7 +484,7 @@ async function setCurrentState(tabId, state, domain = "", speed = DEAULT_SPEED) 
  * @param tabId
  * @return {Promise<BackgroundState>}
  */
-async function getTabCurrentState(tabId) {
+async function getCurrentTabState(tabId) {
   try {
     const title = await chrome.action.getTitle({ tabId });
     // DEFAULT will be the `name` string from our manifest
@@ -463,8 +529,15 @@ async function DoInjectZoomJS(tabId) {
       target: {
         tabId,
         allFrames: true,  // false doesn't hide some content.
-      },
-      world:  "MAIN",  // this breaks dailymotion
+      }, // world:  "MAIN",
+      files:  ["cmd_zoom_inject.js", "videomax_main_inject.js"],
+    });
+
+    await chrome.scripting.executeScript({
+      target: {
+        tabId,
+        allFrames: true,  // false doesn't hide some content.
+      }, // world:  "MAIN",
       files:  ["cmd_zoom_inject.js", "videomax_main_inject.js"],
     });
     trace("DoInjectZoomJS leave");
@@ -488,8 +561,7 @@ async function DoInjectTagOnlyJS(tabId) {
       target: {
         tabId,
         allFrames: true,
-      },
-      world:  "MAIN",  // this breaks dailymotion
+      }, // world:  "MAIN",
       files:  ["cmd_tagonly_inject.js", "videomax_main_inject.js"],
     });
     trace("DoInjectTagOnlyJS leave");
@@ -516,8 +588,7 @@ async function DoInjectZoomCSS(tabId, isDummy = false) {
       target: {
         tabId,
         allFrames: true,
-      },
-      world:  "MAIN",
+      }, // world:  "MAIN",
       func:   injectCssHeader,
       args:   [cssFilePath, CSS_STYLE_HEADER_ID],
     });
@@ -540,8 +611,7 @@ async function DoUndoInjectCSS(tabId) {
       target: {
         tabId, // frameIds: [0],
         allFrames: true,
-      },
-      world:  "MAIN",
+      }, // world:  "MAIN",
       func:   uninjectCssHeader,
       args:   [CSS_STYLE_HEADER_ID],
     });
@@ -569,8 +639,7 @@ async function DoCheckCSSInjectedIsBlocked(tabId) {
         frameIds: [0],
       },
       func:   injectIsCssHeaderIsBlocked,
-      args:   [cssFilePath],
-      world:  "MAIN",
+      args:   [cssFilePath], // world:  "MAIN",
     });
 
     const result = injectionResultCheck(injectionresult);
@@ -585,22 +654,22 @@ async function DoCheckCSSInjectedIsBlocked(tabId) {
 /**
  *
  * @param tabId {number}
+ * @param domain {string}
  * @return {Promise<void>}
  */
-async function unZoom(tabId) {
+async function unZoom(tabId, domain) {
   try {
     trace("unZoom");
-    await setCurrentState(tabId, "RESET");
-    await DoUndoInjectCSS(tabId);
-    await setTabSpeed(tabId, DEAULT_SPEED);
-    await chrome.scripting.executeScript({
-      target: {
-        tabId,
-        allFrames: true,
-      },
-      world:  "MAIN",
-      files:  ["cmd_unzoom_inject.js", "videomax_main_inject.js"],
-    });
+    await Promise.all([setCurrentTabState(tabId, "RESET"),
+                       DoUndoInjectCSS(tabId),
+                       setSpeed(tabId, domain, DEAULT_SPEED),
+                       chrome.scripting.executeScript({
+                         target: {
+                           tabId,
+                           allFrames: true,
+                         }, // world:  "MAIN",
+                         files:  ["cmd_unzoom_inject.js", "videomax_main_inject.js"],
+                       })]);
   } catch (err) {
     logerr(err);
   }
@@ -626,10 +695,11 @@ async function DoZoom(tabId, state, domain) {
     if (excluded_zoom || state === "SPEED_ONLY") {
       await Promise.all([DoInjectTagOnlyJS(tabId),
                          DoInjectZoomCSS(tabId, true),
-                         setCurrentState(tabId, "ZOOMING_SPEED_ONLY", domain)]);
+                         setCurrentTabState(tabId, "ZOOMING_SPEED_ONLY", domain)]);
     } else {
-      await Promise.all(
-        [DoInjectZoomJS(tabId), DoInjectZoomCSS(tabId), setCurrentState(tabId, "ZOOMING", domain)]);
+      await Promise.all([DoInjectZoomJS(tabId),
+                         DoInjectZoomCSS(tabId),
+                         setCurrentTabState(tabId, "ZOOMING", domain)]);
 
       // now verify the css wasn't blocked by CSP.
       const wasCSSBlocked = await DoCheckCSSInjectedIsBlocked(tabId);
@@ -654,46 +724,85 @@ async function DoZoom(tabId, state, domain) {
 
 /**
  *
+ * @param results {InjectionResult[]}
  * @param tabId {number}
- * @param speedStr {string}
- * @returns {Promise<null|chrome.scripting.InjectionResult[]>}
+ * @param domain {string}
+ * @return {boolean}
  */
-async function setTabSpeed(tabId, speedStr = DEAULT_SPEED) {
+function processIFrameExtraPermissionsResult(results, tabId, domain) {
+  if (!GET_IFRAME_PERMISSIONS || results.length === 0) {
+    return false;
+  }
+  const extraDomainsArry = results.map(o => o.result)
+    .flat()
+    .filter(str => str?.length > 0);
+  if (extraDomainsArry.length) {
+    setSubframeData(tabId, domain, extraDomainsArry.join(","));
+    return true;
+  } else {
+    return false;
+  }
+}
+
+/**
+ *
+ * @param tabId {number}
+ * @param domain {string}
+ * @param speedStr {string}
+ * @returns {Promise<{boolean}>}
+ */
+async function setSpeed(tabId, domain, speedStr = DEAULT_SPEED) {
   try {
-    trace("setTabSpeed", tabId, speedStr);
+    trace(`setSpeed enter tabId:${tabId} speed:${speedStr}`);
 
     if (typeof parseFloat(speedStr) !== "number") {
       logerr(`Speed NOT valid number '${speedStr}'`);
       return null;
     }
+    setSpeedGlobalData(tabId, domain, speedStr);
+
     // "allFrames" is broken unless manifest requests permissions
     // `"optional_host_permissions": ["<all_urls>"]`
     const results = await chrome.scripting.executeScript({
       target: {
         tabId,
         allFrames: true,
-      },
-      world:  "MAIN",
+      }, // world:  "MAIN",
       func:   injectVideoSpeedAdjust,
       args:   [speedStr],
     });
-    if (GET_IFRAME_PERMISSIONS && results.length > 0) {
-      // setTabSpeed failed and there are extra domains we need access to make it work
-      // the only domain we care about is the
-      const extraDomainsArry = results.map(o => o.result)
-        .flat()
-        .filter(str => str?.length > 0);
-      if (extraDomainsArry.length) {
-        g_hackGetAccessToSubFrames.forTabId    = tabId;
-        g_hackGetAccessToSubFrames.subFrameStr = extraDomainsArry.join(",");
-      } else {
-        g_hackGetAccessToSubFrames.forTabId    = 0;
-        g_hackGetAccessToSubFrames.subFrameStr = "";
-      }
-    }
+    trace(`setSpeed leave tabId:${tabId} speed:${speedStr}`);
+    return processIFrameExtraPermissionsResult(results, tabId, domain);
   } catch (err) {
     logerr(err);
-    return null;
+    return false;
+  }
+}
+
+
+async function getSpeed(tabId, domain) {
+  try {
+    const speed = getGlobalSpeedData(tabId, domain);
+    if (speed) {
+      // sweet, background service not purged yet
+      return speed;
+    }
+    trace("getSpeed enter", tabId, domain);
+    const results = await chrome.scripting.executeScript({
+      target: {
+        tabId,
+        allFrames: true,
+      }, // world:  "MAIN",
+      func:   injectGetPlaypackSpeed,
+      args:   [],
+    });
+    trace("getSpeed leave", tabId, speed);
+    if (!results?.length) {
+      return DEAULT_SPEED;
+    }
+    return results[0].result;
+  } catch (err) {
+    trace("getSpeed error", err);
   }
 }
 
@@ -714,8 +823,7 @@ async function skipPlayback(tabId, secondToSkipStr) {
       target: {
         tabId,
         allFrames: true,
-      },
-      world:  "MAIN",
+      }, // world:  "MAIN",
       func:   injectVideoSkip,
       args:   [secondToSkipStr],
     });
@@ -724,36 +832,6 @@ async function skipPlayback(tabId, secondToSkipStr) {
     return null;
   }
 }
-
-/**
- *
- * @param tabId {number}
- * @param speedStr {string}
- * @returns {Promise<null|chrome.scripting.InjectionResult[]>}
- */
-async function togglePlayback(tabId, speedStr) {
-  try {
-    trace("togglePlayback", tabId, speedStr);
-    if (typeof parseFloat(speedStr) !== "number") {
-      logerr(`speed NOT valid number '${speedStr}'`);
-      return null;
-    }
-
-    return await chrome.scripting.executeScript({
-      target: {
-        tabId,
-        allFrames: true,
-      },
-      world:  "MAIN",  // this breaks dailymotion
-      func:   injectVideoPlaybackToggle,
-      args:   [speedStr],
-    });
-  } catch (err) {
-    logerr(err);
-    return null;
-  }
-}
-
 
 /**
  *
@@ -820,15 +898,21 @@ async function showUpgradePageIfNeeded() {
  * @returns {Promise<boolean>}
  */
 async function toggleZoomState(tabId, domain) {
-  const state = await getTabCurrentState(tabId);
+  const state = await getCurrentTabState(tabId);
   if (!isActiveState(state)) {
     await DoZoom(tabId, state, domain);
+    // the following dance is to see if we need more permissions
+    await setSpeed(tabId, domain);  // iframe on diff domain will set g_globalAccessSubframeData
+                                    // to get more permissions on next click event
+    await setCurrentTabState(tabId, "", domain);
     return true;
   }
 
+  await setCurrentTabState(tabId, "", domain);
+
   // we are zoomed but
   if (state === "ZOOMED_NOSPEED") { // toggle behavior otherwise message unzooms
-    await unZoom(tabId);
+    await unZoom(tabId, domain);
     return false;
   }
   return true;
@@ -839,11 +923,12 @@ chrome.action.onClicked.addListener((tab) => {
   const tabId = tab.id;
   // keep in sync with manifest.json `optional_permissions`
   try {
+    // noinspection HttpUrlsUsage
     if (!(tab?.url?.startsWith("https://") || tab?.url?.startsWith("http://") ||
           tab?.url?.startsWith("file:"))) {
       // do not run on chrome: or about: urls.
       // TODO: show limited popup to access config/settings ux
-      (async () => await setCurrentState(tabId, "ERR_URL"))();
+      (async () => await setCurrentTabState(tabId, "ERR_URL"))();
       trace("ERR_URL");
       return;
     }
@@ -883,46 +968,44 @@ chrome.action.onClicked.addListener((tab) => {
           });
         }
 
-        if (GET_IFRAME_PERMISSIONS && g_hackGetAccessToSubFrames.forTabId) {
-          if (g_hackGetAccessToSubFrames.forTabId === tabId) {
-            // if being used across multiple tabs at the same time, just fail for now.
-            const iframeDomains = g_hackGetAccessToSubFrames.subFrameStr
-              .split(",")
-              .map(d => domainToSiteWildcard(d, settings.wholeDomainAccess));
-            origins.push(...iframeDomains);
-            trace("Requesting extra domains that blocked speedup", iframeDomains);
-          }
-          // always clear
-          g_hackGetAccessToSubFrames.forTabId    = 0;
-          g_hackGetAccessToSubFrames.subFrameStr = "";
-        }
-
         // push a tld domain wide request. Often videos are in iframes on different sub domains
         // like www.example.com and static.example.com
+        let domain = "";
         if (tab.url.startsWith("https://")) {
-          let domain = getDomain(tab.url);
+          domain = getDomain(tab.url);
           origins.push(domainToSiteWildcard(domain, settings.wholeDomainAccess));
         } else {
           origins.push(tab.url);
         }
+
+        const subFrameData = getSubframeData(tabId, domain);
+        if (GET_IFRAME_PERMISSIONS && subFrameData !== false) {
+          const iframeDomains = subFrameData.subFrameStr
+            .split(",")
+            .map(d => domainToSiteWildcard(d, settings.wholeDomainAccess));
+          origins.push(...iframeDomains);
+          trace("Requesting extra domains that blocked speedup", iframeDomains);
+        }
       }
+
+
       chrome.permissions.request({
         permissions,
         origins,
       }, async (granted) => {
         if (!granted) {
-          await setCurrentState(tabId, "REFRESH");
+          await setCurrentTabState(tabId, "REFRESH");
           logerr(`permissions to run were denied for "${tab?.url}", so extension is not injecting`);
           return;
         }
-        trace("permissions granted");
+        trace("permissions granted for ", origins?.join(" ") || "");
         await showUpgradePageIfNeeded();
 
         // tab?.url could be undefined, so we need to query to get the current tab
         if (!tab?.url) {
           // now we have to go back and get the url since it wasn't passed to us
           // simple thing is to ask the user to click the button again.
-          await setCurrentState(tabId, "REFRESH");
+          await setCurrentTabState(tabId, "REFRESH");
           return;
         }
         // domain will be empty for "file://"
@@ -942,7 +1025,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   const domain = request?.message?.domain || "";
   if (!tabId) {
     logerr("something wrong with message", request);
-    sendResponse && sendResponse({ success: false });
+    if (sendResponse) {
+      sendResponse({ success: false });
+    }
     return;
   }
 
@@ -965,33 +1050,36 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           break;
 
         case "UNZOOM_CMD":
-          await unZoom(tabId);
+          await unZoom(tabId, domain);
           break;
 
         case "SET_SPEED_CMD":
-          await Promise.all(
-            [setCurrentState(tabId, "ZOOMED_SPEED", domain, speed), setTabSpeed(tabId, speed)]);
+          await Promise.all([setCurrentTabState(tabId, "ZOOMED_SPEED", domain, speed),
+                             setSpeed(tabId, domain, speed)]);
           break;
 
         case "REZOOM_CMD":
           // the popup is about to display and thinks the page is zoomed, but it's may not be
           // (e.g. if escape key was pressed.)
           // in theory, re-injecting should be fine
-          const currentState = await getTabCurrentState(tabId);
+          const currentState = await getCurrentTabState(tabId);
+          // ignore the speed sent in. For rezoom, the popup has been deleted, so it can't
+          // send the speed, we have to reget it.
+          const currentSpeed = await getSpeed(tabId, domain);
           if (currentState === "ZOOMING_SPEED_ONLY") {
             trace("REZOOM_CMD - Speed only, not rezooming");
-            await setTabSpeed(tabId, speed);
+            await setSpeed(tabId, domain, currentSpeed);
           } else {
             trace("REZOOM_CMD -- Zooming");
             // a full zoom isn't needed, just the css reinjected.
 
             // we need to see if we're in "SPEED_ONLY" mode because
             // we don't have access to the url to see if it's a site like hulu
-            const currentState = await getTabCurrentState(tabId);
+            const currentState = await getCurrentTabState(tabId);
             const nextState    = currentState === "SPEED_ONLY" ? "ZOOMING_SPEED_ONLY" : "ZOOMING";
-            await Promise.all([setCurrentState(tabId, nextState, speed),
-                               DoZoom(tabId, currentState, domain),
-                               setTabSpeed(tabId, speed)]);
+            await Promise.all([setCurrentTabState(tabId, nextState, currentSpeed),
+                               DoZoom(tabId, currentState, currentSpeed),
+                               setSpeed(tabId, domain, currentSpeed)]);
             trace("REZOOM_CMD -- Zooming -- COMPLETE");
           }
           break;
@@ -999,11 +1087,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         case "SKIP_PLAYBACK_CMD":
           await skipPlayback(tabId, speed);
           break;
-
-        case "TOGGLE_PLAYBACK_CMD":
-          await togglePlayback(tabId, speed);
-          break;
-
       }
     } catch (err) {
       logerr(err);

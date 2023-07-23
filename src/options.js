@@ -111,6 +111,7 @@ const loadSettingsIntoFields = (settings) => {
     const LI_START2 = LI_START + `<div class="col-1 is-left domain">`;
     const LI_END    = `</div><div class="col-10 is-right"><button name="removeBtn" class="delete-button">Remove</button></div></div></div></li>`;
     const listarr   = listToArray(settings.zoomExclusionListStr);
+    // noinspection UnnecessaryLocalVariableJS
     const list      = LI_START2 + listarr.join(LI_END + LI_START2) + LI_END;
 
     document.getElementById("nozoomlist").innerHTML = list;
@@ -167,6 +168,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // show debug info
     const settingStr      = JSON.stringify(g_settings, null, 2);
     const manifestVersion = await getManifestVersion() || "[missing manifest version]";
+    // noinspection JSUnresolvedReference
     const userAgent       = JSON.stringify(navigator?.userAgentData, null, 2);
 
     document.getElementById("version").innerHTML = `

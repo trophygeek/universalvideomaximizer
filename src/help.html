@@ -8,10 +8,10 @@
 <body class="dark">
 
 <div class="container">
-  <h1><img alt="logo" class="logo" src="icons/icon128.png">Universal Video Maximizer - version 3.0.77 Help</h1>
+  <h1><img alt="logo" class="logo" src="icons/icon128.png">Universal Video Maximizer - version 3.0.82 Help</h1>
   <hr>
   <h2>
-    Beta version 3.0.77 (June 2023 update)
+    Beta version 3.0.82 (July 2023 update)
   </h2>
 
   <section class="padding-1">
@@ -35,7 +35,7 @@
     <p class="is-center"><img alt="how to manually reload an extension" src="img/chrome_update_bug.png"><br/></p>
     <p>Hopefully this will be fixed soon and only seems to show up after the extension is modified.
       See
-      <a href="https://bugs.chromium.org/p/chromium/issues/detail?id=1316588" rel="noreferrer" target="_blank">Issue
+      <a href="https://bugs.chromium.org/p/chromium/issues/detail?id=1316588" rel="noopener" target="_blank">Issue
         #1316588 ↗</a> for more information. But this trick is handy for all extensions until it's resolved.</p>
   </section>
 
@@ -43,7 +43,7 @@
   <h3>Reporting other issues</h3>
   <section class="padding-1">
     Any problems or feature requests should be reported here via a
-    <a href="https://github.com/trophygeek/universalvideomaximizer/issues" rel="noreferrer" target="_blank">GitHub
+    <a href="https://github.com/trophygeek/universalvideomaximizer/issues" rel="noopener" target="_blank">GitHub
       issue ↗</a>. Chrome's reporting feature in the store does not notifying when new issues are added.
   </section>
 
@@ -52,13 +52,13 @@
     <ul>
       <li><span class="emphasis bold">FREE</span>
 
-      <li>Requires minimal permissions to increase security and privacy
+      <li>Prompts for permissions to increase security and maintain your privacy.
       </li>
 
       <li><span class="emphasis">NEVER collects ANY data</span>. Privacy is a top priority.
       </li>
 
-      <li>Is <a href="https://github.com/trophygeek/universalvideomaximizer/" rel="noreferrer"
+      <li>Is <a href="https://github.com/trophygeek/universalvideomaximizer/" rel="noopener"
                 target="_blank">open-sourced ↗</a> for transparency.
       </li>
     </ul>
@@ -69,17 +69,18 @@
 
   <h3>New playback speed option</h3>
   <section class="padding-3">
-    <img alt="screen shot" class="illustration" src="img/speed_change_yes.png">
-    Playback speed cannot work on pages where videos are actually hosted on a different site. (e.g. youtube videos not
-    on the youtube site). This is a limitation of the Chrome Extension API itself.<br/><br/>
-    When a site looks like it supports speed control, the toolbar icon will display a
-    <img alt="playback indicator icon" src="img/playback_indicator.png"> overlay
+    Playback speed cannot work on pages where videos are actually hosted on a different site without extra permissions
+    prompt (e.g. youtube videos not on the youtube site). This appears to be a limitation of the Chrome APIs but may
+    improve in future versions.<br/>
+    <br/>
+    If the <span class="emphasis bold">speed controls don't work</span> or the layout isn't centered, then <span
+      class="emphasis bold">unzoom and rezoom</span> to see if you get another permissions prompt.
   </section>
 
 
   <section class="padding-5">
     <img alt="screen shot" class="illustration" src="img/new_speed_control_bar.png">
-    When the speed control graphics is displayed, clicking the button shows extra options to control playback speed.
+    After zooming, clicking the Video Maximizer button shows extra options to control playback speed.
   </section>
 
 
@@ -92,11 +93,11 @@
     reprompting can be annoying, but it's just a how Chrome works and you will only be prompted once per site.
     If you grant permissions, then you will NOT be prompted again.<br/><br/>
     If you continue to have access issues or find the prompting annoying there are extra permissions you can try
-    in the Video Maxmizer Options page.<br/>
+    in the Video Maxmizer Options page.<br/><br/>
     "Allow access to all sites by default" in the <a href="options.html" target="videomaxoptions">Options</a> will
     increase this extension's base permissions.<br/><br/>
     The fundamental issue is how the cross-domain-frame-permissions-granting works in Chrome. See <a
-      href="https://bugs.chromium.org/p/chromium/issues/detail?id=826433" rel="noreferrer"
+      href="https://bugs.chromium.org/p/chromium/issues/detail?id=826433" rel="noopener"
       target="_blank">Issue #826433 ↗</a>
   </section>
 
@@ -135,9 +136,10 @@
       <li><span class="text-success">TIP:</span> Pressing escape when the Speed Control window is open will close it.
       </li>
       <li><span class="text-success">NOTE: </span> Speed changing <span class="emphasis">will not work </span> on
-        sites hosting videos from other sites without granting this extension more permissions in the <a
-            href="options.html"
-            target="videomaxoptions">Options</a>. This is just a limitation of the Chrome APIs.
+        sites hosting videos from other sites without unzooming and rezooming to see if there are additional access
+        prompts.
+        This should only be required once per site, but can be bypassed if you enable the "full access to all sites by
+        default" in <a href="options.html" target="videomaxoptions">Options</a>
       </li>
       <li><span class="text-success">NOTE: </span> There is an <span class="emphasis">option to disable</span> the Speed
         Controls to revert to the behavior of the original Video Maximizer (see Options below)
