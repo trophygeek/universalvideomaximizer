@@ -104,6 +104,8 @@ const loadSettingsIntoFields = (settings) => {
   setChecked("wholeDomainAccess", settings.wholeDomainAccess);
   setChecked("allSitesAccess", settings.allSitesAccess);
 
+  disabledIfOldZoom();
+
   // list of no-zoom sites
   {
     /* Used to build list */
@@ -160,6 +162,18 @@ const save = async () => {
   }
 };
 
+const disabledIfOldZoom = () => {
+  const useToggleZoomBehavior = getChecked("useToggleZoomBehavior");
+  const disableFields         = document.getElementsByClassName("diableForSimpleChecked");
+  for (const eachField of disableFields) {
+    if (useToggleZoomBehavior) {
+      eachField.classList.add("is-disabled");
+    } else {
+      eachField.classList.remove("is-disabled");
+    }
+  }
+};
+
 document.addEventListener("DOMContentLoaded", async () => {
   try {
     g_settings = await getSettings();
@@ -188,12 +202,13 @@ ${userAgent}
 
     document.getElementById("useToggleZoomBehavior")
       .addEventListener("click", async (_e) => {
+        disabledIfOldZoom();
         setTimeout(() => {
           if (getChecked("useToggleZoomBehavior")) {
             alert(`
 This will remove the speed controls.
 
-To access this Options page in the future, RIGHT-CLICK on this extension's icon in toolbar and select "options"`);
+To access this Option page in the future, RIGHT-CLICK on the extension's icon in toolbar and select "options"`);
           }
         }, 250);
       });

@@ -1,9 +1,9 @@
 try { // scope and prevent errors from leaking out to page.
-  const FULL_DEBUG                      = true;
-  const DEBUG_ENABLED                   = FULL_DEBUG;
-  const TRACE_ENABLED                   = FULL_DEBUG;
-  const ERR_BREAK_ENABLED               = FULL_DEBUG;
-  const BREAK_ON_BEST_MATCH             = false;
+  const FULL_DEBUG          = false;
+  const DEBUG_ENABLED       = FULL_DEBUG;
+  const TRACE_ENABLED       = FULL_DEBUG;
+  const ERR_BREAK_ENABLED   = FULL_DEBUG;
+  const BREAK_ON_BEST_MATCH = false;
 
   // this will put add the score as an attribute for
   // elements across revisions, the zoomed page's html can
@@ -13,20 +13,21 @@ try { // scope and prevent errors from leaking out to page.
   // experiments - keep these settings to regression check various fixes across sites
   // What fixes one site often breaks another.
   // Eventually, these can go away as we verify no adverse interactions.
-  const DO_NOT_MATCH_ADS                   = false;
-  const DO_REHIDE                          = true;
-  const ALWAYS_MAX_BODY                    = true;
-  const SCROLL_TO_VIDEO                    = true;
-  const STOP_NODE_DISABLE                  = true;
-  const STOP_NODE_COMMON_CONTAINER         = true;
-  const REHIDE_RETRY_UNTIL_NONE            = true; // tictok popups
-  const NEVER_HIDE_SMELLS_LIKE_TEST        = true;
-  const FLIP_STYLE_ATOMICALLY              = true;
-  const ADJUST_PLAYBACK_CNTL_HEIGHT        = true;
-  const USE_URL_OVERLAP_WEIGHT             = true;
-  const USE_TITLE_OVERLAP_WEIGHT           = true;
-  const ONLY_RUN_AFTER_DOC_LOADED          = true; // set to false and test
-  const IFRAME_PARENT_NODE_WORKS           = true;
+  const DO_NOT_MATCH_ADS            = false;
+  const DO_REHIDE                   = true;
+  const ALWAYS_MAX_BODY             = true;
+  const SCROLL_TO_VIDEO             = true;
+  const STOP_NODE_DISABLE           = true;
+  const STOP_NODE_COMMON_CONTAINER  = true;
+  const REHIDE_RETRY_UNTIL_NONE     = true; // tictok popups
+  const NEVER_HIDE_SMELLS_LIKE_TEST = true;
+  const FLIP_STYLE_ATOMICALLY       = true;
+  const ADJUST_PLAYBACK_CNTL_HEIGHT = true;
+  const USE_URL_OVERLAP_WEIGHT      = true;
+  const USE_TITLE_OVERLAP_WEIGHT    = true;
+  const ONLY_RUN_AFTER_DOC_LOADED   = true; // set to false and test
+  const IFRAME_PARENT_NODE_WORKS    = true;
+  const USE_MUTATION_OBSERVER_ATTR  = true;
 
 
   const MIN_IFRAME_WIDTH  = 320;
@@ -155,7 +156,7 @@ try { // scope and prevent errors from leaking out to page.
   };
 
   /** @type {TreeWalker | null} */
-  let walker              = null;
+  let walker = null;
 
   const isRunningInIFrame = () => window !== window?.parent;
 
@@ -306,7 +307,7 @@ try { // scope and prevent errors from leaking out to page.
    */
   const isElemInIFrame = (elem) => {
     try {
-      return (videomaxGlobals.matchedVideo.ownerDocument !== document);
+      return (elem.ownerDocument !== document);
     } catch (_err) {
     }
     return false;
@@ -641,7 +642,7 @@ try { // scope and prevent errors from leaking out to page.
   function forceRefresh(optionalElem = undefined) {
     // we now need to force the flash to reload by resizing... easy thing is to
     // adjust the body
-    if (isRunningInIFrame()) {
+    if (!isRunningInIFrame()) {
       setTimeout(() => {
         window.dispatchEvent(new Event("resize"));
         window.dispatchEvent(new Event("visabilitychange"));
@@ -676,10 +677,16 @@ try { // scope and prevent errors from leaking out to page.
     const videoElem = videomaxGlobals.matchedVideo;
     const videoRect = videomaxGlobals.matchVideoRect;
 
-    const countChildren = (e, isTop = true) => {
+    const countChildren = (e, recurseOnce = true) => {
       const checkChildren = [...e?.children].filter(e => !isIgnoredNode(e));
       // now we check how many are absolute positioned. These get 2x weight.
       let result          = 0;
+
+      if (recurseOnce) {
+        const matches = [...e.querySelectorAll(`[role="slider"]`), ...e.querySelectorAll(`[role="presentation"]`)];
+        result += matches.length;
+      }
+
       for (const eachChild of checkChildren) {
         const compStyleElem = getElemComputedStyle(eachChild); // $$$
         const rect          = getCoords(eachChild);
@@ -689,7 +696,11 @@ try { // scope and prevent errors from leaking out to page.
         if (compStyleElem.position === "absolute") {
           result++;
         }
-        if (isTop) {
+        if (compStyleElem.transform?.includes("ease")) {
+          result++;
+        }
+        ///
+        if (recurseOnce) {
           // we recurse ONCE. Youtube and plutoTV put controls one level down.
           result += countChildren(eachChild, false);
         }
@@ -704,7 +715,6 @@ try { // scope and prevent errors from leaking out to page.
     let bestMatchWeight          = 1;
 
     let checkParents = CHECK_PARENTS_LEVELS_UP_MAX;
-
     while (walker.parentNode() && checkParents > 0) {
       // these could be part of while condition, but we may want to debug/trace on them.
       checkParents--; // counting down to zero.
@@ -713,6 +723,7 @@ try { // scope and prevent errors from leaking out to page.
         break;
       }
       const weight = countChildren(walker.currentNode);
+      trace(`findCommonContainerFromMatched ${weight > bestMatchWeight ? "NEW BEST" : ""} \n\t weight:${weight} \n\t ${PrintNode(walker.currentNode)} \n\t`, walker.currentNode);
       if (weight > bestMatchWeight) {
         bestMatchWeight = weight;
         bestMatch       = walker.currentNode; // we've already moved to parentNode()
@@ -786,7 +797,7 @@ try { // scope and prevent errors from leaking out to page.
   }
 
   // HTMLFrameElement
-  const isVisibleWalkerElem      = (el) => {
+  const isVisibleWalkerElem = (el) => {
     if (["#document", // iframe top element
          "svg",
          "xml",
@@ -800,7 +811,7 @@ try { // scope and prevent errors from leaking out to page.
          "head",
          "header",
          "footer",
-         "figure",
+      // "figure", // secsports puts it under a <figure> seriously?
          "caption",
          "area",
          "br",
@@ -811,7 +822,6 @@ try { // scope and prevent errors from leaking out to page.
          "del",
          "fieldset",
          "figcaption",
-         "figure",
          "form",
          "hgroup",
          "input"].includes(el.nodeName.toLowerCase())) {
@@ -1268,7 +1278,7 @@ try { // scope and prevent errors from leaking out to page.
       return false;
     }
 
-    if (isADecendantElem(elem, videomaxGlobals.matchedVideo)) {
+    if (isADecendantElem(elem, videomaxGlobals.matchedCommonCntl)) {
       trace("NOT HIDING isADecendantElem", elem);
       return false;
     }
@@ -1338,7 +1348,8 @@ try { // scope and prevent errors from leaking out to page.
       current = parentNode(current);
     }
 
-    while (current && !isStopNodeType(current)) {
+    let safetyCheck = 200;
+    while (current && !isStopNodeType(current) && safetyCheck--) {
       const siblings = getSiblings(current);
       for (const eachNode of siblings) {
         // we don't hide the tree we're walking up, just the siblings
@@ -1348,7 +1359,11 @@ try { // scope and prevent errors from leaking out to page.
           }
         }
       }
+      const loopDetect = current;
       current = parentNode(current);
+      if (loopDetect === current) {  // pornhub
+        break;
+      }
     }
     trace(`rehideUpFromVideo hid: ${reHideCount} for ${isRunningInIFrame() ? "iFrame" : "Main"}`);
     return reHideCount;
@@ -1458,7 +1473,7 @@ try { // scope and prevent errors from leaking out to page.
                     inRange(inner.bottom, outer.top, outer.bottom) &&
                     inRange(inner.left, outer.left, outer.right) &&
                     inRange(inner.right, outer.left, outer.right));
-    trace(`isBoundedRect: ${result} outer:${PrintRect(outer)} inner:${PrintRect(inner)}`);
+    // trace(`isBoundedRect: ${result} outer:${PrintRect(outer)} inner:${PrintRect(inner)}`);
     return result;
   };
 
@@ -2135,7 +2150,6 @@ try { // scope and prevent errors from leaking out to page.
    * <header><footer>, etc are always hidden.
    * Some sites (hclips) will force the header back by re-modifying the class
    * @param doc {Document}
-   * @param reHide {boolean}
    */
   const alwaysHideSomeElements = (doc = document) => {
     if (typeof (doc?.getElementsByTagName) !== "function") {
@@ -2489,22 +2503,20 @@ try { // scope and prevent errors from leaking out to page.
   };
 
   const OBSERVE_ATTRIB_OPTIONS = {
-    attributes:      true,
-    attributeFilter: ["class"],
-    attributeOldValue : true,
-    childList:       false,
-    subtree:         true,
+    attributes:        true,
+    attributeFilter:   ["class"],
+    attributeOldValue: true,
+    childList:         false,
+    subtree:           true,
   };
 
-  const addClassObserverOnCommonCntl    = () => {
+  const addClassObserverOnCommonCntl = () => {
     const topElem = videomaxGlobals.matchedCommonCntl.parentNode;
-    if (videomaxGlobals.observerClassMod || !topElem) {
+    if (videomaxGlobals.observerClassMod || !topElem || !USE_MUTATION_OBSERVER_ATTR) {
       return;
     }
 
     videomaxGlobals.observerClassMod = new MutationObserver((mutations, observer) => {
-      debugger;
-      trace("OBSERVER: installing class observer for element changes");
       // called when change happens. first disconnect to avoid recursions
       observer.disconnect();
       // check to see if things are in the process of going away. They might be.

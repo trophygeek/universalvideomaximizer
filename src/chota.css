@@ -1453,3 +1453,9 @@ li button.del-btn-sel {
 .is-italic {
   font-style: italic;
 }
+
+.is-disabled,
+.is-disabled:hover {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

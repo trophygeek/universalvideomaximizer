@@ -64,7 +64,7 @@ body::-webkit-scrollbar {
 }
 
 .videomax-ext-playback-controls,
-.videomax-ext-max .videomax-ext-playback-controls {
+.videomax-ext-max .videomax-ext-playback-overlap {
   width: calc(100vw) !important;
 }
 
@@ -80,9 +80,13 @@ body::-webkit-scrollbar {
   width: calc(100vw); /* center gets messed up when resizing. Top text still sometimes gets lost */
 }
 
-/* cnbc controls are at top without this */
-.videomax-ext-max .videomax-ext-playback-controls .jw-controls {
-  /*position: unset;*/
+/* cnbc jplayer controls are at top without this. Very fragile, but whatever */
+.videomax-ext-max .videomax-ext-overlap .jw-controlbar {
+  position: absolute !important;
+  opacity: 1 !important; /** cnbs's jplayer is so weird */
+}
+.customControls .jw-controlbar, .customControls .jw-controls {
+  opacity: 1 !important;  /** cnbs's jplayer is so weird */
 }
 
 /** 21May
@@ -100,3 +104,4 @@ body::-webkit-scrollbar {
   transition: unset !important;
   opacity: 0.01 !important; /* still can be measured */
 }
+
