@@ -29,7 +29,7 @@ body {
     top: 0;
     left: 0;
     height: max-content;
-    width: available;
+    width: fit-content;
 }
 
 
@@ -53,6 +53,7 @@ input[type="checkbox"] {
     opacity: 0;
     position: absolute;
     width: 0;
+    z-index: 1;
 }
 
 input[type="checkbox"]:first-of-type + label {
@@ -72,13 +73,15 @@ input[type="checkbox"]:not(:checked) + label {
 }
 
 input[type="checkbox"]:hover + label {
-    ouline: .25rem solid #2491ff;
+    outline: .25rem solid rgba(36, 145, 255, 0.8);
     outline-offset: 0;
+    z-index: 10;
 }
 
 input[type="checkbox"]:focus + label {
-    ouline: .25rem solid #2491ff;
+    outline: .25rem solid rgba(36, 145, 255, 0.5);
     outline-offset: 0;
+    z-index: 9;
 }
 
 input[type="checkbox"].closeicon + label {

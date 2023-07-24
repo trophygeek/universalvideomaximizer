@@ -22,37 +22,41 @@
       </div>
     </fieldset>
 
-    <fieldset>
+    <fieldset class="diableForSimpleChecked">
       <legend>Allow more access - whole site by default</legend>
       <div class="row col label">
         <input checked id="wholeDomainAccess" name="wholeDomainAccess" type="checkbox">
         <label for="wholeDomainAccess">
-          If zoom or speed controls don't work on a site, then try this first.
+          May help reduce the number of "rezooms" required to get all permission prompts from chrome.
         </label>
       </div>
       <div class="container">
-        <div class="row col">
+        <div class="row col is-italic">
+          <p><span class="emphasis">BETA USER FEEDBACK WANTED</span></p>
+          <p>Is this setting useful for anyone? I'm considering removing it if ends up being more confusing than helpful.</p>
           <p>Changes permissions prompt from:<br>
-          <samp> &nbsp; "Read and change your data on www.example.com"</samp><br>
-          to:<br>
-          <samp> &nbsp; "Read and change all your data on example.com sites"</samp>
+            <samp> &nbsp; "Read and change your data on www.example.com"</samp><br>
+            to:<br>
+            <samp> &nbsp; "Read and change all your data on example.com sites"</samp>
           </p>
           <p>
             Can help reduce the number of prompts per new site since you won't get prompted for "www.example.com" and
-            "static.example.com".
+            "static.example.com" separately.
           </p>
-          <p><span class="emphasis">Beta Testers</span> Is this level useful for anyone? I'm considering removing it if ends up being more confusing than helpful.</p>
+          <p>
+            Is the message difference more scary when it says "all your data"?
+          </p>
         </div>
       </div>
     </fieldset>
 
 
-    <fieldset>
+    <fieldset class="diableForSimpleChecked">
       <legend>Allow full access to all sites by default</legend>
       <div class="row col label">
         <input checked id="allSitesAccess" name="allSitesAccess" type="checkbox">
         <label for="allSitesAccess">
-          If Video Maximizer still won't work or security prompts annoy you, then use this setting.
+          If the security prompts annoy you OR Video Maximizer still won't work, then try this setting.
         </label>
       </div>
       <div class="container">
@@ -60,13 +64,13 @@
           This access should not be required, but is a fix-all. Once granted and accepted, it silences all further
           permissions prompting.<br/><br/>
           If you find a site that still doesn't work after enabling this setting, then consider reporting it via a <a
-              href="https://github.com/trophygeek/universalvideomaximizer/issues" rel="noreferrer" target="_blank">GitHub
+              href="https://github.com/trophygeek/universalvideomaximizer/issues" rel="noopener" target="_blank">GitHub
             issue ↗</a>.
         </div>
       </div>
     </fieldset>
 
-    <fieldset>
+    <fieldset class="diableForSimpleChecked">
       <legend>Playback skipping</legend>
       <div class="container padding-1">
         While Video Maximizer popup controls are displayed, you can use the arrow keys to skip playback.&nbsp;
@@ -108,7 +112,7 @@
       </div>
       <div class="container padding-1">
         If you want to have a hotkey to trigger VideoMaximizer, it's built into Chrome. <br/>See this
-        <a href="https://www.youtube.com/watch?v=s3SQVhbmj4c" rel="noreferrer" target="_blank">Youtube demo ↗</a>.
+        <a href="https://www.youtube.com/watch?v=s3SQVhbmj4c" rel="noopener" target="_blank">Youtube demo ↗</a>.
       </div>
       <!--        <div class="row col label">-->
       <!--          <input checked id="preportionalSkipTimes" name="preportionalSkipTimes" type="checkbox">-->
@@ -116,7 +120,7 @@
       <!--        </div>-->
     </fieldset>
 
-    <fieldset>
+    <fieldset class="diableForSimpleChecked">
       <legend>Speed controls only sites</legend>
       <div class="row col label">
         <label class="padding-1" for="nozoomlist">Sites that are already fullscreen, so VideoMax won't try to zoom
@@ -137,7 +141,7 @@
     <fieldset>
       <legend>Report problems</legend>
       <div class="row col bold">Report problems via &nbsp; <a
-          href="https://github.com/trophygeek/universalvideomaximizer/issues" rel="noreferrer" target="_blank">GitHub
+          href="https://github.com/trophygeek/universalvideomaximizer/issues" rel="noopener" target="_blank">GitHub
         issue ↗</a></div>
       <div class="container">
         <div class="wrap-collabsible">

@@ -1,6 +1,6 @@
 // @ts-check
 
-const FULL_DEBUG        = true;
+const FULL_DEBUG        = false;
 const DEBUG_ENABLED     = FULL_DEBUG;
 const TRACE_ENABLED     = FULL_DEBUG;
 const ERR_BREAK_ENABLED = FULL_DEBUG;
@@ -38,13 +38,13 @@ export const trace = (...args) => {
 export const SETTINGS_STORAGE_KEY = "settingsJson";
 
 // bumping this will cause the notification to show again. keep it pinned unless some major feature
-export const BETA_UPDATE_NOTIFICATION_VERISON = "74";
+export const BETA_UPDATE_NOTIFICATION_VERISON = "79";
 
 
 /* these are sites that are already zoomed, but playback speed is kind of nice */
-const DEFAULT_ZOOM_EXCLUSION_LIST = "amazon," + "hbomax," + "play.max," + "disneyplus," + "hulu," +
-                                    "netflix," + "tv.youtube," + "youku," + "bet," + "tv.apple," +
-                                    "play.google," + "peacocktv,";
+export const DEFAULT_ZOOM_EXCLUSION_LIST = "amazon," + "hbomax," + "play.max," + "disneyplus," +
+                                           "hulu," + "netflix," + "tv.youtube," + "youku," +
+                                           "bet," + "tv.apple," + "play.google," + "peacocktv,";
 
 /**
  * @type {SettingsType}
@@ -68,7 +68,7 @@ export const DEFAULT_SETTINGS = {
 export const getSettings = async () => {
   try {
     const result = await chrome?.storage?.local?.get();
-    if (!result[SETTINGS_STORAGE_KEY]?.length > 0) {
+    if (!result[SETTINGS_STORAGE_KEY]?.length) {
       return { ...DEFAULT_SETTINGS }; // make a copy
     }
     /** @type SettingsType **/
@@ -92,7 +92,7 @@ export const saveSettings = async (newSettings /** @type Promise<SettingsType>*/
     // if a user is using the "default" then the extension should be able to
     // change it in code in a future version.
     const keys = Object.keys(DEFAULT_SETTINGS);
-    for (let key of keys) {
+    for (const key of keys) {
       try {
         if (settings[key] === DEFAULT_SETTINGS[key]) {
           delete settings[key];
@@ -120,7 +120,7 @@ export const clearSettings = async () => {
  * @param str {string}
  * @returns {string}
  */
-export const numbericOnly = (str) => str.replace(/\n+/g, "");
+export const numbericOnly = (str) => str.replace(/[^0-9]+/g, "");
 
 /**
  * @param num {number}
@@ -136,19 +136,31 @@ export const rangeInt = (num, lower, upper) => Math.max(lower, Math.min(upper, n
  * @return {string}
  */
 export const getDomain = (url) => {
-  if (url.startsWith(`https://`) > 0) {
+  try {
+    if (!url.length) {
+      return url; // undefined and ""
+    }
+    if (url.startsWith(`blob:https://`)) {
+      // seen blob:https://example.com for iframe
+      url = url.substring("blob:".length);
+    }
+    if (!url.startsWith(`https://`)) {
+      url = `https://${url}`;
+    }
     return (new URL(url)).host.toLowerCase();
-  } else {
+  } catch (err) {
     return url;
   }
 };
 
 /**
- *
+ * Turn a comma list into array of strings
  * @param listStr {string}
  * @return {string[]}
  */
-export const listToArray = (listStr) => (listStr?.split(",") || []).filter(s => s?.length);
+export const listToArray = (listStr) => (listStr?.split(",") || [])
+  .map(s => s.trim())
+  .filter(s => s.length > 0);
 
 /**
  * Returns true if there are any overlaps between two arrays of strings.
@@ -159,55 +171,23 @@ export const listToArray = (listStr) => (listStr?.split(",") || []).filter(s => 
 export const intersection = (arrA, arrB) => arrA.filter(x => arrB.includes(x)).length > 0;
 
 /**
- *
- * @param url {string | undefined}
- * @returns {boolean}
- */
-export const alwaysExcluded = (url) => {
-  // there will be sites that request this extension NOT work with them.
-  // still building out this feature, but this is used for testing
-  const NOPE_DOMAINS_LIST = ["rt.com", "kremlin.ru", "prageru.com", "prage.ru"];
-  const NOPE_URL_LIST     = ["prageru"];  // maybe block all .ru propaganda related domains?
-
-  if (!url?.length) {
-    return false;
-  }
-  const urlParts = new URL(url);
-  const domain   = urlParts.host.toLowerCase();
-  const path     = urlParts.pathname.toLowerCase();
-  for (let elem of NOPE_DOMAINS_LIST) {
-    if (domain.indexOf(elem) >= 0) { // substring so www. prefix matches
-      logerr(`NOPE_DOMAINS_LIST match for "${url}"`);
-      return true;
-    }
-  }
-  // this wants to match against paths too.
-  const parts = path.split(/[^A-Za-z]/);
-  if (intersection(parts, NOPE_URL_LIST)) {
-    logerr(`NOPE_URL_LIST match for "${url}"`);
-    return true;
-  }
-  return false;
-};
-
-/**
  * @param domain {string}
  * @param zoomExclusionListStr {string}
  * @return {boolean}
  */
 export const isPageExcluded = (domain, zoomExclusionListStr) => {
   if (!domain?.length) {
-    // we don't have access to the url, check our current state
-    trace("isPageExcluded url is EMPTY");
     return false;
   }
-  // we want "hulu" to match "www.hulu.com" or "hulu.co.uk" but not "shulu.org"
-  // we flip the comparison around. but both are lowercase.
-  const domainParts  = domain.split(".");
   const excludedList = listToArray(zoomExclusionListStr);
-  if (intersection(domainParts, excludedList)) {
-    trace(`Excluded from zooming ${domain}`);
-    return true;
+  // tv.apple.com is the tricky part
+  for (const eachExcludedDomain of excludedList) {
+    // if it doesn't have a trailing . or .com then append a "."
+    const each = eachExcludedDomain.endsWith(".com") || eachExcludedDomain.endsWith(".") ?
+                 eachExcludedDomain : `${eachExcludedDomain}.`;
+    if (domain.includes(each)) {
+      return true;
+    }
   }
   return false;
 };
@@ -219,8 +199,17 @@ export const isPageExcluded = (domain, zoomExclusionListStr) => {
  * @return {string}
  */
 export const domainToSiteWildcard = (domainStr, wholeDomainAccess) => {
-  if (domainStr.indexOf("://") !== -1) {
+  if (!domainStr?.length) {
     return domainStr;
+  }
+  if (domainStr.startsWith("file:")) {
+    return domainStr;
+  }
+  if (domainStr.startsWith("chrome:")) {
+    return "";
+  }
+  if (domainStr.startsWith("https://") || domainStr.startsWith("blog:")) {
+    domainStr = getDomain(domainStr);
   }
   if (!wholeDomainAccess) {
     return `https://${domainStr}/`;

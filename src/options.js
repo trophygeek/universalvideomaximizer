@@ -104,6 +104,8 @@ const loadSettingsIntoFields = (settings) => {
   setChecked("wholeDomainAccess", settings.wholeDomainAccess);
   setChecked("allSitesAccess", settings.allSitesAccess);
 
+  disabledIfOldZoom();
+
   // list of no-zoom sites
   {
     /* Used to build list */
@@ -111,6 +113,7 @@ const loadSettingsIntoFields = (settings) => {
     const LI_START2 = LI_START + `<div class="col-1 is-left domain">`;
     const LI_END    = `</div><div class="col-10 is-right"><button name="removeBtn" class="delete-button">Remove</button></div></div></div></li>`;
     const listarr   = listToArray(settings.zoomExclusionListStr);
+    // noinspection UnnecessaryLocalVariableJS
     const list      = LI_START2 + listarr.join(LI_END + LI_START2) + LI_END;
 
     document.getElementById("nozoomlist").innerHTML = list;
@@ -159,6 +162,18 @@ const save = async () => {
   }
 };
 
+const disabledIfOldZoom = () => {
+  const useToggleZoomBehavior = getChecked("useToggleZoomBehavior");
+  const disableFields         = document.getElementsByClassName("diableForSimpleChecked");
+  for (const eachField of disableFields) {
+    if (useToggleZoomBehavior) {
+      eachField.classList.add("is-disabled");
+    } else {
+      eachField.classList.remove("is-disabled");
+    }
+  }
+};
+
 document.addEventListener("DOMContentLoaded", async () => {
   try {
     g_settings = await getSettings();
@@ -167,6 +182,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // show debug info
     const settingStr      = JSON.stringify(g_settings, null, 2);
     const manifestVersion = await getManifestVersion() || "[missing manifest version]";
+    // noinspection JSUnresolvedReference
     const userAgent       = JSON.stringify(navigator?.userAgentData, null, 2);
 
     document.getElementById("version").innerHTML = `
@@ -186,12 +202,13 @@ ${userAgent}
 
     document.getElementById("useToggleZoomBehavior")
       .addEventListener("click", async (_e) => {
+        disabledIfOldZoom();
         setTimeout(() => {
           if (getChecked("useToggleZoomBehavior")) {
             alert(`
 This will remove the speed controls.
 
-To access this Options page in the future, RIGHT-CLICK on this extension's icon in toolbar and select "options"`);
+To access this Option page in the future, RIGHT-CLICK on the extension's icon in toolbar and select "options"`);
           }
         }, 250);
       });

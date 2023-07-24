@@ -6,9 +6,22 @@
   "npmClient": "yarn",
   "devDependencies": {
     "@types/chrome": "^0.0.233",
-    "eslint": "^8.8.0",
+    "@typescript-eslint/eslint-plugin": "^6.1.0",
+    "@typescript-eslint/parser": "^6.1.0",
+    "babel-plugin-module-resolver": "^5.0.0",
+    "eslint": "^8.45.0",
+    "eslint-config-airbnb": "^19.0.4",
     "eslint-config-airbnb-base": "^15.0.0",
-    "eslint-plugin-import": "^2.25.4"
+    "eslint-config-prettier": "^8.8.0",
+    "eslint-import-resolver-babel-module": "^5.3.2",
+    "eslint-plugin-flowtype": "^8.0.3",
+    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-jsx-a11y": "^6.7.1",
+    "eslint-plugin-prettier": "^5.0.0",
+    "eslint-plugin-react": "^7.32.2",
+    "prettier": "^3.0.0",
+    "typescript": "^5.1.6",
+    "uvu": "^0.5.6"
   },
   "browserslist": {
     "production": [
@@ -21,11 +34,49 @@
   },
   "imports": {
     "#dep": {
-      "default": "./node_modules/@types/chrome/index.d.ts"
+      "default": "@types/index.d.ts",
+      "chrome": "./node_modules/@types/chrome/index.d.ts"
     }
   },
   "scripts": {
     "lint:eslint:write": "eslint --fix 'src/**/*.{js,ts,jsx,tsx}'",
+    "test": "uvu -r esbuild-register tests",
     "update": "git checkout -- yarn.lock && yarn install && yarn upgrade-interactive --lastest"
+  },
+  "eslintConfig": {
+    "env": {
+      "browser": true,
+      "es2022": true,
+      "es6": true,
+      "node": false
+    },
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "plugins": [
+      "@typescript-eslint",
+      "prettier"
+    ],
+    "extends": [
+      "airbnb-base",
+      "plugin:@typescript-eslint/recommended",
+      "plugin:import/errors",
+      "plugin:import/warnings",
+      "plugin:import/typescript",
+      "prettier"
+    ],
+    "rules": {
+      "no-inner-declarations": 0,
+      "no-restricted-syntax": 0,
+      "no-plusplus": 0,
+      "no-bitwise": 0,
+      "no-underscore-dangle": 0,
+      "camelcase": 0,
+      "no-continue": 0,
+      "no-use-before-define": 0,
+      "no-empty": 0
+    }
   }
 }

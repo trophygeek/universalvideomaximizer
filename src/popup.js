@@ -4,8 +4,8 @@ import { DEFAULT_SETTINGS, DEFAULT_SPEED, getSettings, logerr, trace } from "./c
 
 try {
   const BLOCKED_SKIP_DOMAINS = ["netflix."]; // skipping breaks these sites
-  const UNZOOM_LABEL = "[]";
-  const UNZOOM_ICON  = "./icons/icon19undo.png";
+  const UNZOOM_LABEL         = "[]";
+  const UNZOOM_ICON          = "./icons/icon19undo.png";
 
   const MENU = [{
     label: "⚙️️",
@@ -61,9 +61,9 @@ try {
     /** @type {String} */
     toggledSpeed: DEFAULT_SPEED,  // used when stopping/starting.
     /** @type {SettingsType} */
-    settings:   DEFAULT_SETTINGS, // onload will overwrite.
-    tabId:      "",
-    videofound: "",
+    settings:        DEFAULT_SETTINGS, // onload will overwrite.
+    tabId:           "",
+    videofound:      "",
     debounceTimerId: undefined,
   };
 
@@ -76,7 +76,7 @@ try {
   const checkItem = (itemValue) => {
     itemValue   = String(itemValue);
     const group = document.getElementById("speedBtnGroup");
-    for (let eachElem of group.children) {
+    for (const eachElem of group.children) {
       if (eachElem.type !== "checkbox") {
         continue;
       }
@@ -140,40 +140,37 @@ try {
     parent.classList.add("control-container");
 
     // could also interate by item id
-    for (let radioItem of parent.children) {
+    for (const radioItem of parent.children) {
       radioItem.addEventListener("keydown", (evt) => {
         trace("document.addEventListener keydown", evt);
-        switch (evt.code) {
-          case "Space":
-            if (globals.debounceTimerId) {
-              clearTimeout(globals.debounceTimerId);
-              globals.debounceTimerId = null;
+        if (evt.code === "Space") {
+          if (globals.debounceTimerId) {
+            clearTimeout(globals.debounceTimerId);
+            globals.debounceTimerId = null;
+          }
+          globals.debounceTimerId = setTimeout(() => {
+            // we toggle between a current speed and stop.
+            if ("0.00" !== globals.currentSpeed) {
+              // if we're not stopped
+              globals.toggledSpeed = globals.currentSpeed; // save the current speed.
+              globals.currentSpeed = "0.00"; // stop
+            } else {
+              // restore toggle speed.
+              globals.currentSpeed = globals.toggledSpeed;
             }
-            globals.debounceTimerId = setTimeout( () => {
-              const value = "0.00";
-              let speed   = globals.toggledSpeed;
-              if (value !== globals.currentSpeed) { // toggle speed
-                globals.toggledSpeed = globals.currentSpeed;
-                speed = value;
-              } else {
-                speed = globals.toggledSpeed;
-              }
-              globals.currentSpeed = speed;
 
-              checkItem(speed);
-              /** @type {string} */
-              chrome.runtime.sendMessage({
-                message: {
-                  cmd: "SET_SPEED_CMD",
-                  domain: globals.domain,
-                  speed,
-                  tabId,
-                },
-              });
-            }, 10);
-
-            evt.stopImmediatePropagation();
-            break;
+            checkItem(globals.currentSpeed);
+            /** @type {string} */
+            chrome.runtime.sendMessage({
+              message: {
+                cmd:    "SET_SPEED_CMD",
+                domain: globals.domain,
+                speed:  globals.currentSpeed,
+                tabId,
+              },
+            });
+          }, 10);
+          evt.stopImmediatePropagation();
         }
       });
 
@@ -191,9 +188,9 @@ try {
           if (value === "OPTIONS_BTN_CMD") {
             chrome.runtime.sendMessage({
               message: {
-                cmd:   "OPTIONS_CMD",
+                cmd:    "OPTIONS_CMD",
                 domain: globals.domain,
-                speed: globals.currentSpeed,
+                speed:  globals.currentSpeed,
                 tabId,
               },
             }, (_response) => {
@@ -235,10 +232,10 @@ try {
     // The page could have been UNZOOMED by the escape key and everything could be out of sync
     chrome.runtime.sendMessage({
       message: {
-        cmd:   "REZOOM_CMD", // SET_SPEED_CMD
+        cmd:    "SET_SPEED_CMD",
         domain: globals.domain,
-        speed: globals.currentSpeed,
-        tabId: globals.tabId,
+        speed:  globals.currentSpeed,
+        tabId:  globals.tabId,
       },
     });
   };
@@ -265,13 +262,13 @@ try {
                                  globals.settings.longSkipSeconds :
                                  globals.settings.regSkipSeconds;
         // currentSpeed could be zero, so floor it to 0.25
-        const relativeTimeBack = skipSecBack * (Math.max(globals.currentSpeed, 0.25)) * -1;
+        const relativeTimeBack = skipSecBack * (Math.max(parseFloat(globals.currentSpeed), 0.25)) * -1;
         chrome.runtime.sendMessage({
           message: {
-            cmd:   "SKIP_PLAYBACK_CMD",
+            cmd:    "SKIP_PLAYBACK_CMD",
             domain: globals.domain,
-            speed: String(relativeTimeBack),
-            tabId: globals.tabId,
+            speed:  String(relativeTimeBack),
+            tabId:  globals.tabId,
           },
         });
         evt.stopImmediatePropagation();
@@ -287,13 +284,13 @@ try {
                                 globals.settings.longSkipSeconds :
                                 globals.settings.regSkipSeconds;
         // currentSpeed could be zero, so floor it to 0.25
-        const relativeTimeFwd = skipSecFwd * (Math.max(globals.currentSpeed, 0.25));
+        const relativeTimeFwd = skipSecFwd * (Math.max(parseFloat(globals.currentSpeed), 0.25));
         chrome.runtime.sendMessage({
           message: {
-            cmd:   "SKIP_PLAYBACK_CMD",
+            cmd:    "SKIP_PLAYBACK_CMD",
             domain: globals.domain,
-            speed: String(relativeTimeFwd),
-            tabId: globals.tabId,
+            speed:  String(relativeTimeFwd),
+            tabId:  globals.tabId,
           },
         });
         evt.stopImmediatePropagation();

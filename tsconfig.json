@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "outDir": "build",
+    "target": "ES2023",
+    "module": "ES6",
+    "noImplicitAny": true,
+    "moduleResolution": "node",
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": [
+    "@types/**/*",
+    "src/**/*",
+    "node_modules/@types/**/*",
+  ],
+  "exclude": [
+  ]
+}
