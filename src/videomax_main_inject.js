@@ -8,7 +8,8 @@ try { // scope and prevent errors from leaking out to page.
   // this will put add the score as an attribute for
   // elements across revisions, the zoomed page's html can
   // be diffed. This is for debugging and unit testing.
-  const EMBED_SCORES = false;
+  const EMBED_SCORES = FULL_DEBUG;
+  const COMMON_PARENT_SCORES = FULL_DEBUG;
 
   // experiments - keep these settings to regression check various fixes across sites
   // What fixes one site often breaks another.
@@ -654,6 +655,8 @@ try { // scope and prevent errors from leaking out to page.
     }
   }
 
+  let containDbgMsg = "";
+
   /**
    * we going to work our way up looking for some element that has a bunch of children but few
    * siblings. We're only going to search up (CHECK_PARENTS_LEVELS_UP_MAX) elements, then give
@@ -677,37 +680,65 @@ try { // scope and prevent errors from leaking out to page.
     const videoElem = videomaxGlobals.matchedVideo;
     const videoRect = videomaxGlobals.matchVideoRect;
 
-    const countChildren = (e, recurseOnce = true) => {
+    const countChildren = (e, recurseFirst = true, runningCount = 0) => {
       const checkChildren = [...e?.children].filter(e => !isIgnoredNode(e));
       // now we check how many are absolute positioned. These get 2x weight.
-      let result          = 0;
 
-      if (recurseOnce) {
+      if (recurseFirst) {
         const matches = [...e.querySelectorAll(`[role="slider"]`),
                          ...e.querySelectorAll(`[role="presentation"]`)];
-        result += matches.length;
+        runningCount += matches.length;
+        if (COMMON_PARENT_SCORES) {
+          containDbgMsg += `\n Slider count: +${matches.length} result:${runningCount}`;
+        }
+
+        // Tubi is horrible about 508 accessiblity. It just uses <svg> for all controls.
+        // It also removes the elements when they aren't active, so they are impossible to find.
+        // example how to select if they weren't hidden
+        // const volSgvCount   = [...e.querySelectorAll(`svg > title`)].filter(
+        //   (e) => e?.innerHTML?.toLowerCase().includes("volume")).length;
       }
 
+      let index = 0; // used for debugging only.
       for (const eachChild of checkChildren) {
+        index++;
         const compStyleElem = getElemComputedStyle(eachChild); // $$$
         const rect          = getCoords(eachChild);
         if (isBoundedRect(videoRect, rect)) {
-          result++;
+          runningCount++;
+          if (COMMON_PARENT_SCORES) {
+            containDbgMsg += `\n ${recurseFirst ?
+                                   "" :
+                                   "\t"} #${index}\t isBoundedRect: \t +1 result: \t ${runningCount}`;
+          }
         }
         if (compStyleElem.position === "absolute") {
-          result++;
+          runningCount++;
+          if (COMMON_PARENT_SCORES) {
+            containDbgMsg += `\n ${recurseFirst ?
+                                   "" :
+                                   "\t"} #${index}\t absPosition:   \t +1 result: \t ${runningCount}`;
+          }
         }
         if (compStyleElem.transform?.includes("ease")) {
-          result++;
+          runningCount++;
+          if (COMMON_PARENT_SCORES) {
+            containDbgMsg += `\n  ${recurseFirst ?
+                                    "" :
+                                    "\t"} #${index}\t transforeEase: \t +1 result: \t ${runningCount}`;
+          }
         }
         ///
-        if (recurseOnce) {
+        if (recurseFirst) {
           // we recurse ONCE. Youtube and plutoTV put controls one level down.
-          result += countChildren(eachChild, false);
+          runningCount = countChildren(eachChild, false, runningCount);
         }
       }
-      // trace(`\t\tcountChildren: ${result}`, e);
-      return result;
+      if (COMMON_PARENT_SCORES && recurseFirst === false) {
+        trace(`${containDbgMsg}\nTotal:${runningCount}`, e);
+        containDbgMsg = "";
+      }
+      return runningCount;
     };
 
     const savedWalkerCurrentNode = walker.currentNode; //restore at end
@@ -738,6 +769,13 @@ try { // scope and prevent errors from leaking out to page.
 
     // done, restore
     walker.currentNode = savedWalkerCurrentNode;
+
+    // tubi is an exception since they use non-508 friendly playback controls.
+    //
+    if (document.location.host.includes("tubitv.")) {
+      trace("tubi specialcase using parent.");
+      bestMatch = bestMatch?.parentNode;
+    }
 
     videomaxGlobals.matchedCommonCntl = bestMatch;
 
@@ -1628,11 +1666,12 @@ try { // scope and prevent errors from leaking out to page.
 
   const NEVERHIDEMATCHES       = [new RegExp(/ytp-ad-module/i), // youtube skip add
                                   new RegExp(/mgp_ccContainer/i), // pornhub cc
+                                  new RegExp(/web-player-icon-resize/i), // tubi's non-508 playback
   ];
   const isSpecialCaseNeverHide = (elem) => {
     const neverHideElem = smellsLikeMatch(elem, NEVERHIDEMATCHES);
     if (neverHideElem) {
-      trace("Don't match youtube ad-skip");
+      trace("isSpecialCaseNeverHide skip");
       return false;
     }
   };
