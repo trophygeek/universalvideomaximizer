@@ -683,7 +683,8 @@ try { // scope and prevent errors from leaking out to page.
       let result          = 0;
 
       if (recurseOnce) {
-        const matches = [...e.querySelectorAll(`[role="slider"]`), ...e.querySelectorAll(`[role="presentation"]`)];
+        const matches = [...e.querySelectorAll(`[role="slider"]`),
+                         ...e.querySelectorAll(`[role="presentation"]`)];
         result += matches.length;
       }
 
@@ -723,7 +724,10 @@ try { // scope and prevent errors from leaking out to page.
         break;
       }
       const weight = countChildren(walker.currentNode);
-      trace(`findCommonContainerFromMatched ${weight > bestMatchWeight ? "NEW BEST" : ""} \n\t weight:${weight} \n\t ${PrintNode(walker.currentNode)} \n\t`, walker.currentNode);
+      trace(`findCommonContainerFromMatched ${weight > bestMatchWeight ?
+                                              "NEW BEST" :
+                                              ""} \n\t weight:${weight} \n\t ${PrintNode(
+        walker.currentNode)} \n\t`, walker.currentNode);
       if (weight > bestMatchWeight) {
         bestMatchWeight = weight;
         bestMatch       = walker.currentNode; // we've already moved to parentNode()
@@ -1225,17 +1229,16 @@ try { // scope and prevent errors from leaking out to page.
     const orgValue           = safeGetAttribute(node, attributeNameLower) || "";
     if (!orgValue.length) {
       // nothing to save
-      trace(`    saveAttribute '${attributeNameLower}' empty, nothing to save`, node);
+      // trace(`    saveAttribute '${attributeNameLower}' empty, nothing to save`, node);
       return false;
     }
     const startingdata = safeGetAttribute(node, VIDEO_MAX_DATA_ATTRIB_UNDO);
     const jsondata     = JSON.parse(startingdata || "{}");
     if (Object.keys(jsondata)
       .includes(attributeNameLower)) {
-      // already been saved bail
-      trace(`    saveAttribute '${attributeNameLower}' already saved, not overwriting `, node,
-        jsondata);
-      return false;
+      // already been saved merging
+      trace(`    saveAttribute '${attributeNameLower}' already saved, merging `, node, jsondata);
+      restoreSavedAttribute(node); // restore merges,
     }
 
     // ok merge in and save
@@ -1360,7 +1363,7 @@ try { // scope and prevent errors from leaking out to page.
         }
       }
       const loopDetect = current;
-      current = parentNode(current);
+      current          = parentNode(current);
       if (loopDetect === current) {  // pornhub
         break;
       }
@@ -1438,7 +1441,9 @@ try { // scope and prevent errors from leaking out to page.
    * @return {boolean}
    */
   const hasInjectedAlready = () => {
-    const matched = document.querySelectorAll(`video[class*="${PLAYBACK_VIDEO_MATCHED_CLASS}"]`);
+    const matched = [...document.querySelectorAll(
+      `video[class*="${PLAYBACK_VIDEO_MATCHED_CLASS}"]`),
+                     ...document.querySelectorAll(`video[class*="videomax-ext-video-matched"]`)];
     return matched.length > 0;
   };
 
@@ -1950,10 +1955,10 @@ try { // scope and prevent errors from leaking out to page.
         if (EMBED_SCORES) {
           traceweights.push(`  Distances: ${distances.map(n => fmtFlt.format(n))
             .join(",")}`);
-          traceweights.push(`  inverseDist: ${fmtInt.format(
-            START_WEIGHT * inverseDist * RATIO_WEIGHT)} Weight:${RATIO_WEIGHT}`);
-          traceweights.push(`  dimensions: ${fmtInt.format(
-            START_WEIGHT * videoSize * SIZE_WEIGHT)} Weight:${SIZE_WEIGHT}`);
+          traceweights.push(`  inverseDist: RATIO_WEIGHT:${RATIO_WEIGHT} Weight:${fmtInt.format(
+            START_WEIGHT * inverseDist * RATIO_WEIGHT)}`);
+          traceweights.push(`  dimensions: SIZE_WEIGHT: ${SIZE_WEIGHT} Weight:${fmtInt.format(
+            START_WEIGHT * videoSize * SIZE_WEIGHT)}`);
         }
       }
 
@@ -1962,7 +1967,7 @@ try { // scope and prevent errors from leaking out to page.
         if (EMBED_SCORES) {
           traceweights.push(`  ORDER_WEIGHT: ${fmtInt.format(
             START_WEIGHT * -1 * videomaxGlobals.match_counter *
-            ORDER_WEIGHT)} Weight:${ORDER_WEIGHT} Order: ${videomaxGlobals.match_counter}`);
+            ORDER_WEIGHT)} Order: ${videomaxGlobals.match_counter} Weight:${ORDER_WEIGHT}`);
         }
       }
       // try to figure out if iframe src looks like a video link.
@@ -1987,8 +1992,8 @@ try { // scope and prevent errors from leaking out to page.
         // espn makes the zindex for ads crazy large and breaks things, cap it.
         const zindex = Math.min(safeParseInt(compStyle?.zIndex), 100);
         if (EMBED_SCORES) {
-          traceweights.push(`  ZINDEX_WEIGHT: ${fmtInt.format(
-            START_WEIGHT * zindex * ZINDEX_WEIGHT)} Weight:${ZINDEX_WEIGHT}`);
+          traceweights.push(`  ZINDEX_WEIGHT: ${ZINDEX_WEIGHT} Weight:${fmtInt.format(
+            START_WEIGHT * zindex * ZINDEX_WEIGHT)}`);
         }
         weight += (START_WEIGHT * zindex * ZINDEX_WEIGHT); // zindex is tricky, could be "1" or
         // "1000000"
@@ -2014,8 +2019,8 @@ try { // scope and prevent errors from leaking out to page.
       if (tabindex !== "") {
         // this is a newer thing for accessibility, it's a good indicator
         if (EMBED_SCORES) {
-          traceweights.push(`  TAB_INDEX_WEIGHT: ${fmtInt.format(
-            -1 & START_WEIGHT * TAB_INDEX_WEIGHT)} Weight:${TAB_INDEX_WEIGHT}`);
+          traceweights.push(`  TAB_INDEX_WEIGHT: ${TAB_INDEX_WEIGHT} Weight:${fmtInt.format(
+            -1 & START_WEIGHT * TAB_INDEX_WEIGHT)}`);
         }
         weight += (-1 * START_WEIGHT * TAB_INDEX_WEIGHT);
       }
@@ -2024,8 +2029,9 @@ try { // scope and prevent errors from leaking out to page.
       if (allowfullscreenAttr?.length) {
         weight += (START_WEIGHT * ALLOW_FULLSCREEN_WEIGHT);
         if (EMBED_SCORES) {
-          traceweights.push(`  ALLOW_FULLSCREEN_WEIGHT: ${fmtInt.format(
-            START_WEIGHT * ALLOW_FULLSCREEN_WEIGHT)} Weight:${ALLOW_FULLSCREEN_WEIGHT}`);
+          traceweights.push(
+            `  ALLOW_FULLSCREEN_WEIGHT: ${ALLOW_FULLSCREEN_WEIGHT} Weight:${fmtInt.format(
+              START_WEIGHT * ALLOW_FULLSCREEN_WEIGHT)}`);
         }
       }
 
@@ -2034,16 +2040,18 @@ try { // scope and prevent errors from leaking out to page.
         /** @type {HTMLMediaElement} **/
         const videoElem = elem;
         if (EMBED_SCORES) {
-          traceweights.push(`  VIDEO_OVER_IFRAME_WEIGHT: ${fmtInt.format(
-            START_WEIGHT * VIDEO_OVER_IFRAME_WEIGHT)} Weight:${VIDEO_OVER_IFRAME_WEIGHT}`);
+          traceweights.push(
+            `  VIDEO_OVER_IFRAME_WEIGHT: ${VIDEO_OVER_IFRAME_WEIGHT} Weight:${fmtInt.format(
+              START_WEIGHT * VIDEO_OVER_IFRAME_WEIGHT)}`);
         }
         weight += (START_WEIGHT * VIDEO_OVER_IFRAME_WEIGHT);
 
         // if a video, lets see if it's actively playing
         if (videoElem.paused === false) {
           if (EMBED_SCORES) {
-            traceweights.push(`  VIDEO_PLAYING: ${fmtInt.format(START_WEIGHT *
-                                                                VIDEO_PLAYING_WEIGHT)} Paused:${videoElem.paused} Weight:${VIDEO_PLAYING_WEIGHT}`);
+            traceweights.push(
+              `  VIDEO_PLAYING: ${VIDEO_PLAYING_WEIGHT} Paused:${videoElem.paused} Weight:${fmtInt.format(
+                START_WEIGHT * VIDEO_PLAYING_WEIGHT)}`);
           }
           weight += (START_WEIGHT * VIDEO_PLAYING_WEIGHT);
         }
@@ -2051,8 +2059,7 @@ try { // scope and prevent errors from leaking out to page.
         // video length
         const duration = Math.min((videoElem.duration || 0), MAX_DURATION_SECS);
         if (EMBED_SCORES) {
-          traceweights.push(`  VIDEO_DURATION: ${fmtInt.format(
-            START_WEIGHT * VIDEO_DURATION_WEIGHT * duration)} Duration:${fmtFlt.format(
+          traceweights.push(`  VIDEO_DURATION: ${VIDEO_DURATION_WEIGHT} Duration:${fmtFlt.format(
             duration)}s Weight:${fmtFlt.format(START_WEIGHT * VIDEO_DURATION_WEIGHT * duration)}`);
         }
         weight += (START_WEIGHT * VIDEO_DURATION_WEIGHT * duration);
@@ -2060,8 +2067,9 @@ try { // scope and prevent errors from leaking out to page.
         // looping
         if (videoElem.loop === false) {
           if (EMBED_SCORES) {
-            traceweights.push(`  VIDEO_NO_LOOP: ${fmtInt.format(START_WEIGHT *
-                                                                VIDEO_NO_LOOP_WEIGHT)} loop:${videoElem.loop} Weight:${VIDEO_NO_LOOP_WEIGHT}`);
+            traceweights.push(
+              `  VIDEO_NO_LOOP_WEIGHT:${VIDEO_NO_LOOP_WEIGHT} loop:${videoElem.loop} weight: ${fmtInt.format(
+                START_WEIGHT * VIDEO_NO_LOOP_WEIGHT)}`);
           }
           weight += (START_WEIGHT * VIDEO_NO_LOOP_WEIGHT);
         }
@@ -2069,8 +2077,9 @@ try { // scope and prevent errors from leaking out to page.
         // has audio
         if (videoElem.muted === false) {
           if (EMBED_SCORES) {
-            traceweights.push(`  VIDEO_HAS_SOUND: ${fmtInt.format(START_WEIGHT *
-                                                                  VIDEO_HAS_SOUND_WEIGHT)} muted:${videoElem.muted} Weight:${VIDEO_HAS_SOUND_WEIGHT}`);
+            traceweights.push(
+              `  VIDEO_HAS_SOUND_WEIGHT:${VIDEO_HAS_SOUND_WEIGHT} muted:${videoElem.muted}  weight: ${fmtInt.format(
+                START_WEIGHT * VIDEO_HAS_SOUND_WEIGHT)}`);
           }
           weight += (START_WEIGHT * VIDEO_HAS_SOUND_WEIGHT);
         }
@@ -2078,8 +2087,9 @@ try { // scope and prevent errors from leaking out to page.
 
       if (!isRunningInIFrame()) {
         if (EMBED_SCORES) {
-          traceweights.push(`  MAIN_FRAME_WEIGHT (running in main): ${fmtInt.format(
-            START_WEIGHT * MAIN_FRAME_WEIGHT)} Weight:${MAIN_FRAME_WEIGHT}`);
+          traceweights.push(
+            `  MAIN_FRAME_WEIGHT (running in main) MAIN_FRAME_WEIGHT:${MAIN_FRAME_WEIGHT}  weight: ${fmtInt.format(
+              START_WEIGHT * MAIN_FRAME_WEIGHT)} `);
         }
         weight += (START_WEIGHT * MAIN_FRAME_WEIGHT);
       }
@@ -2098,16 +2108,25 @@ try { // scope and prevent errors from leaking out to page.
                 (elemUrl.startsWith("https://") || elemUrl.startsWith("blob:https://"))) {
               const pageParts    = splitUrlWords(pageUrl);
               const urlParts     = splitUrlWords(elemUrl);
-              const overlap      = getOverlapCount(pageParts, urlParts);
-              const avgCount     = (pageParts.length + urlParts.length) / 2.0;
-              const overlapRatio = overlap / avgCount;
+              const overlapCount = getOverlapCount(pageParts, urlParts);
+              const count        = Math.max(1, pageParts.length);
+              const avgCount     = (count + count) / 2.0;
+              const overlapRatio = overlapCount / avgCount;
               if (EMBED_SCORES) {
-                traceweights.push(`  URL_OVERLAP_WEIGHT: ${fmtInt.format(
-                  START_WEIGHT * URL_OVERLAP_WEIGHT *
-                  overlapRatio)} Weight:${URL_OVERLAP_WEIGHT} Count:${overlap} OverlapRatio:${fmtFlt.format(
-                  overlapRatio)}`);
+                traceweights.push(
+                  `  URL_OVERLAP_WEIGHT: ${URL_OVERLAP_WEIGHT} Count:${overlapCount} OverlapRatio:${fmtFlt.format(
+                    overlapRatio)} Weight:${fmtInt.format(
+                    START_WEIGHT * URL_OVERLAP_WEIGHT * overlapRatio)}`);
               }
               weight += (START_WEIGHT * URL_OVERLAP_WEIGHT * overlapRatio);
+
+              const negOverlapCount = getOverlapCount(["disqus"], urlParts);
+              if (EMBED_SCORES) {
+                traceweights.push(
+                  `  URL_OVERLAP_WEIGHT (neg): -${URL_OVERLAP_WEIGHT} Count:${negOverlapCount} Weight:-${fmtInt.format(
+                    START_WEIGHT * URL_OVERLAP_WEIGHT * negOverlapCount)}`);
+              }
+              weight -= (START_WEIGHT * URL_OVERLAP_WEIGHT * negOverlapCount);
             }
           }
         } catch (err) {
@@ -2124,10 +2143,10 @@ try { // scope and prevent errors from leaking out to page.
           const overlap      = getOverlapCount(titleParts, elemParts);
           const overlapRatio = overlap / titleParts.length;
           if (EMBED_SCORES) {
-            traceweights.push(`USE_TITLE_OVERLAP_WEIGHT: ${fmtFlt.format(
-              START_WEIGHT * TITLE_OVERLAP_WEIGHT *
-              overlapRatio)} Weight:${TITLE_OVERLAP_WEIGHT} Count:${overlap} OverlapRatio:${fmtFlt.format(
-              overlapRatio)}`);
+            traceweights.push(
+              `USE_TITLE_OVERLAP_WEIGHT: ${USE_TITLE_OVERLAP_WEIGHT} Count:${overlap} OverlapRatio:${fmtFlt.format(
+                overlapRatio)} weight: ${fmtFlt.format(
+                START_WEIGHT * TITLE_OVERLAP_WEIGHT * overlapRatio)}`);
           }
           weight += (START_WEIGHT * TITLE_OVERLAP_WEIGHT * overlapRatio);
         } catch (err) {
@@ -2380,8 +2399,18 @@ try { // scope and prevent errors from leaking out to page.
       return false;
     }
 
+    if (videomaxGlobals.isMaximized) {
+      trace(`doZoomPage videomaxGlobals.isMaximized=true, NOT running.`);
+      return true;
+    }
+
     const reinstall = hasInjectedAlready();
-    trace(`mainFixPage readystate = ${document.readyState}  reinstall=${reinstall}`);
+    trace(`doZoomPage readystate = ${document.readyState}  reinstall=${reinstall}`);
+
+    if (DEBUG_ENABLED && videomaxGlobals.isMaximized === false && reinstall) {
+      trace("Something's weird. isMaximized=false but hasInjectedAlready()=true");
+    }
+
 
     videomaxGlobals.match_counter = 0;
 
@@ -2404,36 +2433,37 @@ try { // scope and prevent errors from leaking out to page.
         block:  "center",
         inline: "center",
       });
-    }
 
-    // mark it with a class.
-    tagElementAsMatchedVideo(bestMatch);
 
-    const bestMatchCount = videomaxGlobals.elementMatcher.getBestMatchCount();
-    if (bestMatchCount > 1) {
-      trace(`FOUND TOO MANY VIDEOS ON PAGE? #${bestMatchCount}`);
-      if (DEBUG_ENABLED) {
-        debugger;
+      // mark it with a class.
+      tagElementAsMatchedVideo(bestMatch);
+
+      const bestMatchCount = videomaxGlobals.elementMatcher.getBestMatchCount();
+      if (bestMatchCount > 1) {
+        trace(`FOUND TOO MANY VIDEOS ON PAGE? #${bestMatchCount}`);
+        if (DEBUG_ENABLED) {
+          debugger;
+        }
+      } else {
+        trace("Final Best Matched Element: ", bestMatch.nodeName, bestMatch);
       }
-    } else {
-      trace("Final Best Matched Element: ", bestMatch.nodeName, bestMatch);
-    }
-    if (!isRunningInIFrame() && bestMatchCount > 0) {
-      // only install from main page once. Because we inject for each iframe, this can
-      // get called multiple times. The listener is on window.document, so it only needs
-      // to be installed once for the main frame.
-      updateEventListeners(bestMatch);
-    }
+      if (!isRunningInIFrame() && bestMatchCount > 0) {
+        // only install from main page once. Because we inject for each iframe, this can
+        // get called multiple times. The listener is on window.document, so it only needs
+        // to be installed once for the main frame.
+        updateEventListeners(bestMatch);
+      }
 
-    if (EMBED_SCORES) {
-      // append the final results of what was discovered.
-      appendSelectorItemsToResultInfo("=Main Video=", `.${PREFIX_CSS_CLASS}-video-matched`);
-      appendSelectorItemsToResultInfo("=Playback controls=",
-        `.${PREFIX_CSS_CLASS}-playback-controls`);
-      appendUnitTestResultInfo("==========DONE==========\n\n");
-    }
+      if (EMBED_SCORES) {
+        // append the final results of what was discovered.
+        appendSelectorItemsToResultInfo("=Main Video=", `.${PREFIX_CSS_CLASS}-video-matched`);
+        appendSelectorItemsToResultInfo("=Playback controls=",
+          `.${PREFIX_CSS_CLASS}-playback-controls`);
+        appendUnitTestResultInfo("==========DONE==========\n\n");
+      }
 
-    videomaxGlobals.isMaximized = true;
+      videomaxGlobals.isMaximized = true;
+    }
 
     // this timer will hide everything
     if (videomaxGlobals.tagonly) {
