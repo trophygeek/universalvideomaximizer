@@ -38,6 +38,8 @@ body::-webkit-scrollbar {
   position: fixed !important;
   /* added 20Jun23 iframes not aligning */
   align-content: center !important;
+  /* added 18Jun23 */
+  opacity: 1.0 !important;
 }
 
 .videomax-ext-hide,
@@ -89,7 +91,7 @@ body::-webkit-scrollbar {
   opacity: 1 !important;  /** cnbs's jplayer is so weird */
 }
 
-/** 21May
+/** 2021May
   espn uses some strange loading spinner background image that needs some extra spec to override */
 .videomax-ext-max:after,
 .videomax-ext-max .videomax-ext-max:after,
@@ -97,11 +99,18 @@ body::-webkit-scrollbar {
   background: transparent !important;
 }
 
-/* Finding playback controls is easier if they are visible.
-   Add this class, check the control, remove it. */
-.videomax-ext-prep-remove-transform-temp {
-  transform: unset !important;
-  transition: unset !important;
-  opacity: 0.01 !important; /* still can be measured */
+/**
+  hclip doesn't autohide some playback control items, do it for them.
+ */
+.videomax-ext-overlap .jw-related-toggle-button {
+  display: none !important;
+}
+
+/**
+  Youtube "subscribe buttons" can sometimes be always displayed (an animated). Hide them while in theater mode
+ */
+div.videomax-ext-overlap > .ytp-chrome-top-buttons,
+div.videomax-ext-overlap > .ytp-share-button {
+  display: none !important;
 }
 

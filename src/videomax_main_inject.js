@@ -8,8 +8,9 @@ try { // scope and prevent errors from leaking out to page.
   // this will put add the score as an attribute for
   // elements across revisions, the zoomed page's html can
   // be diffed. This is for debugging and unit testing.
-  const EMBED_SCORES = FULL_DEBUG;
+  const EMBED_SCORES         = FULL_DEBUG;
   const COMMON_PARENT_SCORES = FULL_DEBUG;
+  const DEBUG_HIDENODE       = FULL_DEBUG;
 
   // experiments - keep these settings to regression check various fixes across sites
   // What fixes one site often breaks another.
@@ -29,6 +30,8 @@ try { // scope and prevent errors from leaking out to page.
   const ONLY_RUN_AFTER_DOC_LOADED   = true; // set to false and test
   const IFRAME_PARENT_NODE_WORKS    = true;
   const USE_MUTATION_OBSERVER_ATTR  = true;
+  const INCLUDE_TRANSITION_MATCHING = false;
+  const ADD_TRANSITION_MARKER       = true;
 
 
   const MIN_IFRAME_WIDTH  = 320;
@@ -83,22 +86,44 @@ try { // scope and prevent errors from leaking out to page.
 
 
   // smp-toucan-player is some random bbc player. object is the old flash player.
-  const VIDEO_NODES                 = ["video", "object", "embed", "iframe", "smp-toucan-player"];
+  const VIDEO_NODES                         = ["video",
+                                               "object",
+                                               "embed",
+                                               "iframe",
+                                               "smp-toucan-player"];
   /** @type {HtmlElementTypes} */
-  const ALWAYS_HIDE_NODES           = ["footer", "header", "nav"];  // aside needed for 9anime
+  const ALWAYS_HIDE_NODES                   = ["footer", "header", "nav"];  // aside needed for
+                                                                            // 9anime
   /** @type {HtmlElementTypes} */
-  const STOP_NODES                  = ["head", "body", "html"];  // stop when walking up parents
+  const STOP_NODES                          = ["head", "body", "html"];  // stop when walking up
+                                                                         // parents
   /** @type {HtmlElementTypes} */
-  const IGNORE_NODES                = ["noscript", "script", "head", "link", "style", "hmtl", "ul"];
+  const IGNORE_NODES                        = ["noscript",
+                                               "script",
+                                               "head",
+                                               "link",
+                                               "style",
+                                               "hmtl"];
   /** @type {HtmlElementTypes} */
-  const IGNORE_CNTL_NODES           = [...IGNORE_NODES,
-                                       ...ALWAYS_HIDE_NODES,
-                                       "head",
-                                       "body",
-                                       "html",
-                                       "iframe"];
+  const IGNORE_CNTL_NODES                   = [...IGNORE_NODES,
+                                               ...ALWAYS_HIDE_NODES,
+                                               "head",
+                                               "body",
+                                               "html",
+                                               "iframe"];
   /** @type {HtmlElementTypes} */
-  const STOP_NODES_COMMON_CONTAINER = [...IGNORE_CNTL_NODES, "main"];
+  const STOP_NODES_COMMON_CONTAINER         = [...IGNORE_CNTL_NODES, "main", "section", "article"];
+  const IGNORE_COMMON_CONTAINER_COUNT_NODES = [...IGNORE_CNTL_NODES,
+                                               "ul",
+                                               "ol",
+                                               "li",
+                                               "h1",
+                                               "h2",
+                                               "h3",
+                                               "h4",
+                                               "h5",
+                                               "h6",
+                                               "span"];
 
   const CSS_STYLE_HEADER_ID = "maximizier-css-inject";
 
@@ -114,8 +139,8 @@ try { // scope and prevent errors from leaking out to page.
   const PLAYBACK_CNTLS_CSS_CLASS             = `${PREFIX_CSS_CLASS_PREP}-playback-controls`;
   const PLAYBACK_CNTLS_FULL_HEIGHT_CSS_CLASS = `${PLAYBACK_CNTLS_CSS_CLASS}-fullheight`;
   const PLAYBACK_VIDEO_MATCHED_CLASS         = `${PREFIX_CSS_CLASS_PREP}-video-matched`;
-  const MARKER_COMMON_CONTAINER_CLASS        = `${PREFIX_CSS_CLASS_PREP}-container-common`;
-
+  const MARKER_COMMON_CONTAINER_CLASS        = `${PREFIX_CSS_CLASS}-container-common`;
+  const MARKER_TRANSITION_CLASS              = `${PREFIX_CSS_CLASS}-trans`;
 
   const SCALESTRING_WIDTH  = "100%"; // "calc(100vw)";
   const SCALESTRING_HEIGHT = "100%"; // "calc(100vh)";
@@ -218,8 +243,8 @@ try { // scope and prevent errors from leaking out to page.
     }
     const path   = url.split("://")[1] || url;
     const noArgs = path.split("?")[0] || path;
-    return noArgs.split(/[^A-Z0-9]+/i)
-      .filter(s => s.length > 0);
+    return [...noArgs.split(/[^A-Z0-9]+/i)
+      .filter(s => s.length > 0)];
   };
 
   /**
@@ -282,21 +307,25 @@ try { // scope and prevent errors from leaking out to page.
    * @return {undefined|HTMLIFrameElement}
    */
   const getFrameForDocument = (docElem) => {
-    if (!docElem) {
-      return undefined;
-    }
-    const w      = docElem.defaultView || docElem.parentWindow;
-    const frames = w.parent.document.getElementsByTagName("iframe");
-    for (const eachFrame of frames) {
-      try {
-        const d = getIFrameDoc(eachFrame);
-        if (d === docElem) {
-          return eachFrame;
-        }
-        if (eachFrame.compareDocumentPosition(docElem)) {
-          return eachFrame;
-        }
-      } catch (e) {}
+    try {
+      if (!docElem) {
+        return undefined;
+      }
+      const w      = docElem.defaultView || docElem.parentWindow;
+      const frames = w.parent.document.getElementsByTagName("iframe");
+      for (const eachFrame of frames) {
+        try {
+          const d = getIFrameDoc(eachFrame);
+          if (d === docElem) {
+            return eachFrame;
+          }
+          if (eachFrame.compareDocumentPosition(docElem)) {
+            return eachFrame;
+          }
+        } catch (e) {}
+      }
+    } catch(err) {
+      trace(`getFrameForDocument err`, err);
     }
     return undefined;
   };
@@ -548,7 +577,7 @@ try { // scope and prevent errors from leaking out to page.
                   .indexOf("blocked a frame") !== -1) {
               trace("iframe security blocked cross domain - expected");
             } else {
-              trace(err);
+              logerr(err);
             }
           }
         }
@@ -636,6 +665,12 @@ try { // scope and prevent errors from leaking out to page.
     return IGNORE_NODES.includes(nodename);
   };
 
+  // when we're trying to find the common container, don't count these
+  const isIgnoreCommonContainerNode = (elem) => {
+    const nodename = /** @type HtmlElementType */ elem?.nodeName?.toLowerCase() || "";
+    return IGNORE_COMMON_CONTAINER_COUNT_NODES.includes(nodename);
+  };
+
   /**
    *
    * @param optionalElem {Node || HTMLElement || undefined}
@@ -655,6 +690,22 @@ try { // scope and prevent errors from leaking out to page.
     }
   }
 
+  /**
+   * @param compStyleElem {CSSStyleDeclaration}
+   * @return {boolean}
+   */
+  const hasTransitionEffect = (compStyleElem) => {
+    return compStyleElem?.transition !== "all 0s ease 0s"; // kind of lame
+  };
+
+  /**
+   *
+   * @param elem {Node | HTMLElement}
+   */
+  const markedTranstionEffect = (elem) => {
+    return elem?.classList?.contains(MARKER_TRANSITION_CLASS);
+  };
+
   let containDbgMsg = "";
 
   /**
@@ -666,11 +717,11 @@ try { // scope and prevent errors from leaking out to page.
    *
    * @return {Node | HTMLElement}
    */
-  function findCommonContainerFromMatched() {
+  const findCommonContainerFromMatched = () => {
     if (DEBUG_ENABLED) {
       const matches = document.querySelectorAll(`.${MARKER_COMMON_CONTAINER_CLASS}`);
       if (matches?.length) {
-        trace(`Already found common container, shouldn't match two`, matches);
+        trace(`Already found common container, shouldn't match two. IFrame issue?`, matches);
         debugger;
       }
     }
@@ -681,9 +732,6 @@ try { // scope and prevent errors from leaking out to page.
     const videoRect = videomaxGlobals.matchVideoRect;
 
     const countChildren = (e, recurseFirst = true, runningCount = 0) => {
-      const checkChildren = [...e?.children].filter(e => !isIgnoredNode(e));
-      // now we check how many are absolute positioned. These get 2x weight.
-
       if (recurseFirst) {
         const matches = [...e.querySelectorAll(`[role="slider"]`),
                          ...e.querySelectorAll(`[role="presentation"]`)];
@@ -698,40 +746,46 @@ try { // scope and prevent errors from leaking out to page.
         // const volSgvCount   = [...e.querySelectorAll(`svg > title`)].filter(
         //   (e) => e?.innerHTML?.toLowerCase().includes("volume")).length;
       }
-
-      let index = 0; // used for debugging only.
+      const checkChildren = [...e?.children].filter(e => !isIgnoreCommonContainerNode(e));
+      let index           = 0; // used for debugging only.
       for (const eachChild of checkChildren) {
-        index++;
-        const compStyleElem = getElemComputedStyle(eachChild); // $$$
-        const rect          = getCoords(eachChild);
-        if (isBoundedRect(videoRect, rect)) {
-          runningCount++;
-          if (COMMON_PARENT_SCORES) {
-            containDbgMsg += `\n ${recurseFirst ?
-                                   "" :
-                                   "\t"} #${index}\t isBoundedRect: \t +1 result: \t ${runningCount}`;
+        try {
+          index++;
+          const compStyleElem = getElemComputedStyle(eachChild); // $$$
+          const rect          = getCoords(eachChild);
+          if (isBoundedRect(videoRect, rect)) {
+            runningCount++;
+            if (COMMON_PARENT_SCORES) {
+              containDbgMsg += `\n ${recurseFirst ?
+                                     "" :
+                                     "\t"} #${index}\t isBoundedRect: \t +1 result: \t ${runningCount}`;
+            }
           }
-        }
-        if (compStyleElem.position === "absolute") {
-          runningCount++;
-          if (COMMON_PARENT_SCORES) {
-            containDbgMsg += `\n ${recurseFirst ?
-                                   "" :
-                                   "\t"} #${index}\t absPosition:   \t +1 result: \t ${runningCount}`;
+          if (compStyleElem.position === "absolute") {
+            runningCount++;
+            if (COMMON_PARENT_SCORES) {
+              containDbgMsg += `\n ${recurseFirst ?
+                                     "" :
+                                     "\t"} #${index}\t absPosition:   \t +1 result: \t ${runningCount}`;
+            }
           }
-        }
-        if (compStyleElem.transform?.includes("ease")) {
-          runningCount++;
-          if (COMMON_PARENT_SCORES) {
-            containDbgMsg += `\n  ${recurseFirst ?
-                                    "" :
-                                    "\t"} #${index}\t transforeEase: \t +1 result: \t ${runningCount}`;
+          if (INCLUDE_TRANSITION_MATCHING && hasTransitionEffect(compStyleElem)) {
+            // tag it so we don't have to call getElemComputedStyle again later.
+            eachChild.classList?.add(MARKER_TRANSITION_CLASS);
+            runningCount++;
+            if (COMMON_PARENT_SCORES) {
+              containDbgMsg += `\n  ${recurseFirst ?
+                                      "" :
+                                      "\t"} #${index}\t transition:   \t +1 result: \t ${runningCount} "${compStyleElem.transitionTimingFunction}"`;
+            }
           }
-        }
-        ///
-        if (recurseFirst) {
-          // we recurse ONCE. Youtube and plutoTV put controls one level down.
-          runningCount = countChildren(eachChild, false, runningCount);
+          ///
+          if (recurseFirst) {
+            // we recurse ONCE. Youtube and plutoTV put controls one level down.
+            runningCount = countChildren(eachChild, false, runningCount);
+          }
+        } catch (err) {
+          logerr(err);
         }
       }
       if (COMMON_PARENT_SCORES && recurseFirst === false) {
@@ -748,31 +802,32 @@ try { // scope and prevent errors from leaking out to page.
 
     let checkParents = CHECK_PARENTS_LEVELS_UP_MAX;
     while (walker.parentNode() && checkParents > 0) {
-      // these could be part of while condition, but we may want to debug/trace on them.
-      checkParents--; // counting down to zero.
-      if (isStopNodeForCommonContainer(walker.currentNode)) {
-        trace(`  findCommonContainerFromElem stopped because hit stopping node`);
-        break;
-      }
-      const weight = countChildren(walker.currentNode);
-      trace(`findCommonContainerFromMatched ${weight > bestMatchWeight ?
-                                              "NEW BEST" :
-                                              ""} \n\t weight:${weight} \n\t ${PrintNode(
-        walker.currentNode)} \n\t`, walker.currentNode);
-      if (weight > bestMatchWeight) {
-        bestMatchWeight = weight;
-        bestMatch       = walker.currentNode; // we've already moved to parentNode()
+      try {
+        // these could be part of while condition, but we may want to debug/trace on them.
+        checkParents--; // counting down to zero.
+        if (isStopNodeForCommonContainer(walker.currentNode)) {
+          trace(`  findCommonContainerFromElem stopped because hit stopping node`, walker.currentNode);
+          break;
+        }
+        const weight = countChildren(walker.currentNode);
+        trace(`findCommonContainerFromMatched ${weight > bestMatchWeight ?
+                                                "NEW BEST" :
+                                                ""} \n\t weight:${weight} \n\t ${PrintNode(
+          walker.currentNode)} \n\t`, walker.currentNode);
+        if (weight > bestMatchWeight) {
+          bestMatchWeight = weight;
+          bestMatch       = walker.currentNode; // we've already moved to parentNode()
+        }
+      } catch (err) {
+        logerr(err);
       }
     }
-
-    // todo: now we check if this div is too small, if so, we take it's parent?
 
     // done, restore
     walker.currentNode = savedWalkerCurrentNode;
 
     // tubi is an exception since they use non-508 friendly playback controls.
-    //
-    if (document.location.host.includes("tubitv.")) {
+    if (document.location?.host?.includes("tubitv.")) {
       trace("tubi specialcase using parent.");
       bestMatch = bestMatch?.parentNode;
     }
@@ -781,7 +836,7 @@ try { // scope and prevent errors from leaking out to page.
 
     bestMatch?.classList?.add(MARKER_COMMON_CONTAINER_CLASS);
     return bestMatch;
-  }
+  };
 
   /**
    * Start at child and to up parent until it matches.
@@ -1309,27 +1364,39 @@ try { // scope and prevent errors from leaking out to page.
    * @param elem {Node || HTMLElement}
    */
   const hideNode = (elem) => {
+    const PrintElem = DEBUG_HIDENODE ? PrintNode(elem) : "";
     if (isIgnoredNode(elem)) {
-      // trace("NOT HIDING isIgnoredNode:", IGNORE_NODES, elem);  / noisy
+      if (DEBUG_HIDENODE) {
+        trace(`  hideNode: NOT HIDING isIgnoredNode ${PrintElem}`);
+      }
       return false;
     }
 
     if (containsAnyVideoMaxClass(elem)) {
-      trace("NOT HIDING already contains videomax class", elem);
+      if (DEBUG_HIDENODE) {
+        trace(`  hideNode: NOT HIDING already contains videomax class ${PrintElem}`);
+      }
       return false;
     }
 
-    if (isADecendantElem(elem, videomaxGlobals.matchedCommonCntl)) {
-      trace("NOT HIDING isADecendantElem", elem);
-      return false;
-    }
+    // if (isADecendantElem(elem, videomaxGlobals.matchedCommonCntl)) {
+    //   if (DEBUG_HIDENODE) {
+    //     trace("  NOT HIDING isADecendantElem", elem);
+    //   }
+    //   return false;
+    // }
 
     // some never hide elements.
     if (NEVER_HIDE_SMELLS_LIKE_TEST && isSpecialCaseNeverHide(elem)) {
-      trace("NOT HIDING special case", elem);
+      if (DEBUG_HIDENODE) {
+        trace(`  hideNode: NOT HIDING special case ${PrintElem}`);
+      }
       return false;
     }
 
+    if (DEBUG_HIDENODE && elem?.classList?.add) {
+      trace(` hideNode: HIDING ${PrintElem}`);
+    }
     elem?.classList?.add(HIDDEN_CSS_CLASS); // may be Node
     return true;
   };
@@ -1340,6 +1407,10 @@ try { // scope and prevent errors from leaking out to page.
   const addOverlapCtrl = (elem) => {
     if (isIgnoredNode(elem)) {
       trace("NOT addOverlapCtrl isIgnoredNode:", IGNORE_NODES, elem);
+      return;
+    }
+    if (containsAnyVideoMaxClass(elem)) {
+      trace(`NOT addOverlapCtrl containsAnyVideoMaxClass: ${PrintNode(elem)}}`);
       return;
     }
     elem?.classList?.add(OVERLAP_CSS_CLASS);
@@ -1394,10 +1465,8 @@ try { // scope and prevent errors from leaking out to page.
       const siblings = getSiblings(current);
       for (const eachNode of siblings) {
         // we don't hide the tree we're walking up, just the siblings
-        if (!containsAnyVideoMaxClass(eachNode)) {
-          if (hideNode(eachNode)) { // may not actually hide for internal reasons
-            reHideCount++;
-          }
+        if (hideNode(eachNode)) { // may not actually hide for internal reasons
+          reHideCount++;
         }
       }
       const loopDetect = current;
@@ -1749,18 +1818,14 @@ try { // scope and prevent errors from leaking out to page.
     maximizeUpFromVideo();
     const commonContainerElem = findCommonContainerFromMatched();
     for (const elem of commonContainerElem.children) {
-      if (!isIgnoredNode(elem) && !containsAnyVideoMaxClass(elem)) {
-        addOverlapCtrl(elem);
-      }
+      addOverlapCtrl(elem); // does additional checks before adding
     }
     // ANY siblings to the <video> should always just be considered overlapping (crunchyroll's CC
     // canvas
     if (videomaxGlobals.matchedIsHtml5Video) {
       const videoSiblings = getSiblings(videomaxGlobals.matchedVideo);
       for (const elem of videoSiblings) {
-        if (!isIgnoredNode(elem) && !containsAnyVideoMaxClass(elem)) {
-          addOverlapCtrl(elem);
-        }
+        addOverlapCtrl(elem);  // does additional checks before adding
       }
     }
 
@@ -2136,7 +2201,7 @@ try { // scope and prevent errors from leaking out to page.
       // does the video source url look kinda close to the page url?
       if (USE_URL_OVERLAP_WEIGHT) {
         try {
-          const pageUrl = (window.location.toString() !== window.parent.location.toString()) ?
+          const pageUrl = (window?.location?.toString() !== window?.parent?.location?.toString()) ?
                           document.referrer :
                           document.location.href;
           if (pageUrl?.length &&
@@ -2170,7 +2235,7 @@ try { // scope and prevent errors from leaking out to page.
           }
         } catch (err) {
           // iframes can throw when you try to read their url, just keep going and ignore
-          trace("USE_URL_OVERLAP_WEIGHT failed because of security block");
+          trace("USE_URL_OVERLAP_WEIGHT failed because of security block?", err);
         }
       }
 
@@ -2180,7 +2245,7 @@ try { // scope and prevent errors from leaking out to page.
           const elemParts    = splitUrlWords(PrintNode(elem)
             .toLowerCase());
           const overlap      = getOverlapCount(titleParts, elemParts);
-          const overlapRatio = overlap / titleParts.length;
+          const overlapRatio = overlap / (titleParts.length || 1);
           if (EMBED_SCORES) {
             traceweights.push(
               `USE_TITLE_OVERLAP_WEIGHT: ${USE_TITLE_OVERLAP_WEIGHT} Count:${overlap} OverlapRatio:${fmtFlt.format(
@@ -2194,6 +2259,12 @@ try { // scope and prevent errors from leaking out to page.
       }
 
       weight = Math.round(weight);
+      if (DEBUG_ENABLED) {
+        if (isNaN(weight)) {
+          logerr("======weight got corrupted======");
+          debugger;
+        }
+      }
       if (EMBED_SCORES) {
         traceweights.push(`FINAL WEIGHT: ${fmtInt.format(weight)}`);
         const result = traceweights.join("\n\t");
@@ -2365,7 +2436,8 @@ try { // scope and prevent errors from leaking out to page.
 
   const postFixUpPageZoom = () => {
     // some sites (mba) position a full sized overlay that needs to be centered.
-    if (!isRunningInIFrame() && videomaxGlobals.matchedIsHtml5Video &&
+    if (// !isRunningInIFrame() && // NBCNews iframe styles constantly getting updated
+        videomaxGlobals.matchedIsHtml5Video &&
         videomaxGlobals.matchedCommonCntl) {
       addClassObserverOnCommonCntl(videomaxGlobals.matchedCommonCntl);
       //   // see if the container is at the op
@@ -2612,9 +2684,10 @@ try { // scope and prevent errors from leaking out to page.
           // figure out what classnames were removed and re-add it.
           for (let eachClassname of oldClassNames) {
             if (eachClassname.startsWith(PREFIX_CSS_CLASS)) {
-              trace(`OBSERVER: detected classname changes, reappling "eachMutation" to element:`,
-                eachMutation.target);
               eachMutation.target?.classList?.add(eachClassname);
+              trace(
+                `OBSERVER: detected classname changes\n\t before:"${eachMutation?.oldValue}"\n\t new:"${newClassName}"\n\t fixed:"${eachMutation.target?.getAttribute(
+                  "class")}"`);
             }
           }
         }

@@ -2,7 +2,6 @@
 .idea
 node_modules
 *.log
-yarn.lock
 /test/screenshots/*.png
 /test/testvidmax/*
 /test/yarn.lock
