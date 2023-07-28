@@ -11,7 +11,7 @@
   },
   "default_locale": "en",
   "action": {
-    "default_title": "Universal Video Maximizer BETA v3"
+    "default_title": "Click to zoom video on page.\nRight-click for Options"
   },
   "background": {
     "service_worker": "background.js",
@@ -24,7 +24,7 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "inject.css"
+        "videomax_inject.css"
       ],
       "matches": [
         "<all_urls>"

@@ -110,7 +110,8 @@ body::-webkit-scrollbar {
   Youtube "subscribe buttons" can sometimes be always displayed (an animated). Hide them while in theater mode
  */
 div.videomax-ext-overlap > .ytp-chrome-top-buttons,
-div.videomax-ext-overlap > .ytp-share-button {
+div.videomax-ext-overlap > .ytp-share-button,
+div.videomax-ext-overlap > .annotation-type-custom {
   display: none !important;
 }
 

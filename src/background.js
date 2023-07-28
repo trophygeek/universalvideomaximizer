@@ -7,7 +7,7 @@ import {
   DEFAULT_SETTINGS,
   DEFAULT_SPEED,
   domainToSiteWildcard,
-  getDomain,
+  getDomain, getManifestJson,
   getSettings,
   isPageExcluded,
   logerr,
@@ -70,9 +70,10 @@ const DEFAULT_COLOR = "#FFFFFF00";
 const STATE_DATA = {
   // each title MUST be unique! Reverse lookup uses the title to
   // map chrome.action.getTitle back to state.
-  RESET:              {
+  // titles need localization support
+  UNZOOMED:              {
     badge:     BADGES.NONE,
-    title:     "Click to zoom video",
+    title:     "", // if empty, reloaded from manifest
     showpopup: false,
     zoomed:    false,
     color:     DEFAULT_COLOR,
@@ -140,7 +141,6 @@ const STATE_DATA = {
 // and ask user's ADDITIONAL permission, but it STILL requires a full page
 // refresh to re-prompt?!?
 const GET_IFRAME_PERMISSIONS             = true;
-const IMMEDIATE_SECOND_IFRAME_PERM_CHECK = false;
 
 // holds subframe urls so we can request access to them. no GC because chrome frees this
 // background service pretty aggressively.
@@ -432,15 +432,6 @@ async function setCurrentTabState(tabId, state, domain = "", speed = DEAULT_SPEE
         break;
     }
 
-
-    if (IMMEDIATE_SECOND_IFRAME_PERM_CHECK && getSubframeData(tabId, domain) !== false) {
-      // Exception. More permissions are needed for speed controls to work, re-prompt
-      // instead of failing silently.
-      trace("clearing popup so we can prompt for more permisions");
-      state = "REFRESH";
-    }
-
-
     const {
             badge,
             title,
@@ -487,8 +478,13 @@ async function setCurrentTabState(tabId, state, domain = "", speed = DEAULT_SPEE
 async function getCurrentTabState(tabId) {
   try {
     const title = await chrome.action.getTitle({ tabId });
-    // DEFAULT will be the `name` string from our manifest
-    // e.g. "Universal Video Maximizer BETA v3"
+    // DEFAULT will be the `default_title` string from our manifest.
+    // Remember to keep in sync is fragile, and doesn't localize, just load it
+    if (STATE_DATA.UNZOOMED.title === "") {
+      debugger;
+      const manifest = await getManifestJson();
+      STATE_DATA.UNZOOMED.title = manifest?.action?.default_title || "Click to zoom";
+    }
 
     // Normally, would could test if the string is in BackgroundState
     // but typescript doesn't support string unions as of 2023
@@ -496,13 +492,13 @@ async function getCurrentTabState(tabId) {
       .filter(key => STATE_DATA[key].title === title);
     if (!key?.length) {
       trace(`getTabCurrentState NO MATCH "${key}"`);
-      return /** @type {BackgroundState} */  "RESET";
+      return /** @type {BackgroundState} */  "UNZOOMED";
     }
     trace(`getTabCurrentState "${key}"`);
     return key[0];
   } catch (err) {
     logerr("GetStateErr", err);
-    return /** @type {BackgroundState} */ "RESET";
+    return /** @type {BackgroundState} */ "UNZOOMED";
   }
 }
 
@@ -659,8 +655,8 @@ async function DoCheckCSSInjectedIsBlocked(tabId) {
  */
 async function unZoom(tabId, domain) {
   try {
-    trace("unZoom");
-    await Promise.all([setCurrentTabState(tabId, "RESET"),
+    trace("unZoom enter");
+    await Promise.all([setCurrentTabState(tabId, "UNZOOMED"),
                        DoUndoInjectCSS(tabId),
                        setSpeed(tabId, domain, DEAULT_SPEED),
                        chrome.scripting.executeScript({
@@ -670,6 +666,7 @@ async function unZoom(tabId, domain) {
                          }, // world:  "MAIN",
                          files:  ["cmd_unzoom_inject.js", "videomax_main_inject.js"],
                        })]);
+    trace("unZoom leave");
   } catch (err) {
     logerr(err);
   }
@@ -898,6 +895,7 @@ async function showUpgradePageIfNeeded() {
  * @returns {Promise<boolean>}
  */
 async function toggleZoomState(tabId, domain) {
+  debugger;
   const state = await getCurrentTabState(tabId);
   if (!isActiveState(state)) {
     await DoZoom(tabId, state, domain);
@@ -908,13 +906,14 @@ async function toggleZoomState(tabId, domain) {
     return true;
   }
 
-  await setCurrentTabState(tabId, "", domain);
-
   // we are zoomed but
   if (state === "ZOOMED_NOSPEED") { // toggle behavior otherwise message unzooms
     await unZoom(tabId, domain);
+    await setCurrentTabState(tabId, "UNZOOMED", domain);
     return false;
   }
+
+  await setCurrentTabState(tabId, "", domain);
   return true;
 }
 
@@ -1000,7 +999,6 @@ chrome.action.onClicked.addListener((tab) => {
         }
         trace("permissions granted for ", origins?.join(" ") || "");
         await showUpgradePageIfNeeded();
-
         // tab?.url could be undefined, so we need to query to get the current tab
         if (!tab?.url) {
           // now we have to go back and get the url since it wasn't passed to us

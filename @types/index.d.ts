@@ -44,7 +44,7 @@ type DomRect = {
 }
 
 type BackgroundState =
-    | "RESET"
+    | "UNZOOMED"
     | "ZOOMING" // maps to ZOOMED_NOSPEED or ZOOMED_SPEED
     | "ZOOMING_SPEED_ONLY" // maps to SPEED_ONLY
     | "ZOOMED_NOSPEED"

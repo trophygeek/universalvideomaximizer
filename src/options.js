@@ -2,7 +2,7 @@
 import {
   clearSettings,
   DEFAULT_SETTINGS,
-  getDomain,
+  getDomain, getManifestJson,
   getSettings,
   listToArray,
   numbericOnly,
@@ -26,13 +26,8 @@ let g_settings = { ...DEFAULT_SETTINGS };
  */
 const getManifestVersion = async () => {
   try {
-    const cssFilePath = chrome?.runtime?.getURL("manifest.json");
-    if (cssFilePath !== "") {
-      // this fetch is to load a file internal to the chrome extension (our manifest) as data
-      const response = await fetch(cssFilePath);
-      const json     = await response.json();
-      return json?.version || "";
-    }
+    const manifest = await getManifestJson();
+    return manifest?.version || "";
   } catch (err) {
     console.error(err);
   }

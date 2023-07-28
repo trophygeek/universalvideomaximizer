@@ -7,7 +7,7 @@ const ERR_BREAK_ENABLED = FULL_DEBUG;
 
 export const DEFAULT_SPEED = "1.0";
 
-export const CSS_FILE            = "inject.css";
+export const CSS_FILE            = "videomax_inject.css";
 export const CSS_STYLE_HEADER_ID = "maximizier-css-inject";
 export const DEAULT_SPEED        = "1.0";
 
@@ -218,6 +218,24 @@ export const domainToSiteWildcard = (domainStr, wholeDomainAccess) => {
     domainStr = domainStr.substring("www.".length); // trim off 4 chars from front
   }
   return `https://*.${domainStr}/`;
+};
+
+/*
+* @returns {Promise<Object>}
+*/
+export const getManifestJson = async () => {
+  try {
+    const cssFilePath = chrome?.runtime?.getURL("manifest.json");
+    if (cssFilePath !== "") {
+      // this fetch is to load a file internal to the chrome extension (our manifest) as data
+      const response = await fetch(cssFilePath);
+      const json     = await response.json();
+      return json || {};
+    }
+  } catch (err) {
+    console.error(err);
+  }
+  return {};
 };
 
 /** used by unit tests **/

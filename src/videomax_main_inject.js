@@ -23,7 +23,6 @@ try { // scope and prevent errors from leaking out to page.
   const STOP_NODE_COMMON_CONTAINER  = true;
   const REHIDE_RETRY_UNTIL_NONE     = true; // tictok popups
   const NEVER_HIDE_SMELLS_LIKE_TEST = true;
-  const FLIP_STYLE_ATOMICALLY       = true;
   const ADJUST_PLAYBACK_CNTL_HEIGHT = true;
   const USE_URL_OVERLAP_WEIGHT      = true;
   const USE_TITLE_OVERLAP_WEIGHT    = true;
@@ -31,8 +30,6 @@ try { // scope and prevent errors from leaking out to page.
   const IFRAME_PARENT_NODE_WORKS    = true;
   const USE_MUTATION_OBSERVER_ATTR  = true;
   const INCLUDE_TRANSITION_MATCHING = false;
-  const ADD_TRANSITION_MARKER       = true;
-
 
   const MIN_IFRAME_WIDTH  = 320;
   const MIN_IFRAME_HEIGHT = 240;
@@ -62,21 +59,23 @@ try { // scope and prevent errors from leaking out to page.
   const ALLOW_FULLSCREEN_WEIGHT = 10.0;
 
   // used to save off attributes that are modified on iframes/flash
-  const VIDEO_MAX_DATA             = "data-videomax";
-  const VIDEO_MAX_DATA_ATTRIB_UNDO = `${VIDEO_MAX_DATA}-saved`;
+  const VIDEO_MAX_DATA_PREFIX             = "data-videomax";
+  const VIDEO_MAX_DATA_ATTRIB_UNDO_PREFIX = `${VIDEO_MAX_DATA_PREFIX}-saved`;
+  // used to find all the VIDEO_MAX_DATA_ATTRIB_UNDO_PREFIX easily
+  const VIDEO_MAX_DATA_ATTRIB_UNDO_TAG    = `${VIDEO_MAX_DATA_PREFIX}-tag-saved`;
 
-  // found in background script.
-  const PLAYBACK_SPEED_ATTR = "data-videomax-playbackspeed";
+  // from background script.
+  const PLAYBACK_SPEED_ATTR = `${VIDEO_MAX_DATA_PREFIX}-playbackspeed`;
 
   // found element <... data-videomax-target="zoomed-video">
   // also see class="... videomax-ext-video-matched ..."
 
-  const VIDEO_MAX_ATTRIB_FIND = `${VIDEO_MAX_DATA}-target`;
+  const EMBEDED_SCORES        = `${VIDEO_MAX_DATA_PREFIX}-scores`;
+  const VIDEO_MAX_ATTRIB_FIND = `${VIDEO_MAX_DATA_PREFIX}-target`;
   const VIDEO_MAX_ATTRIB_ID   = "zoomed-video";
-  const EMBEDED_SCORES        = `${VIDEO_MAX_DATA}-scores`;
 
-  const REMOVE_ATTR_LIST = [VIDEO_MAX_DATA_ATTRIB_UNDO,
-                            VIDEO_MAX_DATA_ATTRIB_UNDO,
+
+  const REMOVE_ATTR_LIST = [
                             PLAYBACK_SPEED_ATTR,
                             VIDEO_MAX_ATTRIB_FIND,
                             EMBEDED_SCORES,
@@ -86,17 +85,13 @@ try { // scope and prevent errors from leaking out to page.
 
 
   // smp-toucan-player is some random bbc player. object is the old flash player.
-  const VIDEO_NODES                         = ["video",
-                                               "object",
-                                               "embed",
-                                               "iframe",
-                                               "smp-toucan-player"];
+  const VIDEO_NODES       = ["video", "object", "embed", "iframe", "smp-toucan-player"];
   /** @type {HtmlElementTypes} */
-  const ALWAYS_HIDE_NODES                   = ["footer", "header", "nav"];  // aside needed for
-                                                                            // 9anime
+  const ALWAYS_HIDE_NODES = ["footer", "header", "nav"];  // aside needed for
+                                                          // 9anime
   /** @type {HtmlElementTypes} */
-  const STOP_NODES                          = ["head", "body", "html"];  // stop when walking up
-                                                                         // parents
+  const STOP_NODES = ["head", "body", "html"];  // stop when walking up
+                                                // parents
   /** @type {HtmlElementTypes} */
   const IGNORE_NODES                        = ["noscript",
                                                "script",
@@ -124,7 +119,33 @@ try { // scope and prevent errors from leaking out to page.
                                                "h5",
                                                "h6",
                                                "span"];
-
+  const ALLOWED_NODE_NAMES = ["#document", // iframe top element
+        "svg",
+        "xml",
+        "script",
+        "link",
+        "circle",
+        "path",
+        "noscript",
+        "img",
+        "meta",
+        "head",
+        "header",
+        "footer",
+        // "figure", // secsports puts it under a <figure> seriously?
+        "caption",
+        "area",
+        "br",
+        "button",
+        "code",
+        "cite",
+        "data",
+        "del",
+        "fieldset",
+        "figcaption",
+        "form",
+        "hgroup",
+        "input"];
   const CSS_STYLE_HEADER_ID = "maximizier-css-inject";
 
   // we use the prop class then flip all the classes at the end.
@@ -324,7 +345,7 @@ try { // scope and prevent errors from leaking out to page.
           }
         } catch (e) {}
       }
-    } catch(err) {
+    } catch (err) {
       trace(`getFrameForDocument err`, err);
     }
     return undefined;
@@ -489,7 +510,7 @@ try { // scope and prevent errors from leaking out to page.
    * @param attr {string}
    * return {string}
    */
-  const safeGetAttribute = (elem, attr) => {
+  const getAttr = (elem, attr) => {
     try {
       return elem?.getAttribute(attr) || "";
     } catch (err) {
@@ -503,16 +524,91 @@ try { // scope and prevent errors from leaking out to page.
    * @param attr {string}
    * @param value {string}
    */
-  const safeSetAttribute = (elem, attr, value) => {
+  const setAttr = (elem, attr, value) => {
     try {
-      if (elem?.setAttribute) {
         elem.setAttribute(attr, value);
-      }
     } catch (err) {
-      logerr(`error setting attribute ${attr}`, elem, err);
+      trace(err);
     }
   };
 
+  /**
+   *
+   * @param elem {Node || HTMLElement}
+   * @param attr {string}
+   */
+  const removeAttr = (elem, attr) => {
+    try {
+      elem.removeAttribute(attr);
+    } catch (err) {
+      trace(err);
+    }
+  };
+
+  /**
+   * Returns true if any css classname starts with our prefix.
+   * @param node {Node || HTMLElement}
+   * @return {boolean}
+   */
+  const containsAnyVideoMaxClass = (node) => {
+    try {
+      // node.className for an svg element is an array not a string.
+      const className = getAttr(node, "class");
+      return (className?.toString()
+                .indexOf(PREFIX_CSS_CLASS) !== -1);  // matches PREFIX_CSS_CLASS_PREP too
+    } catch (err) {
+      debugger;
+    }
+    return false;
+  };
+
+
+  /**
+   * Will copy the existing attribute into a data-videomax-{attr} as a save, then set the attr
+   * to the new value.
+   *
+   * @param node {Node || HTMLElement}
+   * @param attributeName {string}
+   * @param newValue {string}
+   * @return {boolean} True if attribute saved
+   */
+  const setAttrAndSave = (node, attributeName, newValue) => {
+    if (!isElem(node)) {
+      return false;
+    }
+    const attrName = attributeName.toLowerCase();
+
+    const orgValue           = getAttr(node, attrName) || "";
+    if (orgValue.length) { // anything to save?
+      const backupName = `${VIDEO_MAX_DATA_ATTRIB_UNDO_PREFIX}-${attrName}`;
+      if (!getAttr(node, backupName).length) {
+        setAttr(node, backupName, orgValue);
+      }
+    }
+    setAttr(node, attrName, newValue);
+
+    // always add that there are saved items so we can query it later.
+    setAttr(node, VIDEO_MAX_DATA_ATTRIB_UNDO_TAG, "1");
+  };
+
+  /**
+   * find and restore all the saved attributes
+   * @param elem {HTMLElement}
+   */
+  const restoreAllSavedAttr = (elem) => {
+    const attrNames = /** @type string[] */ [...(elem?.getAttributeNames() || [])]; // clone array
+    for (const eachAttrName of attrNames) {
+      if (eachAttrName.startsWith(VIDEO_MAX_DATA_ATTRIB_UNDO_PREFIX)) {
+        const value = getAttr(elem, eachAttrName);
+        // we need to get the name from the suffix
+        const originalAttrName = eachAttrName.substring(VIDEO_MAX_DATA_ATTRIB_UNDO_PREFIX.length + 1);
+        removeAttr(elem, eachAttrName); // our "save" data attrib
+        setAttr(elem, originalAttrName, value); // restore it.
+      }
+    }
+    // we're all done restoring, remove our marker tag
+    removeAttr(elem, VIDEO_MAX_DATA_ATTRIB_UNDO_TAG);
+  };
 
   /**
    *
@@ -587,27 +683,6 @@ try { // scope and prevent errors from leaking out to page.
       trace(err);
       return false;
     }
-  };
-
-  /**
-   * returns true if a new video match was found.
-   * @param doc {HTMLDocument}
-   * @return {HTMLElement[]}
-   */
-  const getVidsInDoc = (doc) => {
-    if (typeof (doc?.getElementsByTagName) !== "function") {
-      // some iframes fail to allow access to getElementsByTagName
-      return [];
-    }
-    const result = [];
-    for (const tagname of VIDEO_NODES) {
-      try {
-        result.push(...doc.getElementsByTagName(tagname));
-      } catch (err) {
-        logerr(err);
-      }
-    }
-    return result;
   };
 
   /**
@@ -698,14 +773,6 @@ try { // scope and prevent errors from leaking out to page.
     return compStyleElem?.transition !== "all 0s ease 0s"; // kind of lame
   };
 
-  /**
-   *
-   * @param elem {Node | HTMLElement}
-   */
-  const markedTranstionEffect = (elem) => {
-    return elem?.classList?.contains(MARKER_TRANSITION_CLASS);
-  };
-
   let containDbgMsg = "";
 
   /**
@@ -728,6 +795,16 @@ try { // scope and prevent errors from leaking out to page.
     if (!videomaxGlobals.matchedIsHtml5Video) {
       return videomaxGlobals.matchedVideo.parentElement;
     }
+
+    if (document.location?.host?.includes("pluto.tv")) {
+      // finding the common parent is a special case for this strange layout.
+      const matchCommon = document?.getElementsByClassName("video-player-layout");
+      if (matchCommon.length === 1) {
+        return matchCommon[0];
+      }
+      // if it doesn't match, then site maybe changed, just fallback to regular matching
+    }
+
     const videoElem = videomaxGlobals.matchedVideo;
     const videoRect = videomaxGlobals.matchVideoRect;
 
@@ -806,7 +883,8 @@ try { // scope and prevent errors from leaking out to page.
         // these could be part of while condition, but we may want to debug/trace on them.
         checkParents--; // counting down to zero.
         if (isStopNodeForCommonContainer(walker.currentNode)) {
-          trace(`  findCommonContainerFromElem stopped because hit stopping node`, walker.currentNode);
+          trace(`  findCommonContainerFromElem stopped because hit stopping node`,
+            walker.currentNode);
           break;
         }
         const weight = countChildren(walker.currentNode);
@@ -839,32 +917,6 @@ try { // scope and prevent errors from leaking out to page.
   };
 
   /**
-   * Start at child and to up parent until it matches.
-   * Used to show hidden video playback bar on some sites that get
-   * missed by other techniques
-   * @param childElem {HTMLElement}
-   * @param classesToAddArr {string[]}
-   * @param classesToRemoveArr {string[]}
-   * @param stopParentElemOpt {HTMLElement | undefined}
-   */
-  function replaceVideoMaxClassInTree(childElem, classesToAddArr, classesToRemoveArr,
-                                      stopParentElemOpt = undefined) {
-    trace(`replaceVideoMaxClassInTree running in ${isRunningInIFrame() ? "iFrame" : "Main"}`);
-    let checkSanityCount = CHECK_PARENTS_LEVELS_UP_MAX;
-    let elem             = childElem;
-    while (isStopNodeType(elem) && checkSanityCount--) {
-      elem.classList.add(...classesToAddArr);
-      if (classesToRemoveArr?.length) {
-        elem.classList.remove(...classesToRemoveArr);
-      }
-      if (stopParentElemOpt && elem.parentElement?.isSameNode(stopParentElemOpt)) {
-        break;
-      }
-      elem = elem.parentElement;
-    }
-  }
-
-  /**
    * @param childElem {HTMLElement}
    * @param ancestorElem {HTMLElement}
    * @return {boolean}
@@ -895,33 +947,7 @@ try { // scope and prevent errors from leaking out to page.
 
   // HTMLFrameElement
   const isVisibleWalkerElem = (el) => {
-    if (["#document", // iframe top element
-         "svg",
-         "xml",
-         "script",
-         "link",
-         "circle",
-         "path",
-         "noscript",
-         "img",
-         "meta",
-         "head",
-         "header",
-         "footer",
-      // "figure", // secsports puts it under a <figure> seriously?
-         "caption",
-         "area",
-         "br",
-         "button",
-         "code",
-         "cite",
-         "data",
-         "del",
-         "fieldset",
-         "figcaption",
-         "form",
-         "hgroup",
-         "input"].includes(el.nodeName.toLowerCase())) {
+    if ([ALLOWED_NODE_NAMES].includes([el.nodeName.toLowerCase()])) {
       return NodeFilter.FILTER_SKIP;
     }
     try {
@@ -971,97 +997,6 @@ try { // scope and prevent errors from leaking out to page.
   };
 
   /**
-   * @param doc {Document|HTMLDocument}
-   * @return {boolean}
-   */
-  function findLargestVideoDigIntoIFrames(doc) {
-    if (typeof (doc?.getElementsByTagName) !== "function") {
-      trace("getElementsByTagName is not function for sub doc, bailing", doc);
-      return false;
-    }
-    try {
-      // first gather all possible video elements from top doc and all sub-iframes
-      let queuedVidElems = []; // iframes and <video> elems in iframes
-      let queuedFrames   = [doc, ...doc.getElementsByTagName("iframe")];
-      let checkedDedup   = [...queuedFrames]; // clone
-      let safetyLoop     = 50;
-      while (queuedFrames.length && safetyLoop--) {
-        try {
-          const eachFrame = queuedFrames.shift(); // fifo array
-          const framedoc  = getIFrameDoc(eachFrame);
-          if (!framedoc) {
-            continue;
-          }
-          const matchedVids = getVidsInDoc(framedoc);
-          for (const eachMatchedVid of matchedVids) {
-            // we loop over all these below.
-            if (!checkedDedup.includes(eachMatchedVid)) {
-              queuedVidElems.push(eachMatchedVid);
-              checkedDedup.push(eachMatchedVid);
-            }
-          }
-
-          // now add any nested iframes to the queue
-          // // sandboxing errors common, try to avoid errors but not really possible
-          if (typeof (framedoc?.getElementsByTagName) !== "function") {
-            continue;
-          }
-          try {
-            const subframedoc = getIFrameDoc(eachFrame);
-            if (!subframedoc) {
-              continue;
-            }
-            const subframes = subframedoc.getElementsByTagName("iframe");
-            if (!subframes?.length) {
-              continue;
-            }
-            for (const eachsubframe of subframes) {
-              try {
-                if (checkedDedup.includes(subframes)) {
-                  continue;
-                }
-                if (typeof (eachsubframe?.getElementsByTagName) === "function") {
-                  queuedFrames.push(eachsubframe);
-                  checkedDedup.push(eachsubframe);
-                }
-              } catch (_err) {
-              }
-            }
-          } catch (err) {
-            logerr(err);
-          }
-
-          for (const matchedVidElem of queuedVidElems) {
-            try {
-              const matched = videomaxGlobals.elementMatcher.checkIfBest(matchedVidElem);
-              if (!matched) {
-                continue;
-              }
-              // replace match
-              videomaxGlobals.elementMatcher.addNestedFrame(eachFrame);
-            } catch (err) {
-              trace("findLargestVideoDigIntoIFrames looping frame:", eachFrame, "\nVideoElem:",
-                matchedVidElem);
-            }
-          }
-        } catch (err) {
-          // common exception because iframes can be protected if
-          // they cross domains
-          trace("security exception expected as we gather subframes", err);
-        }
-      }
-      if (DEBUG_ENABLED && safetyLoop === 0) {
-        // too many loops over iframes?!?
-        debugger;
-      }
-    } catch (ex) {
-      // probably a security exception for trying to access frames.
-      logerr("findLargestVideoDigIntoIFrames. probably security issue", ex);
-    }
-    return (videomaxGlobals.elementMatcher.getBestMatchCount() > 0);
-  }
-
-  /**
    * @param elem {HTMLElement}
    */
   function tagElementAsMatchedVideo(elem) {
@@ -1070,7 +1005,7 @@ try { // scope and prevent errors from leaking out to page.
     videomaxGlobals.matchedIsHtml5Video = elem.nodeName.toLowerCase() === "video";
     videomaxGlobals.processInFrame      = isRunningInIFrame(); // for debugging
     // set the data-videomax-id = "zoomed" so undo can find it.
-    safeSetAttribute(elem, `${VIDEO_MAX_ATTRIB_FIND}`, VIDEO_MAX_ATTRIB_ID);
+    setAttr(elem, `${VIDEO_MAX_ATTRIB_FIND}`, VIDEO_MAX_ATTRIB_ID);
     elem?.classList?.add(PLAYBACK_VIDEO_MATCHED_CLASS, MAX_CSS_CLASS);
   }
 
@@ -1166,8 +1101,7 @@ try { // scope and prevent errors from leaking out to page.
             trace(`FixUpAttribs changing attribute: '${name}'
             old: '${orgValue}'
             new: '${newValue}'`, node);
-            saveAttribute(node, name);
-            safeSetAttribute(node, name, newValue);
+            setAttrAndSave(node, name, newValue);
           }
         } catch (ex) {
           logerr("exception in looping over properties: ", ex);
@@ -1184,8 +1118,8 @@ try { // scope and prevent errors from leaking out to page.
           if (eachnode.nodeName.toUpperCase() !== "PARAM") {
             continue;
           }
-          const attrName  = safeGetAttribute(eachnode, "name");
-          const attrValue = safeGetAttribute(eachnode, "value");
+          const attrName  = getAttr(eachnode, "name");
+          const attrValue = getAttr(eachnode, "value");
 
           trace(`  FixUpAttribs found param '${attrName}': '${attrValue}'`);
           if (["FLASHLETS", "DATA"].includes(attrName.toUpperCase())) {
@@ -1214,16 +1148,15 @@ try { // scope and prevent errors from leaking out to page.
         if (eachnode.nodeName.toUpperCase() !== "PARAM") {
           continue;
         }
-        const name     = safeGetAttribute(eachnode, "name");
-        const orgValue = safeGetAttribute(eachnode, "value");
+        const name     = getAttr(eachnode, "name");
+        const orgValue = getAttr(eachnode, "value");
 
         if (Object.prototype.hasOwnProperty.call(newParams, name)) { // is this one we care about?
           trace(`FixUpAttribs changing child param '${name}'
             old: '${orgValue}'
             new: '${newParams[name]}'`);
 
-          saveAttribute(eachnode, name);
-          safeSetAttribute(eachnode, name, newParams[name]);
+          setAttrAndSave(eachnode, name, newParams[name]);
         }
       }
     }
@@ -1289,75 +1222,6 @@ try { // scope and prevent errors from leaking out to page.
       trace(`Replaced urls params:\n\tBefore:\t${flashletsval}\r\n\tAfter\t${result}`);
     }
     return result;
-  };
-
-  /**
-   * Returns true if any css classname starts with our prefix.
-   * @param node {Node || HTMLElement}
-   * @return {boolean}
-   */
-  const containsAnyVideoMaxClass = (node) => {
-    try {
-      // node.className for an svg element is an array not a string.
-      const className = safeGetAttribute(node, "class");
-      return (className?.toString()
-                .indexOf(PREFIX_CSS_CLASS) !== -1);  // matches PREFIX_CSS_CLASS_PREP too
-    } catch (err) {
-      debugger;
-    }
-    return false;
-  };
-
-  /**
-   * Copy over and attribute value so it can be restored by undo
-   * @param node {Node || HTMLElement}
-   * @param attributeName {string}
-   * @return {boolean} True if attribute saved
-   */
-  const saveAttribute = (node, attributeName) => {
-    if (!isElem(node)) {
-      return false;
-    }
-    const attributeNameLower = attributeName.toLowerCase();
-    const orgValue           = safeGetAttribute(node, attributeNameLower) || "";
-    if (!orgValue.length) {
-      // nothing to save
-      // trace(`    saveAttribute '${attributeNameLower}' empty, nothing to save`, node);
-      return false;
-    }
-    const startingdata = safeGetAttribute(node, VIDEO_MAX_DATA_ATTRIB_UNDO);
-    const jsondata     = JSON.parse(startingdata || "{}");
-    if (Object.keys(jsondata)
-      .includes(attributeNameLower)) {
-      // already been saved merging
-      trace(`    saveAttribute '${attributeNameLower}' already saved, merging `, node, jsondata);
-      restoreSavedAttribute(node); // restore merges,
-    }
-
-    // ok merge in and save
-    jsondata[attributeNameLower] = orgValue;
-    safeSetAttribute(node, VIDEO_MAX_DATA_ATTRIB_UNDO, JSON.stringify(jsondata));
-    trace(`    saveAttribute '${attributeNameLower}' old value ${orgValue}`, node);
-    return true;
-  };
-
-  /**
-   *
-   * @param elem {Node | HTMLElement}
-   */
-  const restoreSavedAttribute = (elem) => {
-    const savedAttribsJson = JSON.parse(elem.getAttribute(VIDEO_MAX_DATA_ATTRIB_UNDO) || "{}");
-    trace("restoreSavedAttribute for ", elem);
-    for (const [key, value] of Object.entries(savedAttribsJson)) {
-      const savedAttrValue = elem.getAttribute(key);
-      trace(`  ${key}='${value}' `, elem);
-      elem.setAttribute(key, String(value));
-      if (savedAttrValue?.length) {
-        elem.setAttribute(key, savedAttrValue);
-      }
-    }
-    elem.removeAttribute(VIDEO_MAX_DATA_ATTRIB_UNDO);
-    trace("  final restored elem:' ", elem);
   };
 
   /**
@@ -1438,7 +1302,7 @@ try { // scope and prevent errors from leaking out to page.
           return false;
         }
       }
-      return ALLOWED_NODE_TYPES.includes(c.nodeName);
+      return ALLOWED_NODE_NAMES.includes(c.nodeName);
     });
   };
 
@@ -1538,8 +1402,7 @@ try { // scope and prevent errors from leaking out to page.
     if (id) {
       const elem = document.getElementById(id);
       if (elem) {
-        saveAttribute(elem, "media");
-        elem.setAttribute("media", "_all");
+        setAttrAndSave(elem, "media", "_all");
       }
     }
   };
@@ -1581,12 +1444,10 @@ try { // scope and prevent errors from leaking out to page.
     if (isEmptyRect(outer) || isEmptyRect(inner)) {
       return false;
     }
-    const result = (inRange(inner.top, outer.top, outer.bottom) &&
+    return (inRange(inner.top, outer.top, outer.bottom) &&
                     inRange(inner.bottom, outer.top, outer.bottom) &&
                     inRange(inner.left, outer.left, outer.right) &&
                     inRange(inner.right, outer.left, outer.right));
-    // trace(`isBoundedRect: ${result} outer:${PrintRect(outer)} inner:${PrintRect(inner)}`);
-    return result;
   };
 
   /**
@@ -1689,31 +1550,6 @@ try { // scope and prevent errors from leaking out to page.
   };
 
   /**
-   *  role="slider"
-   * @param elem {Node || HTMLElement}
-   * @return {boolean}
-   */
-  function hasSliderRoleChild(elem) {
-    const sliders      = elem.querySelectorAll(`[role="slider"]`);
-    const presentation = elem.querySelectorAll(`[role="presentation"]`);
-
-    for (const eachslider of [...sliders, ...presentation]) {
-      // volumes are sliders too. English specific term search isn't great...
-      const elementAttribsStr = PrintNode(eachslider)
-        .toLowerCase();
-      trace(`Slider check "${elementAttribsStr}"`);
-      // todo: split into words?
-      const foundVolumeStr = elementAttribsStr.indexOf("volume") !== -1;
-      if (foundVolumeStr) {
-        trace(`Possible VOLUME slider matched, skipping\n  Elem: "${elementAttribsStr}"`);
-      } else {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /**
    * @param elem {HTMLElement|Node}
    * @param matches {RegExp[]}
    * @return {boolean}
@@ -1754,7 +1590,7 @@ try { // scope and prevent errors from leaking out to page.
    * @param elem {Node}
    */
   const smellsLikeAd = (elem) => {
-    const arialabel = safeGetAttribute(elem, "aria-label");
+    const arialabel = getAttr(elem, "aria-label");
     if (arialabel.match(/^adver/i)) {
       trace(`smellsLikeAd: matched aria-label for "adver" '${arialabel}'`);
       return true;
@@ -1763,7 +1599,7 @@ try { // scope and prevent errors from leaking out to page.
       trace(`smellsLikeAd: matched aria-label for "ad-" '${arialabel}'`);
       return true;
     }
-    const className = safeGetAttribute(elem, "class");
+    const className = getAttr(elem, "class");
     if (className.match(/^adver/i)) {
       trace(`smellsLikeAd: matched classname for "adver"? '${className}'`);
       return true;
@@ -1772,7 +1608,7 @@ try { // scope and prevent errors from leaking out to page.
       trace(`msmellsLikeAd: atched classname for "branding"? '${className}'`);
       return true;
     }
-    const title = safeGetAttribute(elem, "title");
+    const title = getAttr(elem, "title");
     if (title.match(/^adver/i)) {
       trace(`smellsLikeAd: matched title for "adver" '${title}'`);
       return true;
@@ -1850,17 +1686,6 @@ try { // scope and prevent errors from leaking out to page.
     this.largestScore = 0;
     /** @type {number} */
     this.matchCount = 0;
-    /** @type {CSSStyleDeclaration | null} */
-    this.matchStyle = null;
-    /** @type {DomRect} */
-    this.matchBoundingRect = {
-      top:    0,
-      left:   0,
-      bottom: 0,
-      width:  0,
-      right:  0,
-      height: 0,
-    };
     /** @type {Node[]} */
     this.checkedDedup = [];
 
@@ -1895,7 +1720,7 @@ try { // scope and prevent errors from leaking out to page.
       const elemStyle = getElemComputedStyle(elem);
       const score     = this._getElemMatchScore(elem, elemStyle);
       if (EMBED_SCORES) {
-        safeSetAttribute(elem, EMBEDED_SCORES, score.toString());
+        setAttr(elem, EMBEDED_SCORES, score.toString());
       }
 
       if (score === 0) {
@@ -1910,8 +1735,6 @@ try { // scope and prevent errors from leaking out to page.
         this.largestScore      = score;
         this.largestElem       = elem;
         this.matchCount        = 1;
-        this.matchStyle        = elemStyle;
-        this.matchBoundingRect = cumulativePositionRect(elem, elemStyle);
         trace(
           `Making item best match: \t${elem.nodeName}\t${elem.className.toString()}\t${elem.id}`);
         return true;
@@ -2119,7 +1942,7 @@ try { // scope and prevent errors from leaking out to page.
         weight = (START_WEIGHT * HIDDEN_VIDEO_WEIGHT);
       }
 
-      const tabindex = safeGetAttribute(elem, "tabindex");
+      const tabindex = getAttr(elem, "tabindex");
       if (tabindex !== "") {
         // this is a newer thing for accessibility, it's a good indicator
         if (EMBED_SCORES) {
@@ -2129,7 +1952,7 @@ try { // scope and prevent errors from leaking out to page.
         weight += (-1 * START_WEIGHT * TAB_INDEX_WEIGHT);
       }
 
-      const allowfullscreenAttr = safeGetAttribute(elem, "allowfullscreen");
+      const allowfullscreenAttr = getAttr(elem, "allowfullscreen");
       if (allowfullscreenAttr?.length) {
         weight += (START_WEIGHT * ALLOW_FULLSCREEN_WEIGHT);
         if (EMBED_SCORES) {
@@ -2336,12 +2159,8 @@ try { // scope and prevent errors from leaking out to page.
           // undo works.
           // We apply when we flip the classNames so we don't zero size things as
           // we're finding playback controls.
-          if (FLIP_STYLE_ATOMICALLY) {
-            if (subFrom.includes(MAX_CSS_CLASS)) {
-              if (saveAttribute(eachElem, "style")) { // save
-                safeSetAttribute(eachElem, "style", ""); // clear
-              }
-            }
+          if (subFrom.includes(MAX_CSS_CLASS)) {
+            setAttrAndSave(eachElem, "style", "");
           }
         }
       } catch (err) {
@@ -2358,7 +2177,7 @@ try { // scope and prevent errors from leaking out to page.
    */
   const recursiveIFrameFlipClassPrep = (doc) => {
     try {
-      if (window._videomax_unzooming) {
+      if (document.videmax_cmd === "unzoom") {
         trace("UNZOOMING!!! - skipping recursiveIFrameFlipClassPrep");
         return 0;
       }
@@ -2393,7 +2212,7 @@ try { // scope and prevent errors from leaking out to page.
     if (videomaxGlobals.tagonly) {
       return false;
     }
-    if (window._videomax_unzooming) {
+    if (document.videmax_cmd === "unzoom") {
       trace("UNZOOMING?!?");
       return false;
     }
@@ -2410,6 +2229,10 @@ try { // scope and prevent errors from leaking out to page.
     // going to return true, so we redo this since
     // some sites re-show these elements, hide again to be safe
     const doRehideTimeoutLoop = () => {
+      if (document.videmax_cmd === "unzoom") {
+        trace("UNZOOMING!!! - skipping doRehideTimeoutLoop");
+        return 0;
+      }
       let rehideCount = 0;
       try {
         maximizeUpFromVideo();
@@ -2437,8 +2260,7 @@ try { // scope and prevent errors from leaking out to page.
   const postFixUpPageZoom = () => {
     // some sites (mba) position a full sized overlay that needs to be centered.
     if (// !isRunningInIFrame() && // NBCNews iframe styles constantly getting updated
-        videomaxGlobals.matchedIsHtml5Video &&
-        videomaxGlobals.matchedCommonCntl) {
+      videomaxGlobals.matchedIsHtml5Video && videomaxGlobals.matchedCommonCntl) {
       addClassObserverOnCommonCntl(videomaxGlobals.matchedCommonCntl);
       //   // see if the container is at the op
       //   const matches = document.elementsFromPoint(document.width , videoCoor.top + 1);
@@ -2500,6 +2322,11 @@ try { // scope and prevent errors from leaking out to page.
    * @return {boolean} Returning True stops retry
    */
   function doZoomPage() {
+    if (document.videmax_cmd === "unzoom") {
+      trace("UNZOOMING!!! - skipping doZoomPage");
+      return true;
+    }
+
     if (window?.frameElement?.src === "about:blank") {
       trace("Injected into blank iframe, not running");
       return true; // stop retrying
@@ -2583,6 +2410,10 @@ try { // scope and prevent errors from leaking out to page.
       trace("Tag only is set. Will not modify page to zoom video");
     } else {
       videomaxGlobals.hideEverythingTimer?.startTimer(() => {
+        if (document.videmax_cmd === "unzoom") {
+          trace("UNZOOMING!!! - skipping hideEverythingTimer");
+          return true;
+        }
         // BBC has some special css with lots of !importants
         hideCSS("screen-css");
         if (!fixUpPageZoom()) {
@@ -2660,6 +2491,10 @@ try { // scope and prevent errors from leaking out to page.
     videomaxGlobals.observerClassMod = new MutationObserver((mutations, observer) => {
       // called when change happens. first disconnect to avoid recursions
       observer.disconnect();
+      if (document.videmax_cmd === "unzoom") {
+        trace("UNZOOMING!!! - skipping MutationObserver");
+        return 0;
+      }
       // check to see if things are in the process of going away. They might be.
       if (videomaxGlobals.observerClassMod && videomaxGlobals.isMaximized) {
         for (let eachMutation of mutations) {
@@ -2673,7 +2508,7 @@ try { // scope and prevent errors from leaking out to page.
             continue;
           }
           // our classname was there, but it's removed?
-          const newClassName = eachMutation.target?.getAttribute("class") || "";
+          const newClassName = getAttr(eachMutation.target,"class");
           if (newClassName.indexOf(PREFIX_CSS_CLASS) !== -1) {
             // nope
             continue;
@@ -2686,8 +2521,7 @@ try { // scope and prevent errors from leaking out to page.
             if (eachClassname.startsWith(PREFIX_CSS_CLASS)) {
               eachMutation.target?.classList?.add(eachClassname);
               trace(
-                `OBSERVER: detected classname changes\n\t before:"${eachMutation?.oldValue}"\n\t new:"${newClassName}"\n\t fixed:"${eachMutation.target?.getAttribute(
-                  "class")}"`);
+                `OBSERVER: detected classname changes\n\t before:"${eachMutation?.oldValue}"\n\t new:"${newClassName}"\n\t fixed:"${getAttr(eachMutation.target,"class")}"`);
             }
           }
         }
@@ -2785,16 +2619,17 @@ try { // scope and prevent errors from leaking out to page.
         // security can block
         return;
       }
-      for (const elem of doc.querySelectorAll(`[${VIDEO_MAX_DATA_ATTRIB_UNDO}]`)) {
+      // we tag all elements that have saved attributes by adding the VIDEO_MAX_DATA_ATTRIB_UNDO_TAG
+      const hasAttrTags = doc.querySelectorAll(`[${VIDEO_MAX_DATA_ATTRIB_UNDO_TAG}]`);
+      for (const elem of hasAttrTags) {
         try {
-          restoreSavedAttribute(elem);
+          restoreAllSavedAttr(elem);
           //  try and make the element realizes it needs to redraw. Fixes
           // progress bar
           elem.dispatchEvent(new Event("resize"));
         } catch (err) {
           logerr(err, elem);
         }
-
       }
     }
 
@@ -2844,6 +2679,7 @@ try { // scope and prevent errors from leaking out to page.
 
     static mainUnzoom() {
       try {
+        const savedVideo              = videomaxGlobals.matchedVideo;
         videomaxGlobals.unzooming     = true;
         videomaxGlobals.isMaximized   = false;
         videomaxGlobals.playbackSpeed = 1.0;
@@ -2911,6 +2747,7 @@ try { // scope and prevent errors from leaking out to page.
           document._VideoMaxExt = undefined;
         }
         UndoZoom.forceRefresh(document);
+        UndoZoom.forceRefresh(savedVideo);
       } catch (ex) {
         logerr(ex);
       }
@@ -2939,8 +2776,8 @@ try { // scope and prevent errors from leaking out to page.
       mainZoom();
       break;
   }
-  window.videmax_cmd   = ""; // clear it.
-  document.videmax_cmd = "";
+  // window.videmax_cmd   = ""; // clear it.
+  // document.videmax_cmd = "";
 } catch (err) {
   // eslint-disable-next-line no-console
   console.error("videomax extension error", err, err.stack);
