@@ -835,7 +835,7 @@ async function skipPlayback(tabId, secondToSkipStr) {
  *
  * @returns {Promise<boolean|any>}
  */
-const getSettingOldToggleZoomBehavior = async () => {
+const getSettingUseAdvFeatures = async () => {
   try {
     const settings = await getSettings();
     trace("getFeatureShowZoomPopup settings:", JSON.stringify(settings, null, 2));
