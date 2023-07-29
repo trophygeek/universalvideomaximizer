@@ -1,0 +1,61 @@
+.toggle {
+  position: absolute;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.toggle + label {
+  --toggle-color: #FFF;
+  --toggle-bg-color: #C6D0CC;
+  position: relative;
+  padding-left: 5rem;
+  line-height: 2.5rem;
+  cursor: pointer;
+}
+
+/* The toggle container */
+.toggle + label:before {
+  content: "";
+  box-sizing: border-box;
+  position: absolute;
+  left: 0;
+  width: 4.5rem;
+  height: 2.5rem;
+  border: 1px solid var(--toggle-color);
+  border-radius: 1.25rem;
+  background-color: var(--toggle-bg-color);
+  transition: background-color 200ms;
+}
+
+/* The toggle ball */
+.toggle + label:after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0.25rem;
+  width: 2rem;
+  height: 2rem;
+  margin: auto;
+  transform: translate(0, 0);
+  border-radius: 50%;
+  background-color: var(--toggle-color);
+  cursor: pointer;
+  transition: transform 200ms;
+}
+
+/* The active styling */
+.toggle:checked + label {
+  --toggle-color: #FFFFFF;
+  --toggle-bg-color: #20b776;
+}
+
+.toggle:checked + label:after {
+  transform: translate(2rem, 0);
+}
+
+.is-disabled,
+.is-disabled:hover {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

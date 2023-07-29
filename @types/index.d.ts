@@ -7,7 +7,7 @@
 
 type SettingsType = {
   lastBetaVersion: string,
-  useToggleZoomBehavior: boolean,
+  useAdvancedFeatures: boolean,
   spacebarTogglesPlayback: boolean,
   regSkipSeconds: number,
   longSkipSeconds: number,

@@ -92,14 +92,14 @@ const getTextNum = (elementId) /** @type number */ => {
  */
 const loadSettingsIntoFields = (settings) => {
   // load settings into page
-  setChecked("useToggleZoomBehavior", settings.useToggleZoomBehavior);
+  setChecked("useAdvancedFeatures", settings.useAdvancedFeatures);
   setTextNum("regSkipSeconds", settings.regSkipSeconds);
   setTextNum("longSkipSeconds", settings.longSkipSeconds);
   // setChecked("preportionalSkipTimes", settings.preportionalSkipTimes);
   setChecked("wholeDomainAccess", settings.wholeDomainAccess);
   setChecked("allSitesAccess", settings.allSitesAccess);
 
-  disabledIfOldZoom();
+  enableAdvanceFeaturesOptions();
 
   // list of no-zoom sites
   {
@@ -135,7 +135,7 @@ const loadSettingsIntoFields = (settings) => {
  */
 const saveFieldsIntoSettings = (settings) => {
   try {
-    settings.useToggleZoomBehavior = getChecked("useToggleZoomBehavior");
+    settings.useAdvancedFeatures = getChecked("useAdvancedFeatures");
     settings.regSkipSeconds        = getTextNum("regSkipSeconds");
     settings.longSkipSeconds       = getTextNum("longSkipSeconds");
     // settings.preportionalSkipTimes = getChecked("preportionalSkipTimes");
@@ -157,14 +157,14 @@ const save = async () => {
   }
 };
 
-const disabledIfOldZoom = () => {
-  const useToggleZoomBehavior = getChecked("useToggleZoomBehavior");
-  const disableFields         = document.getElementsByClassName("diableForSimpleChecked");
+const enableAdvanceFeaturesOptions = () => {
+  const useAdvancedFeatures = getChecked("useAdvancedFeatures");
+  const disableFields         = document.getElementsByClassName("diableForSimpleFeatures");
   for (const eachField of disableFields) {
-    if (useToggleZoomBehavior) {
-      eachField.classList.add("is-disabled");
-    } else {
+    if (useAdvancedFeatures) {
       eachField.classList.remove("is-disabled");
+    } else {
+      eachField.classList.add("is-disabled");
     }
   }
 };
@@ -195,11 +195,11 @@ ${userAgent}
         await save();
       });
 
-    document.getElementById("useToggleZoomBehavior")
+    document.getElementById("useAdvancedFeatures")
       .addEventListener("click", async (_e) => {
-        disabledIfOldZoom();
+        enableAdvanceFeaturesOptions();
         setTimeout(() => {
-          if (getChecked("useToggleZoomBehavior")) {
+          if (!getChecked("useAdvancedFeatures")) {
             alert(`
 This will remove the speed controls.
 

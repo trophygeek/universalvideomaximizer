@@ -38,7 +38,7 @@ export const trace = (...args) => {
 export const SETTINGS_STORAGE_KEY = "settingsJson";
 
 // bumping this will cause the notification to show again. keep it pinned unless some major feature
-export const BETA_UPDATE_NOTIFICATION_VERISON = "79"; // will get out of sync. bump to show notification
+export const BETA_UPDATE_NOTIFICATION_VERISON = "84"; // will get out of sync. bump to show notification
 
 
 /* these are sites that are already zoomed, but playback speed is kind of nice */
@@ -51,7 +51,7 @@ export const DEFAULT_ZOOM_EXCLUSION_LIST = "amazon," + "hbomax," + "play.max," +
  */
 export const DEFAULT_SETTINGS = {
   lastBetaVersion:           "0", // number as string used to show initial "help" (also for major releases)
-  useToggleZoomBehavior:     false, // true
+  useAdvancedFeatures:     false, // true
   spacebarTogglesPlayback:   true,
   regSkipSeconds:            5,
   longSkipSeconds:           20,

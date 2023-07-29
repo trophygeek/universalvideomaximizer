@@ -7,7 +7,8 @@ import {
   DEFAULT_SETTINGS,
   DEFAULT_SPEED,
   domainToSiteWildcard,
-  getDomain, getManifestJson,
+  getDomain,
+  getManifestJson,
   getSettings,
   isPageExcluded,
   logerr,
@@ -422,8 +423,8 @@ async function setCurrentTabState(tabId, state, domain = "", speed = DEAULT_SPEE
     switch (state) {
       case "ZOOMING":
         trace(`setCurrentState "${state}"`);
-        const featureShowSpeedPopup = (await getSettingOldToggleZoomBehavior()) === false;
-        state                       = featureShowSpeedPopup ? "ZOOMED_SPEED" : "ZOOMED_NOSPEED";
+        const useAdvFeatures = await getSettingUseAdvFeatures();
+        state                = useAdvFeatures ? "ZOOMED_SPEED" : "ZOOMED_NOSPEED";
         break;
 
       case "ZOOMING_SPEED_ONLY":
@@ -838,10 +839,10 @@ const getSettingOldToggleZoomBehavior = async () => {
   try {
     const settings = await getSettings();
     trace("getFeatureShowZoomPopup settings:", JSON.stringify(settings, null, 2));
-    return (settings.useToggleZoomBehavior || DEFAULT_SETTINGS.useToggleZoomBehavior);
+    return (settings.useAdvancedFeatures || DEFAULT_SETTINGS.useAdvancedFeatures);
   } catch (err) {
     logerr(err);
-    return DEFAULT_SETTINGS.useToggleZoomBehavior;
+    return DEFAULT_SETTINGS.useAdvancedFeatures;
   }
 };
 
@@ -874,13 +875,13 @@ async function showUpgradePageIfNeeded() {
       return;
     }
 
-    const url = chrome?.runtime?.getURL("help.html") || "";
-    if (!url) {
-      return;
-    }
+    await chrome.tabs.create({
+      url:    chrome?.runtime?.getURL("options.html"),
+      active: false,
+    });
 
     await chrome.tabs.create({
-      url,
+      url:    chrome?.runtime?.getURL("help.html"),
       active: false,
     });
   } catch (err) {
@@ -895,7 +896,6 @@ async function showUpgradePageIfNeeded() {
  * @returns {Promise<boolean>}
  */
 async function toggleZoomState(tabId, domain) {
-  debugger;
   const state = await getCurrentTabState(tabId);
   if (!isActiveState(state)) {
     await DoZoom(tabId, state, domain);

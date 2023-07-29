@@ -4,6 +4,7 @@
   <title>Universal Video Maximizer - Options</title>
   <meta charset="utf-8">
   <link href="chota.css" rel="stylesheet" type="text/css">
+  <link href="options.css" rel="stylesheet" type="text/css">
   <script src="options.js" type="module"></script>
 </head>
 <body class="dark">
@@ -13,16 +14,19 @@
 
   <div class="container" id="mainForm">
     <fieldset>
-      <legend>Use simplified behavior</legend>
+      <legend>Advanced playback features</legend>
       <div class="row col label">
-        <input checked id="useToggleZoomBehavior" name="useToggleZoomBehavior" type="checkbox">
-        <label for="useToggleZoomBehavior">
-          Use classic toggle-zoom behavior (removes the playback-speed feature)
+        <input class="toggle" checked id="useAdvancedFeatures" name="useAdvancedFeatures" type="checkbox">
+        <label for="useAdvancedFeatures">
+          Enable <span class="emphasis">ADVANCED</span> features (Experimental)
         </label>
+        <p>Some sites lose their playback controls when zoomed. Advanced features allow you to skip and change playback speed.</p>
+        <p>See the <a href="help.html" rel="noopener" target="_blank">Help ↗</a> page for more details about how to use advanced features.</p>
+        <p><img alt="screen shot" class="illustration" src="img/new_speed_control_bar.png"></p>
       </div>
     </fieldset>
 
-    <fieldset class="diableForSimpleChecked">
+    <fieldset class="diableForSimpleFeatures">
       <legend>Allow more access - whole site by default</legend>
       <div class="row col label">
         <input checked id="wholeDomainAccess" name="wholeDomainAccess" type="checkbox">
@@ -51,7 +55,7 @@
     </fieldset>
 
 
-    <fieldset class="diableForSimpleChecked">
+    <fieldset class="diableForSimpleFeatures">
       <legend>Allow full access to all sites by default</legend>
       <div class="row col label">
         <input checked id="allSitesAccess" name="allSitesAccess" type="checkbox">
@@ -70,7 +74,7 @@
       </div>
     </fieldset>
 
-    <fieldset class="diableForSimpleChecked">
+    <fieldset class="diableForSimpleFeatures">
       <legend>Playback skipping</legend>
       <div class="container padding-1">
         While Video Maximizer popup controls are displayed, you can use the arrow keys to skip playback.&nbsp;
@@ -120,7 +124,7 @@
       <!--        </div>-->
     </fieldset>
 
-    <fieldset class="diableForSimpleChecked">
+    <fieldset class="diableForSimpleFeatures">
       <legend>Speed controls only sites</legend>
       <div class="row col label">
         <label class="padding-1" for="nozoomlist">Sites that are already fullscreen, so VideoMax won't try to zoom

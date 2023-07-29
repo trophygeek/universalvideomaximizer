@@ -11,7 +11,7 @@
   },
   "default_locale": "en",
   "action": {
-    "default_title": "Click to zoom video on page.\nRight-click for Options"
+    "default_title": "Click to zoom video on page.\nRight-click to see Options"
   },
   "background": {
     "service_worker": "background.js",
