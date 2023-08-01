@@ -21,7 +21,6 @@ body::-webkit-scrollbar {
   height: calc(100vh) !important;
   margin: 0 !important;
   padding: 0 !important;
-  border: 0 !important;
   top: 0 !important;
   left: 0 !important;
   min-height: 0 !important;
@@ -40,9 +39,14 @@ body::-webkit-scrollbar {
   align-content: center !important;
   /* added 18Jun23 */
   opacity: 1.0 !important;
+  border: 0 black !important;
+  border-image-width: 0 !important;
 }
 
 .videomax-ext-hide,
+  /* nbc line 31July23*/
+.videomax-ext-max:before,
+.videomax-ext-max:after,
 .videomax-ext-hide .videomax-ext-hide,
 .videomax-ext-max .videomax-ext-hide {
   display: none !important;
@@ -113,5 +117,14 @@ div.videomax-ext-overlap > .ytp-chrome-top-buttons,
 div.videomax-ext-overlap > .ytp-share-button,
 div.videomax-ext-overlap > .annotation-type-custom {
   display: none !important;
+}
+
+/*!** pseudo used by when a video is in a file: *!*/
+video::-webkit-media-controls {
+  width: calc(100vw);
+}
+
+.videomax-ext-no-hide {
+  /* intentionally empty */
 }
 

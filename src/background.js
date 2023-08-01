@@ -162,6 +162,9 @@ const EMPTY_ACCESS_SUBFRAME = {
  * @return {SubFrameParamData || false}
  */
 function getSubframeData(tabId, domainMatch) {
+  if (domainMatch === "") {
+    return false;
+  }
   const match = g_globalAccessSubframeData[tabId] || EMPTY_ACCESS_SUBFRAME;
   if (match.domain.indexOf(domainMatch) !== -1) {
     trace(`getSubframeData match tabId: "${tabId}"  ${domainMatch} result: `, match);
@@ -482,7 +485,6 @@ async function getCurrentTabState(tabId) {
     // DEFAULT will be the `default_title` string from our manifest.
     // Remember to keep in sync is fragile, and doesn't localize, just load it
     if (STATE_DATA.UNZOOMED.title === "") {
-      debugger;
       const manifest = await getManifestJson();
       STATE_DATA.UNZOOMED.title = manifest?.action?.default_title || "Click to zoom";
     }
@@ -876,11 +878,6 @@ async function showUpgradePageIfNeeded() {
     }
 
     await chrome.tabs.create({
-      url:    chrome?.runtime?.getURL("options.html"),
-      active: false,
-    });
-
-    await chrome.tabs.create({
       url:    chrome?.runtime?.getURL("help.html"),
       active: false,
     });
@@ -987,14 +984,21 @@ chrome.action.onClicked.addListener((tab) => {
         }
       }
 
-
       chrome.permissions.request({
         permissions,
         origins,
       }, async (granted) => {
         if (!granted) {
-          await setCurrentTabState(tabId, "REFRESH");
+          await setCurrentTabState(tabId, "ERR_PERMISSION");
           logerr(`permissions to run were denied for "${tab?.url}", so extension is not injecting`);
+          const fileAccessEnabledForExtention = await chrome.extension.isAllowedFileSchemeAccess();
+          if (!fileAccessEnabledForExtention) {
+            // todo: open special help page
+            await chrome.tabs.create({
+              url:    chrome?.runtime?.getURL("help.html#localfile"),
+              active: false,
+            });
+          }
           return;
         }
         trace("permissions granted for ", origins?.join(" ") || "");
@@ -1092,4 +1096,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }, 0);
 
   sendResponse && sendResponse({ success: true }); // used to close popup.
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  try {
+    trace(`tabs.onUpdated event tabId=${tabId}
+    changeInfo:`, changeInfo);
+    if (tabId && changeInfo?.status === "loading") {
+      setTimeout(async () => {
+        const state = await getCurrentTabState(tabId);
+        if (isActiveState(state)) {
+          trace("chrome.tabs.onUpdated loading so starting unzoom. likely SPA nav");
+          // some SPA won't do a clean refetch, we need to uninstall.
+          await unZoom(tabId);
+        } else {
+          trace(`tabId not currently zoomed ${tabId}`);
+        }
+      }, 0);
+    }
+  } catch (err) {
+    logerr(err);
+  }
 });

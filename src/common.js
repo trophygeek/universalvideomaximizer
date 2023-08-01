@@ -51,7 +51,7 @@ export const DEFAULT_ZOOM_EXCLUSION_LIST = "amazon," + "hbomax," + "play.max," +
  */
 export const DEFAULT_SETTINGS = {
   lastBetaVersion:           "0", // number as string used to show initial "help" (also for major releases)
-  useAdvancedFeatures:     false, // true
+  useAdvancedFeatures:       false,
   spacebarTogglesPlayback:   true,
   regSkipSeconds:            5,
   longSkipSeconds:           20,
@@ -73,6 +73,10 @@ export const getSettings = async () => {
     }
     /** @type SettingsType **/
     const savedSetting = JSON.parse(result[SETTINGS_STORAGE_KEY]);
+    if (savedSetting?.useToggleZoomBehavior !== undefined && savedSetting?.useAdvancedFeatures === undefined) {
+      // one time migrate setting for old beta users // todo: remove next version
+      savedSetting.useAdvancedFeatures = !savedSetting.useToggleZoomBehavior
+    }
     return { ...DEFAULT_SETTINGS, ...savedSetting };
   } catch (err) {
     console.error(err);

@@ -30,6 +30,9 @@ try { // scope and prevent errors from leaking out to page.
   const IFRAME_PARENT_NODE_WORKS    = true;
   const USE_MUTATION_OBSERVER_ATTR  = true;
   const INCLUDE_TRANSITION_MATCHING = false;
+  const SAVE_STYLE_FOR_OVERLAPs     = true;
+  const NO_HIDE_CLASS_CHECK         = true;
+  const ALWAYS_BACK_UP_STYLES       = true;
 
   const MIN_IFRAME_WIDTH  = 320;
   const MIN_IFRAME_HEIGHT = 240;
@@ -50,38 +53,15 @@ try { // scope and prevent errors from leaking out to page.
                                       // VIDEO_NO_LOOP_WEIGHT, etc
   const MAIN_FRAME_WEIGHT       = 5.0;
   const VIDEO_PLAYING_WEIGHT    = 10.0;
-  const VIDEO_DURATION_WEIGHT   = 5.0; // was 10
+  const VIDEO_DURATION_WEIGHT   = 0.5; // was 10
   const MAX_DURATION_SECS       = 60 * 60 * 2; // 2hrs max - live videos skew results
   const VIDEO_NO_LOOP_WEIGHT    = 1.0;
   const VIDEO_HAS_SOUND_WEIGHT  = 10.0;
   const URL_OVERLAP_WEIGHT      = 500.0;
   const TITLE_OVERLAP_WEIGHT    = 100;
   const ALLOW_FULLSCREEN_WEIGHT = 10.0;
-
-  // used to save off attributes that are modified on iframes/flash
-  const VIDEO_MAX_DATA_PREFIX             = "data-videomax";
-  const VIDEO_MAX_DATA_ATTRIB_UNDO_PREFIX = `${VIDEO_MAX_DATA_PREFIX}-saved`;
-  // used to find all the VIDEO_MAX_DATA_ATTRIB_UNDO_PREFIX easily
-  const VIDEO_MAX_DATA_ATTRIB_UNDO_TAG    = `${VIDEO_MAX_DATA_PREFIX}-tag-saved`;
-
-  // from background script.
-  const PLAYBACK_SPEED_ATTR = `${VIDEO_MAX_DATA_PREFIX}-playbackspeed`;
-
-  // found element <... data-videomax-target="zoomed-video">
-  // also see class="... videomax-ext-video-matched ..."
-
-  const EMBEDED_SCORES        = `${VIDEO_MAX_DATA_PREFIX}-scores`;
-  const VIDEO_MAX_ATTRIB_FIND = `${VIDEO_MAX_DATA_PREFIX}-target`;
-  const VIDEO_MAX_ATTRIB_ID   = "zoomed-video";
-
-
-  const REMOVE_ATTR_LIST = [
-                            PLAYBACK_SPEED_ATTR,
-                            VIDEO_MAX_ATTRIB_FIND,
-                            EMBEDED_SCORES,
-    // old videomax for comparision. remove them too
-                            `data-videomax-weights`,
-                            `videomax-ext-prep-scores`];
+  const ADVERTISE_WEIGHT        = -100.0; // de don't hide ads, but we dont' want to match them as
+                                          // main videos
 
 
   // smp-toucan-player is some random bbc player. object is the old flash player.
@@ -119,34 +99,34 @@ try { // scope and prevent errors from leaking out to page.
                                                "h5",
                                                "h6",
                                                "span"];
-  const ALLOWED_NODE_NAMES = ["#document", // iframe top element
-        "svg",
-        "xml",
-        "script",
-        "link",
-        "circle",
-        "path",
-        "noscript",
-        "img",
-        "meta",
-        "head",
-        "header",
-        "footer",
-        // "figure", // secsports puts it under a <figure> seriously?
-        "caption",
-        "area",
-        "br",
-        "button",
-        "code",
-        "cite",
-        "data",
-        "del",
-        "fieldset",
-        "figcaption",
-        "form",
-        "hgroup",
-        "input"];
-  const CSS_STYLE_HEADER_ID = "maximizier-css-inject";
+  const ALLOWED_NODE_NAMES                  = ["#document", // iframe top element
+                                               "svg",
+                                               "xml",
+                                               "script",
+                                               "link",
+                                               "circle",
+                                               "path",
+                                               "noscript",
+                                               "img",
+                                               "meta",
+                                               "head",
+                                               "header",
+                                               "footer",
+    // "figure", // secsports puts it under a <figure> seriously?
+                                               "caption",
+                                               "area",
+                                               "br",
+                                               "button",
+                                               "code",
+                                               "cite",
+                                               "data",
+                                               "del",
+                                               "fieldset",
+                                               "figcaption",
+                                               "form",
+                                               "hgroup",
+                                               "input"];
+  const CSS_STYLE_HEADER_ID                 = "maximizier-css-inject";
 
   // we use the prop class then flip all the classes at the end.
   // The reason for this is that the clientRect can get confused on rezoom if
@@ -162,6 +142,30 @@ try { // scope and prevent errors from leaking out to page.
   const PLAYBACK_VIDEO_MATCHED_CLASS         = `${PREFIX_CSS_CLASS_PREP}-video-matched`;
   const MARKER_COMMON_CONTAINER_CLASS        = `${PREFIX_CSS_CLASS}-container-common`;
   const MARKER_TRANSITION_CLASS              = `${PREFIX_CSS_CLASS}-trans`;
+  const NO_HIDE_CLASS                        = `${PREFIX_CSS_CLASS}-no-hide`;
+
+  // used to save off attributes that are modified on iframes/flash
+  const VIDEO_MAX_DATA_PREFIX             = "data-videomax";
+  const VIDEO_MAX_DATA_ATTRIB_UNDO_PREFIX = `${VIDEO_MAX_DATA_PREFIX}-saved`;
+  // used to find all the VIDEO_MAX_DATA_ATTRIB_UNDO_PREFIX easily
+  const VIDEO_MAX_DATA_ATTRIB_UNDO_TAG    = `${VIDEO_MAX_DATA_PREFIX}-tag-saved`;
+
+  // from background script.
+  const PLAYBACK_SPEED_ATTR = `${VIDEO_MAX_DATA_PREFIX}-playbackspeed`;
+
+
+  const EMBEDED_SCORES        = `${VIDEO_MAX_DATA_PREFIX}-scores`;
+  const VIDEO_MAX_ATTRIB_FIND = `${VIDEO_MAX_DATA_PREFIX}-target`;
+  const VIDEO_MAX_ATTRIB_ID   = "zoomed-video";
+
+
+  const REMOVE_ATTR_LIST = [PLAYBACK_SPEED_ATTR,
+
+                            VIDEO_MAX_ATTRIB_FIND,
+                            EMBEDED_SCORES,
+    // old videomax for comparision. remove them too
+                            `data-videomax-weights`,
+                            `videomax-ext-prep-scores`];
 
   const SCALESTRING_WIDTH  = "100%"; // "calc(100vw)";
   const SCALESTRING_HEIGHT = "100%"; // "calc(100vh)";
@@ -418,7 +422,7 @@ try { // scope and prevent errors from leaking out to page.
 
       window.document.body.parentNode.append(window.document.createComment(`
       ${newStr}
-      
+
       `));
     } catch (err) {
       trace(err);
@@ -507,14 +511,14 @@ try { // scope and prevent errors from leaking out to page.
   /**
    *
    * @param elem {Node || HTMLElement}
-   * @param attr {string}
+   * @param attr {string || null}
    * return {string}
    */
   const getAttr = (elem, attr) => {
     try {
-      return elem?.getAttribute(attr) || "";
+      return elem?.getAttribute(attr) || null;
     } catch (err) {
-      return "";
+      return null;
     }
   };
 
@@ -526,7 +530,7 @@ try { // scope and prevent errors from leaking out to page.
    */
   const setAttr = (elem, attr, value) => {
     try {
-        elem.setAttribute(attr, value);
+      elem.setAttribute(attr, value);
     } catch (err) {
       trace(err);
     }
@@ -554,8 +558,9 @@ try { // scope and prevent errors from leaking out to page.
     try {
       // node.className for an svg element is an array not a string.
       const className = getAttr(node, "class");
-      return (className?.toString()
-                .indexOf(PREFIX_CSS_CLASS) !== -1);  // matches PREFIX_CSS_CLASS_PREP too
+      return (className !== null && className.indexOf(PREFIX_CSS_CLASS) !== -1);  // matches
+                                                                                  // PREFIX_CSS_CLASS_PREP
+                                                                                  // too
     } catch (err) {
       debugger;
     }
@@ -566,29 +571,45 @@ try { // scope and prevent errors from leaking out to page.
   /**
    * Will copy the existing attribute into a data-videomax-{attr} as a save, then set the attr
    * to the new value.
+   * Use cases:
+   *  1. Save existing attr (e.g. "style") and replace it with a new value
+   *  2. Save existing attr and replace it NOTHING. newValue is "" (remove it but restore later)
+   *  3. There's no existing attr to save but add a new one.
+   *  4. We go to save an exist attr but there's already something saved. Do NOT overwrite it. (we
+   * could merge?)
+   *
+   *  Undo should handle all cases as well.
    *
    * @param node {Node || HTMLElement}
-   * @param attributeName {string}
-   * @param newValue {string}
-   * @return {boolean} True if attribute saved
+   * @param attrKey {string}
+   * @param newValue {string || null}
    */
-  const setAttrAndSave = (node, attributeName, newValue) => {
+  const setAttrAndSave = (node, attrKey, newValue) => {
     if (!isElem(node)) {
-      return false;
+      return;
     }
-    const attrName = attributeName.toLowerCase();
-
-    const orgValue           = getAttr(node, attrName) || "";
-    if (orgValue.length) { // anything to save?
-      const backupName = `${VIDEO_MAX_DATA_ATTRIB_UNDO_PREFIX}-${attrName}`;
-      if (!getAttr(node, backupName).length) {
-        setAttr(node, backupName, orgValue);
-      }
-    }
-    setAttr(node, attrName, newValue);
-
-    // always add that there are saved items so we can query it later.
+    backupAttr(node, attrKey);
+    setAttr(node, attrKey, newValue);
     setAttr(node, VIDEO_MAX_DATA_ATTRIB_UNDO_TAG, "1");
+  };
+
+  /**
+   * for readability, could flip around logic
+   * @param node {Node || HTMLElement}
+   * @param attrKey {string}
+   */
+  const backupAttr = (node, attrKey) => {
+    const orgValue = getAttr(node, attrKey);
+    if (orgValue === null) { // anything to save?
+      return;
+    }
+    const backupName = `${VIDEO_MAX_DATA_ATTRIB_UNDO_PREFIX}-${attrKey}`;
+    if (getAttr(node, backupName) !== null) {
+      trace(`Attempting to resave attribute? ${PrintNode(node)}"`);
+    } else {
+      setAttr(node, backupName, orgValue);
+      setAttr(node, VIDEO_MAX_DATA_ATTRIB_UNDO_TAG, "1");
+    }
   };
 
   /**
@@ -599,11 +620,28 @@ try { // scope and prevent errors from leaking out to page.
     const attrNames = /** @type string[] */ [...(elem?.getAttributeNames() || [])]; // clone array
     for (const eachAttrName of attrNames) {
       if (eachAttrName.startsWith(VIDEO_MAX_DATA_ATTRIB_UNDO_PREFIX)) {
-        const value = getAttr(elem, eachAttrName);
+        let savedValue         = getAttr(elem, eachAttrName);
         // we need to get the name from the suffix
-        const originalAttrName = eachAttrName.substring(VIDEO_MAX_DATA_ATTRIB_UNDO_PREFIX.length + 1);
+        const originalAttrName = eachAttrName.substring(
+          VIDEO_MAX_DATA_ATTRIB_UNDO_PREFIX.length + 1);
         removeAttr(elem, eachAttrName); // our "save" data attrib
-        setAttr(elem, originalAttrName, value); // restore it.
+        if (savedValue !== null) {
+          if (originalAttrName === "style") {
+            // we add our changes back but if there are new changes, we append.
+            const currentVal = getAttr(elem);
+            savedValue       = `${savedValue} ${currentVal || ""}`;
+
+            // if you zoom during starting pre-video commercials,
+            // then some sites have the main video hidden (cruchyroll).
+            // special case to make sure the style doesn't have "opacity: 0;"
+            // maybe need to extend to other types of "hidden" approaches?
+            savedValue = savedValue.replace(`opacity: 0;`, "");
+          }
+
+          setAttr(elem, originalAttrName, savedValue); // restore it.
+        } else {
+          removeAttr(elem, originalAttrName);
+        }
       }
     }
     // we're all done restoring, remove our marker tag
@@ -748,21 +786,22 @@ try { // scope and prevent errors from leaking out to page.
 
   /**
    *
-   * @param optionalElem {Node || HTMLElement || undefined}
+   * @param elem {Node || HTMLElement || Window}
    */
-  function forceRefresh(optionalElem = undefined) {
+  function forceRefresh(elem) {
+    if (typeof (elem?.dispatchEvent) !== "function") {
+      return;
+    }
     // we now need to force the flash to reload by resizing... easy thing is to
     // adjust the body
-    if (!isRunningInIFrame()) {
-      setTimeout(() => {
-        window.dispatchEvent(new Event("resize"));
-        window.dispatchEvent(new Event("visabilitychange"));
-        if (optionalElem?.dispatchEvent) {
-          optionalElem.dispatchEvent(new Event("resize"));
-          optionalElem.dispatchEvent(new Event("visabilitychange"));
-        }
-      }, 50);
-    }
+    setTimeout(() => {
+      try {
+        elem.dispatchEvent(new Event("resize"));
+        elem.dispatchEvent(new Event("visabilitychange"));
+      } catch (err) {
+        logerr(err);
+      }
+    }, 0);
   }
 
   /**
@@ -963,18 +1002,23 @@ try { // scope and prevent errors from leaking out to page.
    *
    * @param elem {Element}
    * @param className {string}
+   * @param optStopElem {Element | null}
    * @constructor
    */
-  const ReApplyUpFromElem = (elem, className) => {
+  const ReApplyUpFromElem = (elem, className, optStopElem = null) => {
     const saveWalker   = walker.currentNode;
     walker.currentNode = elem;
     do {
       try {
         walker?.currentNode?.classList?.add(className);
+        if (ALWAYS_BACK_UP_STYLES) {
+          backupAttr(walker.currentNode, "style");
+        }
       } catch (err) {
         logerr(`walker error for ${PrintNode(walker.currentNode)}`, err);
       }
-    } while (walker.parentNode());
+    } while (walker.parentNode() &&
+             (optStopElem ? !optStopElem.isSameNode(walker.currentNode) : true));
     walker.currentNode = saveWalker;
   };
 
@@ -1118,8 +1162,8 @@ try { // scope and prevent errors from leaking out to page.
           if (eachnode.nodeName.toUpperCase() !== "PARAM") {
             continue;
           }
-          const attrName  = getAttr(eachnode, "name");
-          const attrValue = getAttr(eachnode, "value");
+          const attrName  = getAttr(eachnode, "name") || "";
+          const attrValue = getAttr(eachnode, "value") || "";
 
           trace(`  FixUpAttribs found param '${attrName}': '${attrValue}'`);
           if (["FLASHLETS", "DATA"].includes(attrName.toUpperCase())) {
@@ -1148,8 +1192,8 @@ try { // scope and prevent errors from leaking out to page.
         if (eachnode.nodeName.toUpperCase() !== "PARAM") {
           continue;
         }
-        const name     = getAttr(eachnode, "name");
-        const orgValue = getAttr(eachnode, "value");
+        const name     = getAttr(eachnode, "name") || "";
+        const orgValue = getAttr(eachnode, "value") || "";
 
         if (Object.prototype.hasOwnProperty.call(newParams, name)) { // is this one we care about?
           trace(`FixUpAttribs changing child param '${name}'
@@ -1237,9 +1281,14 @@ try { // scope and prevent errors from leaking out to page.
     }
 
     if (containsAnyVideoMaxClass(elem)) {
-      if (DEBUG_HIDENODE) {
+      // if we hit a "no-hide" then we need to add the overlap!
+      if (elem.classList.contains(NO_HIDE_CLASS)) {
+        trace(`  hideNode: Adding overlap class since it contained NO_HIDE_CLASS! ${PrintElem}`);
+        addOverlapCtrl(elem);
+      } else if (DEBUG_HIDENODE) {
         trace(`  hideNode: NOT HIDING already contains videomax class ${PrintElem}`);
       }
+
       return false;
     }
 
@@ -1278,6 +1327,10 @@ try { // scope and prevent errors from leaking out to page.
       return;
     }
     elem?.classList?.add(OVERLAP_CSS_CLASS);
+    if (SAVE_STYLE_FOR_OVERLAPs) {
+      // we don't want a local style to conflict with the class we're adding
+      backupAttr(elem, "style");
+    }
   };
 
   /**
@@ -1329,7 +1382,7 @@ try { // scope and prevent errors from leaking out to page.
       const siblings = getSiblings(current);
       for (const eachNode of siblings) {
         // we don't hide the tree we're walking up, just the siblings
-        if (hideNode(eachNode)) { // may not actually hide for internal reasons
+        if (hideNode(eachNode)) { // may not actually hide for internal reasons like already has videomax class
           reHideCount++;
         }
       }
@@ -1445,9 +1498,9 @@ try { // scope and prevent errors from leaking out to page.
       return false;
     }
     return (inRange(inner.top, outer.top, outer.bottom) &&
-                    inRange(inner.bottom, outer.top, outer.bottom) &&
-                    inRange(inner.left, outer.left, outer.right) &&
-                    inRange(inner.right, outer.left, outer.right));
+            inRange(inner.bottom, outer.top, outer.bottom) &&
+            inRange(inner.left, outer.left, outer.right) &&
+            inRange(inner.right, outer.left, outer.right));
   };
 
   /**
@@ -1591,29 +1644,29 @@ try { // scope and prevent errors from leaking out to page.
    */
   const smellsLikeAd = (elem) => {
     const arialabel = getAttr(elem, "aria-label");
-    if (arialabel.match(/^adver/i)) {
+    if (arialabel !== null && arialabel.match(/^adver/i)) {
       trace(`smellsLikeAd: matched aria-label for "adver" '${arialabel}'`);
       return true;
     }
-    if (arialabel.match(/^ad-/i)) {
+    if (arialabel !== null && arialabel.match(/^ad-/i)) {
       trace(`smellsLikeAd: matched aria-label for "ad-" '${arialabel}'`);
       return true;
     }
     const className = getAttr(elem, "class");
-    if (className.match(/^adver/i)) {
+    if (className !== null && className.match(/^adver/i)) {
       trace(`smellsLikeAd: matched classname for "adver"? '${className}'`);
       return true;
     }
-    if (className.match(/^branding/i)) {
+    if (className !== null && className.match(/^branding/i)) {
       trace(`msmellsLikeAd: atched classname for "branding"? '${className}'`);
       return true;
     }
     const title = getAttr(elem, "title");
-    if (title.match(/^adver/i)) {
+    if (title !== null && title.match(/^adver/i)) {
       trace(`smellsLikeAd: matched title for "adver" '${title}'`);
       return true;
     }
-    if (title.match(/^ad-/i)) {
+    if (title !== null && title.match(/^ad-/i)) {
       trace(`smellsLikeAd: matched title for "ad-" '${title}'`);
       return true;
     }
@@ -1665,15 +1718,23 @@ try { // scope and prevent errors from leaking out to page.
       }
     }
 
+    // now we try to find playback controls that may have been missed.
+    if (NO_HIDE_CLASS_CHECK) {
+      const matches = [...commonContainerElem.querySelectorAll(`[role="slider"]`),
+                       ...commonContainerElem.querySelectorAll(`[role="presentation"]`)];
+      for (const elem of matches) {
+        // walk up to common and make sure we don't hide. We do this by adding an empty videeomax
+        // style class (wistia)
+        ReApplyUpFromElem(elem, NO_HIDE_CLASS, commonContainerElem);
+      }
+    }
+
     let videoElem = videomaxGlobals.matchedVideo; // readability
     exceptionToRuleFixup(getOwnerDoc(videoElem), videoElem);
 
     if (ALWAYS_MAX_BODY) {
       document.body.classList.add(MAX_CSS_CLASS);
     }
-
-    // add a tagging-only className to help identify the "common container" when debugging DOM
-    // containerElem.classList.add(COMMON_CONTAINER_DEBUG_CLASS);
   };
 
   /**
@@ -1732,9 +1793,9 @@ try { // scope and prevent errors from leaking out to page.
           debugger;
         }
         trace(`setting new best: score: ${score}, elem: `, elem);
-        this.largestScore      = score;
-        this.largestElem       = elem;
-        this.matchCount        = 1;
+        this.largestScore = score;
+        this.largestElem  = elem;
+        this.matchCount   = 1;
         trace(
           `Making item best match: \t${elem.nodeName}\t${elem.className.toString()}\t${elem.id}`);
         return true;
@@ -1862,7 +1923,8 @@ try { // scope and prevent errors from leaking out to page.
         const vidRect = cumulativePositionRect(elem, compStyle);
         traceweights.push(
           `  top: ${vidRect.top}  left: ${vidRect.left}   bottom: ${vidRect.bottom}    right:${vidRect.right}`);
-        traceweights.push(`  doc.outerWidth: ${doc.outerWidth} ${width * 100 / doc.outerWidth}%`);
+        traceweights.push(
+          `  doc.outerWidth: ${doc.outerWidth} ${fmtFlt.format(width * 100 / doc.outerWidth)}%`);
       }
       {
         // common video sizes
@@ -1890,13 +1952,14 @@ try { // scope and prevent errors from leaking out to page.
       }
 
       {
-        weight += START_WEIGHT * -1 * videomaxGlobals.match_counter * ORDER_WEIGHT;
         if (EMBED_SCORES) {
           traceweights.push(`  ORDER_WEIGHT: ${fmtInt.format(
-            START_WEIGHT * -1 * videomaxGlobals.match_counter *
+            START_WEIGHT * videomaxGlobals.match_counter *
             ORDER_WEIGHT)} Order: ${videomaxGlobals.match_counter} Weight:${ORDER_WEIGHT}`);
         }
+        weight += START_WEIGHT * videomaxGlobals.match_counter * ORDER_WEIGHT;
       }
+
       // try to figure out if iframe src looks like a video link.
       // frame shaped like videos?
       if (isIFrameElem(elem)) {
@@ -1939,11 +2002,11 @@ try { // scope and prevent errors from leaking out to page.
           traceweights.push(`    visibility: '${compStyle?.visibility}' ` +
                             `display: '${compStyle?.display}' opacity: '${compStyle?.opacity}'`);
         }
-        weight = (START_WEIGHT * HIDDEN_VIDEO_WEIGHT);
+        weight += (START_WEIGHT * HIDDEN_VIDEO_WEIGHT);
       }
 
       const tabindex = getAttr(elem, "tabindex");
-      if (tabindex !== "") {
+      if (tabindex !== null) {
         // this is a newer thing for accessibility, it's a good indicator
         if (EMBED_SCORES) {
           traceweights.push(`  TAB_INDEX_WEIGHT: ${TAB_INDEX_WEIGHT} Weight:${fmtInt.format(
@@ -1953,13 +2016,24 @@ try { // scope and prevent errors from leaking out to page.
       }
 
       const allowfullscreenAttr = getAttr(elem, "allowfullscreen");
-      if (allowfullscreenAttr?.length) {
-        weight += (START_WEIGHT * ALLOW_FULLSCREEN_WEIGHT);
+      if (allowfullscreenAttr !== null) {
         if (EMBED_SCORES) {
           traceweights.push(
             `  ALLOW_FULLSCREEN_WEIGHT: ${ALLOW_FULLSCREEN_WEIGHT} Weight:${fmtInt.format(
               START_WEIGHT * ALLOW_FULLSCREEN_WEIGHT)}`);
         }
+        weight += (START_WEIGHT * ALLOW_FULLSCREEN_WEIGHT);
+      }
+
+      if (smellsLikeAd(elem)) {
+        // don't hide ads, but we dont' want to match them as main videos
+        // ADVERTISE_WEIGHT is Neg
+        if (EMBED_SCORES) {
+          traceweights.push(
+            `  ADVERTISE_WEIGHT: ${ADVERTISE_WEIGHT} Weight:${fmtInt.format(
+              START_WEIGHT * ADVERTISE_WEIGHT)}`);
+        }
+        weight += (START_WEIGHT * ADVERTISE_WEIGHT);
       }
 
       // Found an html5 video tag
@@ -2050,7 +2124,7 @@ try { // scope and prevent errors from leaking out to page.
               const negOverlapCount = getOverlapCount(["disqus"], urlParts);
               if (EMBED_SCORES) {
                 traceweights.push(
-                  `  URL_OVERLAP_WEIGHT (neg): -${URL_OVERLAP_WEIGHT} Count:${negOverlapCount} Weight:-${fmtInt.format(
+                  `  URL_OVERLAP_WEIGHT - "disqus" (neg): -${URL_OVERLAP_WEIGHT} Count:${negOverlapCount} Weight:-${fmtInt.format(
                     START_WEIGHT * URL_OVERLAP_WEIGHT * negOverlapCount)}`);
               }
               weight -= (START_WEIGHT * URL_OVERLAP_WEIGHT * negOverlapCount);
@@ -2071,7 +2145,7 @@ try { // scope and prevent errors from leaking out to page.
           const overlapRatio = overlap / (titleParts.length || 1);
           if (EMBED_SCORES) {
             traceweights.push(
-              `USE_TITLE_OVERLAP_WEIGHT: ${USE_TITLE_OVERLAP_WEIGHT} Count:${overlap} OverlapRatio:${fmtFlt.format(
+              `USE_TITLE_OVERLAP_WEIGHT: ${TITLE_OVERLAP_WEIGHT} Count:${overlap} OverlapRatio:${fmtFlt.format(
                 overlapRatio)} weight: ${fmtFlt.format(
                 START_WEIGHT * TITLE_OVERLAP_WEIGHT * overlapRatio)}`);
           }
@@ -2160,7 +2234,8 @@ try { // scope and prevent errors from leaking out to page.
           // We apply when we flip the classNames so we don't zero size things as
           // we're finding playback controls.
           if (subFrom.includes(MAX_CSS_CLASS)) {
-            setAttrAndSave(eachElem, "style", "");
+            // removes after saving off
+            backupAttr(eachElem, "style");
           }
         }
       } catch (err) {
@@ -2420,13 +2495,9 @@ try { // scope and prevent errors from leaking out to page.
           return false;
         }
 
-        if (!reinstall) {
-          // with no element parameter, then the whole doc is "touched"
-          forceRefresh();
-        } else {
-          forceRefresh(videomaxGlobals.matchedVideo);
-          forceRefresh(videomaxGlobals.match);
-        }
+        forceRefresh(videomaxGlobals.matchedVideo);
+        forceRefresh(window.body);
+        forceRefresh(window);
 
         postFixUpPageZoom();
 
@@ -2508,8 +2579,8 @@ try { // scope and prevent errors from leaking out to page.
             continue;
           }
           // our classname was there, but it's removed?
-          const newClassName = getAttr(eachMutation.target,"class");
-          if (newClassName.indexOf(PREFIX_CSS_CLASS) !== -1) {
+          const newClassName = getAttr(eachMutation.target, "class");
+          if (newClassName && newClassName.indexOf(PREFIX_CSS_CLASS) !== -1) {
             // nope
             continue;
           }
@@ -2521,7 +2592,8 @@ try { // scope and prevent errors from leaking out to page.
             if (eachClassname.startsWith(PREFIX_CSS_CLASS)) {
               eachMutation.target?.classList?.add(eachClassname);
               trace(
-                `OBSERVER: detected classname changes\n\t before:"${eachMutation?.oldValue}"\n\t new:"${newClassName}"\n\t fixed:"${getAttr(eachMutation.target,"class")}"`);
+                `OBSERVER: detected classname changes\n\t before:"${eachMutation?.oldValue}"\n\t new:"${newClassName}"\n\t fixed:"${getAttr(
+                  eachMutation.target, "class")}"`);
             }
           }
         }
@@ -2579,6 +2651,10 @@ try { // scope and prevent errors from leaking out to page.
           }
         }
         elem.classList.remove(...remove);
+        // only our class names were in attr so just remove
+        if (elem.classList.length === 0) {
+          removeAttr(elem, "class");
+        }
       }
     }
 
@@ -2627,6 +2703,7 @@ try { // scope and prevent errors from leaking out to page.
           //  try and make the element realizes it needs to redraw. Fixes
           // progress bar
           elem.dispatchEvent(new Event("resize"));
+          elem.dispatchEvent(new Event("visabilitychange"));
         } catch (err) {
           logerr(err, elem);
         }
