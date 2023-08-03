@@ -11,19 +11,17 @@
   <h1><img alt="logo" class="logo" src="icons/icon128.png">Universal Video Maximizer - version 3.0.82 Help</h1>
   <hr>
   <h2>
-    Beta version 3.0.84 (July 2023 update)
+    Beta version 3.0.85 (Aug 2023 update)
   </h2>
 
   <section class="padding-1">
-    New features in this Beta update:
+    New features:
     <ul>
-      <li><span class="emphasis">NEW</span> Prepare for official release: Default for speed controls off by default.
-        <a href="options.html" rel="noopener" target="_blank">Options ↗</a></li>
-    </ul>
-    <ul>
+      <li>Enhanced Security. Grants access only after you approve once.</li>
+      <li><span class="emphasis">NEW</span> Prompt for Advanced UI (for upgrading v2 users)</li>
       <li>Arrow keys enable video rewind/forward skipping</li>
       <li>Improved speed playback</li>
-      <li>Optional extra permissions that make speed controls work on almost every site</li>
+      <li>Optional extra permissions that make playback controls work on almost every site</li>
     </ul>
   </section>
 
@@ -32,7 +30,7 @@
   <section class="padding-1">
     Any problems or feature requests should be reported here via a
     <a href="https://github.com/trophygeek/universalvideomaximizer/issues" rel="noopener" target="_blank">GitHub
-      issue ↗</a>. Chrome's reporting feature in the store does not notifying when new issues are added.
+      issue ↗</a>. Chrome's reporting feature in the store does not notify when new issues are added.
   </section>
 
   <section class="padding-1">
@@ -55,16 +53,26 @@
 
   <hr/>
 
-  <h3>New playback speed option</h3>
+  <h3 id="newdesign">New playback speed option</h3>
   <section class="padding-3">
-    Playback speed cannot work on pages where videos are actually hosted on a different site without extra permissions
-    prompt (e.g. youtube videos not on the youtube site). This appears to be a limitation of the Chrome APIs but may
-    improve in future versions.<br/>
+    <span class="emphasis bold"> Why include playback controls?</span><br>
+    This extension does its best to include the original playback controls when zooming, but
+    some sites may still fail. That's when having some basic playback controls as part of Video Maximizer come in handy.
+    It allows: pause, skip and speed control directly from the extension.
+  </section>
+
+  <section class="padding-3">
+    On pages where videos are actually hosted on a different site, it may require a <i>second</i> permissions prompt
+    (e.g. non-youtube sites embedding youtube videos in pages). This appears to be a limitation of the Chrome APIs but
+    hopefully will improve in future versions.<br/>
     <br/>
-    If the <span class="emphasis bold">speed controls don't work</span> or the layout isn't centered, then <span
+    If the <span class="emphasis bold">speed controls fail</span> or the layout isn't centered, then <span
       class="emphasis bold">unzoom and rezoom</span> to see if you get another permissions prompt.
   </section>
 
+  <section class="padding-3">
+  Permissions are remembered by Chrome and you should not be asked again for the same site.
+  </section>
 
   <section class="padding-5">
     <img alt="screen shot" class="illustration" src="img/new_speed_control_bar.png">
@@ -78,12 +86,19 @@
     When pages load their videos from a different site (e.g. a youtube video embedded in a non youtube site), then
     the speed control feature will not work without permissions to both sites.<br/><br/>
     If this happens, you can try rezooming a couple of times and see if more Access prompts show up. Yes, the
-    reprompting can be annoying, but it's just a how Chrome works and you will only be prompted once per site.
+    multiple promptings can be annoying, but it's just how Chrome works and you will only be asked once per site.<br>
     If you grant permissions, then you will NOT be prompted again.<br/><br/>
     If you continue to have access issues or find the prompting annoying there are extra permissions you can try
-    in the Video Maxmizer Options page.<br/><br/>
-    "Allow access to all sites by default" in the <a href="options.html" target="videomaxoptions">Options</a> will
+    in the Video Maxmizer Options page.
+  </section>
+    <section class="padding-3">
+    The <b>"Allow access to all sites by default"</b> in the <a href="options.html" target="videomaxoptions">Options</a> will
     increase this extension's base permissions.<br/><br/>
+      <b>Privacy thoughts</b>: when granting sites individual permissions, Chrome stores the list of domains with the extension.
+      (See Chrome's Extension page, then click "Details" for the extension.) This list is <b>preserved</b> even if you delete your
+      browsing history. If this is a concern for you, then enabling <b>"Allow access to all sites by default"</b> will grant
+      Video Maximizer access to sites when you activate the extension, but the internal Chrome list will no longer track it.
+      <br/><br/>
     The fundamental issue is how the cross-domain-frame-permissions-granting works in Chrome. See <a
       href="https://bugs.chromium.org/p/chromium/issues/detail?id=826433" rel="noopener"
       target="_blank">Issue #826433 ↗</a>
@@ -157,8 +172,9 @@
   </h3>
   <section class="padding-7">
     <h4>Youtube controls are not fullscreen</h4>
-    <p>The solution for this is to put the youtube video into "theater" mode before using Video Maximizer. This can be
-      done by pressing the "t" key.</p>
+    <p>The solution for this is to put the youtube video into "Youtube theater" mode before using Video Maximizer. This
+      can be
+      done by pressing the "T" key.</p>
 
     <br/>
 
@@ -169,10 +185,10 @@
     <br/>
 
     <h4>Speed controls don't work on some sites</h4>
-    <p>Video Maximizer attempts to use the minimal permissions required to do it's job. However, there are still some
+    <p>Video Maximizer attempts to use the minimal permissions required to do its job. However, there are still some
       sites that require more access to work.
       (The technical reason has to do with embedding iframes that have cross-domain references.)</p>
-    <p>The default settings for Video Maximizer is maximium privacy, but see the <a href="options.html"
+    <p>The default settings for Video Maximizer is maximum privacy, but see the <a href="options.html"
                                                                                     target="videomaxoptions">Options</a>
       page for more choices to grant this extension more permissions.</p>
 
@@ -184,7 +200,8 @@
 
     <br/>
     <h4>Constant security prompting</h4>
-    <p>You should only get prompted ONCE per unique site you use Video Maximizer on; however, if this frequency annoys you, then
+    <p>You should only get prompted ONCE per unique site you use Video Maximizer on; however, if this frequency annoys
+      you, then
       you have the choice to enable the "Allow access to all sites by default" option. You will then get one last prompt
       and never be bugged again.</p>
 
@@ -218,14 +235,14 @@
 
   <section class="padding-7">
     <p>You can use Video Maximizer with local video files (like .mp4).
-      Simply drag-and-drop into a brower window to start playing the video. Then click the extension button.
+      Simply drag-and-drop into a browser window to start playing the video. Then click the extension button.
     </p>
-    <p>If you have issues with local files working, you may want to check the extension permssions.</p>
+    <p>If you have issues with local files working, you may want to check the extension permissions.</p>
     <ol>
       <li>Go into Chrome Extensions page <code>chrome://extensions/</code></li>
-      <li>Find the Universal VideoMaximizer in the list of extension.</li>
+      <li>Find the Universal VideoMaximizer in the list of extensions.</li>
       <li>Click the Details button</li>
-      <li>Scroll down until you see a the "Allow access to file URLs" and make sure it's enabled.</li>
+      <li>Scroll down until you see the "Allow access to file URLs" and make sure it's enabled.</li>
     </ol>
     You can disable the speed controls and revert the behavior back to the classic toggle.
   </section>

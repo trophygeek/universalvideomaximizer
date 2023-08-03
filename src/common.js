@@ -38,7 +38,8 @@ export const trace = (...args) => {
 export const SETTINGS_STORAGE_KEY = "settingsJson";
 
 // bumping this will cause the notification to show again. keep it pinned unless some major feature
-export const BETA_UPDATE_NOTIFICATION_VERISON = "84"; // will get out of sync. bump to show notification
+export const BETA_UPDATE_NOTIFICATION_VERISON = "85"; // will get out of sync. bump to show
+                                                      // notification
 
 
 /* these are sites that are already zoomed, but playback speed is kind of nice */
@@ -50,7 +51,8 @@ export const DEFAULT_ZOOM_EXCLUSION_LIST = "amazon," + "hbomax," + "play.max," +
  * @type {SettingsType}
  */
 export const DEFAULT_SETTINGS = {
-  lastBetaVersion:           "0", // number as string used to show initial "help" (also for major releases)
+  lastBetaVersion:           "0", // number as string used to show initial "help" (also for major
+                                  // releases)
   useAdvancedFeatures:       false,
   spacebarTogglesPlayback:   true,
   regSkipSeconds:            5,
@@ -59,6 +61,7 @@ export const DEFAULT_SETTINGS = {
   wholeDomainAccess:         false, // "all example.com sites" vs "on www.example.com"
   allSitesAccess:            false,
   allSitesAccessNeedsRevoke: false,
+  firstUseShown:             false, // set to true once first_use picks a mode.
   zoomExclusionListStr:      DEFAULT_ZOOM_EXCLUSION_LIST,
 };
 
@@ -73,10 +76,6 @@ export const getSettings = async () => {
     }
     /** @type SettingsType **/
     const savedSetting = JSON.parse(result[SETTINGS_STORAGE_KEY]);
-    if (savedSetting?.useToggleZoomBehavior !== undefined && savedSetting?.useAdvancedFeatures === undefined) {
-      // one time migrate setting for old beta users // todo: remove next version
-      savedSetting.useAdvancedFeatures = !savedSetting.useToggleZoomBehavior
-    }
     return { ...DEFAULT_SETTINGS, ...savedSetting };
   } catch (err) {
     console.error(err);
@@ -188,7 +187,8 @@ export const isPageExcluded = (domain, zoomExclusionListStr) => {
   for (const eachExcludedDomain of excludedList) {
     // if it doesn't have a trailing . or .com then append a "."
     const each = eachExcludedDomain.endsWith(".com") || eachExcludedDomain.endsWith(".") ?
-                 eachExcludedDomain : `${eachExcludedDomain}.`;
+                 eachExcludedDomain :
+                 `${eachExcludedDomain}.`;
     if (domain.includes(each)) {
       return true;
     }
@@ -225,8 +225,8 @@ export const domainToSiteWildcard = (domainStr, wholeDomainAccess) => {
 };
 
 /*
-* @returns {Promise<Object>}
-*/
+ * @returns {Promise<Object>}
+ */
 export const getManifestJson = async () => {
   try {
     const cssFilePath = chrome?.runtime?.getURL("manifest.json");

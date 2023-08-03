@@ -72,7 +72,7 @@ const STATE_DATA = {
   // each title MUST be unique! Reverse lookup uses the title to
   // map chrome.action.getTitle back to state.
   // titles need localization support
-  UNZOOMED:              {
+  UNZOOMED:           {
     badge:     BADGES.NONE,
     title:     "", // if empty, reloaded from manifest
     showpopup: false,
@@ -141,7 +141,7 @@ const STATE_DATA = {
 // cross-domain and need more permissions. Try to collect iframe domains
 // and ask user's ADDITIONAL permission, but it STILL requires a full page
 // refresh to re-prompt?!?
-const GET_IFRAME_PERMISSIONS             = true;
+const GET_IFRAME_PERMISSIONS = true;
 
 // holds subframe urls so we can request access to them. no GC because chrome frees this
 // background service pretty aggressively.
@@ -188,10 +188,23 @@ function setSubframeData(tabId, domain, subFrameStr) {
  * @type {TabToSpeedMap} */
 const g_SpeedByTabData = {};
 
+/**
+ * @param tabId {number}
+ * @param domain {string}
+ * @param speed {string}
+ * @return {boolean}
+ */
 function setSpeedGlobalData(tabId, domain, speed) {
+  const wasSet                           = g_SpeedByTabData[`${tabId}-${domain}`] !== undefined;
   g_SpeedByTabData[`${tabId}-${domain}`] = speed;
+  return wasSet;
 }
 
+/**
+ * @param tabId {number}
+ * @param domain {string}
+ * @return {string}
+ */
 function getGlobalSpeedData(tabId, domain) {
   return g_SpeedByTabData[`${tabId}-${domain}`] || DEAULT_SPEED;
 }
@@ -454,6 +467,12 @@ async function setCurrentTabState(tabId, state, domain = "", speed = DEAULT_SPEE
                 `popup.html#tabId=${tabId}&speed=${speed}&domain=${domain}&badge=${badge}` :
                 "";
 
+    const settings = await getSettings();
+    if (settings.firstUseShown === false) {
+      trace("showing first_use.html");
+      popup = `first_use.html#tabId=${tabId}&speed=${speed}&domain=${domain}&badge=${badge}`;
+    }
+
     trace(`popup url "${popup}"`);
     // don't think the order matters, just set them all and wait for them to complete.
     await Promise.all([chrome.action.setBadgeText({
@@ -485,7 +504,7 @@ async function getCurrentTabState(tabId) {
     // DEFAULT will be the `default_title` string from our manifest.
     // Remember to keep in sync is fragile, and doesn't localize, just load it
     if (STATE_DATA.UNZOOMED.title === "") {
-      const manifest = await getManifestJson();
+      const manifest            = await getManifestJson();
       STATE_DATA.UNZOOMED.title = manifest?.action?.default_title || "Click to zoom";
     }
 
@@ -757,10 +776,14 @@ async function setSpeed(tabId, domain, speedStr = DEAULT_SPEED) {
 
     if (typeof parseFloat(speedStr) !== "number") {
       logerr(`Speed NOT valid number '${speedStr}'`);
-      return null;
+      return false;
     }
-    setSpeedGlobalData(tabId, domain, speedStr);
+    const wasSet = setSpeedGlobalData(tabId, domain, speedStr);
 
+    if (!wasSet && speedStr === DEAULT_SPEED) {
+      trace("NOT setting video speed since it doesn't seem required (max compatability mode)");
+      return false;
+    }
     // "allFrames" is broken unless manifest requests permissions
     // `"optional_host_permissions": ["<all_urls>"]`
     const results = await chrome.scripting.executeScript({
@@ -1089,6 +1112,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         case "SKIP_PLAYBACK_CMD":
           await skipPlayback(tabId, speed);
           break;
+
+        case "FIRST_USE_SET":
+          // this is from
+          await setCurrentTabState(tabId, "", domain);
+          break;
       }
     } catch (err) {
       logerr(err);
@@ -1098,17 +1126,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   sendResponse && sendResponse({ success: true }); // used to close popup.
 });
 
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, _tab) => {
   try {
-    trace(`tabs.onUpdated event tabId=${tabId}
-    changeInfo:`, changeInfo);
+    const domain = getDomain(changeInfo.url);
+    trace(`tabs.onUpated event tabId=${tabId} changeInfo:`, changeInfo);
     if (tabId && changeInfo?.status === "loading") {
       setTimeout(async () => {
         const state = await getCurrentTabState(tabId);
         if (isActiveState(state)) {
           trace("chrome.tabs.onUpdated loading so starting unzoom. likely SPA nav");
           // some SPA won't do a clean refetch, we need to uninstall.
-          await unZoom(tabId);
+          await unZoom(tabId, domain);
         } else {
           trace(`tabId not currently zoomed ${tabId}`);
         }

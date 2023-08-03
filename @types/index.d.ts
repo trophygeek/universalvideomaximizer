@@ -15,6 +15,7 @@ type SettingsType = {
   wholeDomainAccess: boolean,
   allSitesAccess: boolean,
   allSitesAccessNeedsRevoke: boolean,
+  firstUseShown:             boolean,
   zoomExclusionListStr: string,
 };
 
@@ -29,7 +30,8 @@ type CmdType =
     | "REZOOM_CMD"
     | "SKIP_PLAYBACK_CMD"
     | "TOGGLE_PLAYBACK_CMD"
-    | "OPTIONS_CMD";
+    | "OPTIONS_CMD"
+    | "FIRST_USE_SET";
 
 // Used by popup for buttons that aren't speed changes.
 type PopupMenuCmd = "UNZOOM_BTN_CMD" | "OPTIONS_BTN_CMD";

@@ -200,7 +200,7 @@ abbr[title] {
 
 img {
   zoom: 0.5;
-  opacity: .95;
+  opacity: .98;
 }
 
 img:not([src*=".svg"]) {
