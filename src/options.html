@@ -16,7 +16,7 @@
     <fieldset>
       <legend>Advanced playback features</legend>
       <div class="row col label">
-        <input class="toggle" checked id="useAdvancedFeatures" name="useAdvancedFeatures" type="checkbox">
+        <input class="toggle" id="useAdvancedFeatures" name="useAdvancedFeatures" type="checkbox">
         <label for="useAdvancedFeatures">
           Enable <span class="emphasis">ADVANCED</span> features (Experimental)
         </label>
@@ -25,11 +25,11 @@
         <p><img alt="screen shot" class="illustration" src="img/new_speed_control_bar.png"></p>
       </div>
     </fieldset>
-
-    <fieldset class="diableForSimpleFeatures">
+    <!-- this setting is too complex for now -->
+    <fieldset class="diableForSimpleFeatures is-hidden">
       <legend>Allow more access - whole site by default</legend>
       <div class="row col label">
-        <input checked id="wholeDomainAccess" name="wholeDomainAccess" type="checkbox">
+        <input class="toggle" id="wholeDomainAccess" name="wholeDomainAccess" type="checkbox">
         <label for="wholeDomainAccess">
           May help reduce the number of "rezooms" required to get all permission prompts from chrome.
         </label>
@@ -58,7 +58,7 @@
     <fieldset class="diableForSimpleFeatures">
       <legend>Allow full access to all sites by default</legend>
       <div class="row col label">
-        <input checked id="allSitesAccess" name="allSitesAccess" type="checkbox">
+        <input class="toggle" id="allSitesAccess" name="allSitesAccess" type="checkbox">
         <label for="allSitesAccess">
           If the security prompts annoy you OR Video Maximizer still won't work, then try this setting.
         </label>
@@ -67,8 +67,8 @@
         <div class="row col">WARNING: It will allow FULL ACCESS to ALL SITES by default. <br/>
           This access should not be required, but is a fix-all. Once granted and accepted, it silences all further
           permissions prompting.<br/><br/>
-          If you find a site that still doesn't work after enabling this setting, then consider reporting it via a <a
-              href="https://github.com/trophygeek/universalvideomaximizer/issues" rel="noopener" target="_blank">GitHub
+          Find a site that still doesn't work? <a
+              href="https://github.com/trophygeek/universalvideomaximizer/issues" rel="noopener" target="_blank">Open a GitHub
             issue ↗</a>.
         </div>
       </div>
@@ -78,7 +78,7 @@
       <legend>Playback skipping</legend>
       <div class="container padding-1">
         While Video Maximizer popup controls are displayed, you can use the arrow keys to skip playback.&nbsp;
-        Playback skipping is in viewing times, not video time. For example, 2x playback speed skips twice as far.
+        Playback skipping is in <i>viewing</i> times, not video time. For example, 2x playback speed skips twice as far.
         <a href="help.html" target="vidomaxhelp">Read more on the help page</a>
       </div>
 
@@ -127,9 +127,8 @@
     <fieldset class="diableForSimpleFeatures">
       <legend>Speed controls only sites</legend>
       <div class="row col label">
-        <label class="padding-1" for="nozoomlist">Sites that are already fullscreen, so VideoMax won't try to zoom
-          again. But speed
-          controls are still nice. Just use main domain part. So for "www.example.com" or "example.uk.co", just supply
+        <label class="padding-1" for="nozoomlist">Some sites that are already fullscreened in theater mode, so VideoMax won't try to zoom
+          them again. But speed controls could still be nice. Just use main domain part. So for "www.example.com" or "example.uk.co", just supply
           "example"</label>
         <div class="list-group">
           <ul class="list" id="nozoomlist">

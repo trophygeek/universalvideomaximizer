@@ -12,7 +12,7 @@ try { // scope and prevent errors from leaking out to page.
   const COMMON_PARENT_SCORES = FULL_DEBUG;
   const DEBUG_HIDENODE       = FULL_DEBUG;
 
-  // experiments - keep these settings to regression check various fixes across sites
+  // Recent changes - keep these flags to quickly regression check various fixes across sites
   // What fixes one site often breaks another.
   // Eventually, these can go away as we verify no adverse interactions.
   const DO_NOT_MATCH_ADS            = false;
@@ -21,18 +21,19 @@ try { // scope and prevent errors from leaking out to page.
   const SCROLL_TO_VIDEO             = true;
   const STOP_NODE_DISABLE           = true;
   const STOP_NODE_COMMON_CONTAINER  = true;
-  const REHIDE_RETRY_UNTIL_NONE     = true; // tictok popups
+  const REHIDE_RETRY_UNTIL_NONE     = true;
   const NEVER_HIDE_SMELLS_LIKE_TEST = true;
   const ADJUST_PLAYBACK_CNTL_HEIGHT = true;
   const USE_URL_OVERLAP_WEIGHT      = true;
   const USE_TITLE_OVERLAP_WEIGHT    = true;
-  const ONLY_RUN_AFTER_DOC_LOADED   = true; // set to false and test
+  const ONLY_RUN_AFTER_DOC_LOADED   = true;
   const IFRAME_PARENT_NODE_WORKS    = true;
   const USE_MUTATION_OBSERVER_ATTR  = true;
   const INCLUDE_TRANSITION_MATCHING = false;
   const SAVE_STYLE_FOR_OVERLAPs     = true;
   const NO_HIDE_CLASS_CHECK         = true;
   const ALWAYS_BACK_UP_STYLES       = true;
+  const LAST_DITCH_HIDE             = true;
 
   const MIN_IFRAME_WIDTH  = 320;
   const MIN_IFRAME_HEIGHT = 240;
@@ -63,9 +64,6 @@ try { // scope and prevent errors from leaking out to page.
   const ADVERTISE_WEIGHT        = -100.0; // de don't hide ads, but we dont' want to match them as
                                           // main videos
 
-
-  // smp-toucan-player is some random bbc player. object is the old flash player.
-  const VIDEO_NODES       = ["video", "object", "embed", "iframe", "smp-toucan-player"];
   /** @type {HtmlElementTypes} */
   const ALWAYS_HIDE_NODES = ["footer", "header", "nav"];  // aside needed for
                                                           // 9anime
@@ -88,7 +86,10 @@ try { // scope and prevent errors from leaking out to page.
                                                "iframe"];
   /** @type {HtmlElementTypes} */
   const STOP_NODES_COMMON_CONTAINER         = [...IGNORE_CNTL_NODES, "main", "section", "article"];
-  const IGNORE_COMMON_CONTAINER_COUNT_NODES = [...IGNORE_CNTL_NODES,
+  const IGNORE_COMMON_CONTAINER_COUNT_NODES = [...ALWAYS_HIDE_NODES,
+                                               "head",
+                                               "html",
+                                               "iframe",
                                                "ul",
                                                "ol",
                                                "li",
@@ -558,11 +559,11 @@ try { // scope and prevent errors from leaking out to page.
     try {
       // node.className for an svg element is an array not a string.
       const className = getAttr(node, "class");
-      return (className !== null && className.indexOf(PREFIX_CSS_CLASS) !== -1);  // matches
-                                                                                  // PREFIX_CSS_CLASS_PREP
-                                                                                  // too
+      return (className !== null && className.toString()
+        .toLowerCase()
+        .indexOf(PREFIX_CSS_CLASS) !== -1);  // "videomax-ext"
     } catch (err) {
-      debugger;
+      logerr(err);
     }
     return false;
   };
@@ -628,7 +629,7 @@ try { // scope and prevent errors from leaking out to page.
         if (savedValue !== null) {
           if (originalAttrName === "style") {
             // we add our changes back but if there are new changes, we append.
-            const currentVal = getAttr(elem);
+            const currentVal = getAttr(elem, "style");
             savedValue       = `${savedValue} ${currentVal || ""}`;
 
             // if you zoom during starting pre-video commercials,
@@ -956,15 +957,11 @@ try { // scope and prevent errors from leaking out to page.
   };
 
   /**
-   * @param childElem {HTMLElement}
-   * @param ancestorElem {HTMLElement}
-   * @return {boolean}
+   *
+   * @param doc {Document}
+   * @param videoElem {Node}
    */
-  function isADecendantElem(childElem, ancestorElem) {
-    return ancestorElem?.contains(childElem) || false;
-  }
-
-  function exceptionToRuleFixup(doc, videoElem) {
+  const exceptionToRuleFixup = (doc, videoElem) => {
     // some sites have the playback controls completely cover the video, if we don't
     // adjust the height, then they are at the top or middle of the screen.
     if (ADJUST_PLAYBACK_CNTL_HEIGHT) {
@@ -982,7 +979,33 @@ try { // scope and prevent errors from leaking out to page.
         }
       }
     }
-  }
+  };
+
+  /**
+   * Some cases where videos are hidden in iframes or nested iframes cause us to miss hiding some
+   * simblings
+   * @param doc {Document}
+   */
+  const lastDitchHide = (doc) => {
+    if (LAST_DITCH_HIDE) {
+      const matches = [...doc.getElementsByClassName(MAX_CSS_CLASS),
+                       doc.getElementsByClassName(`${PREFIX_CSS_CLASS}-max`)];
+      for (const eachElem of matches) {
+        try {
+          const siblings = getSiblings(eachElem);
+          for (const eachSibling of siblings) {
+            if (!isIgnoredNode(eachSibling) && !containsAnyVideoMaxClass(eachSibling)) {
+              trace(`lastDitchHide found unhidden element. Hiding. ${PrintNode(eachSibling)}`);
+              hideNode(eachSibling);
+            }
+          }
+        } catch (err) {
+          logerr(err);
+        }
+      }
+    }
+  };
+
 
   // HTMLFrameElement
   const isVisibleWalkerElem = (el) => {
@@ -1326,6 +1349,9 @@ try { // scope and prevent errors from leaking out to page.
       trace(`NOT addOverlapCtrl containsAnyVideoMaxClass: ${PrintNode(elem)}}`);
       return;
     }
+    if (isSpecialCaseNeverOverlap(elem)) {
+      return;
+    }
     elem?.classList?.add(OVERLAP_CSS_CLASS);
     if (SAVE_STYLE_FOR_OVERLAPs) {
       // we don't want a local style to conflict with the class we're adding
@@ -1339,24 +1365,29 @@ try { // scope and prevent errors from leaking out to page.
    * @return {Node[]}
    */
   const getSiblings = (node) => {
-    if (!node.parentElement?.children) {
-      return [];
-    }
-    return [...node.parentElement.children].filter(c => {
-      if (c === node) {
-        return false;
+    try {
+      if (!node.parentElement?.children) {
+        return [];
       }
-      if (c.nodeType === Node.ELEMENT_NODE) {
-        return true;
-      }
-      if (c.nodeType === Node.DOCUMENT_NODE) {
-        // this includes HTML, XML and SVG!
-        if (!(c.nodeType instanceof HTMLDocument)) {
+      return [...node.parentElement.children].filter(c => {
+        if (c === node) {
           return false;
         }
-      }
-      return ALLOWED_NODE_NAMES.includes(c.nodeName);
-    });
+        if (c.nodeType === Node.ELEMENT_NODE) {
+          return true;
+        }
+        if (c.nodeType === Node.DOCUMENT_NODE) {
+          // this includes HTML, XML and SVG!
+          if (!(c.nodeType instanceof HTMLDocument)) {
+            return false;
+          }
+        }
+        return ALLOWED_NODE_NAMES.includes(c.nodeName);
+      });
+    } catch (err) {
+      logerr(err);
+      return [];
+    }
   };
 
   /**
@@ -1366,6 +1397,8 @@ try { // scope and prevent errors from leaking out to page.
     if (!DO_REHIDE) {
       return 0;
     }
+
+    lastDitchHide(document);
 
     /** @type {number} */
     let reHideCount = 0;
@@ -1626,6 +1659,10 @@ try { // scope and prevent errors from leaking out to page.
                                   new RegExp(/mgp_ccContainer/i), // pornhub cc
                                   new RegExp(/web-player-icon-resize/i), // tubi's non-508 playback
   ];
+  /**
+   * @param elem {Node}
+   * @return {boolean}
+   */
   const isSpecialCaseNeverHide = (elem) => {
     const neverHideElem = smellsLikeMatch(elem, NEVERHIDEMATCHES);
     if (neverHideElem) {
@@ -1634,6 +1671,15 @@ try { // scope and prevent errors from leaking out to page.
     }
   };
 
+
+  /**
+   * @param _elem {Node}
+   * @return {boolean}
+   */
+  const isSpecialCaseNeverOverlap = (_elem) => {
+    // in theory more logic can go here.
+    return false;
+  };
 
   /**
    * Does NOT block ads.
@@ -1792,6 +1838,7 @@ try { // scope and prevent errors from leaking out to page.
         if (BREAK_ON_BEST_MATCH) {
           debugger;
         }
+        // special case when we can dig down through iframes and find videos
         trace(`setting new best: score: ${score}, elem: `, elem);
         this.largestScore = score;
         this.largestElem  = elem;
@@ -2029,9 +2076,8 @@ try { // scope and prevent errors from leaking out to page.
         // don't hide ads, but we dont' want to match them as main videos
         // ADVERTISE_WEIGHT is Neg
         if (EMBED_SCORES) {
-          traceweights.push(
-            `  ADVERTISE_WEIGHT: ${ADVERTISE_WEIGHT} Weight:${fmtInt.format(
-              START_WEIGHT * ADVERTISE_WEIGHT)}`);
+          traceweights.push(`  ADVERTISE_WEIGHT: ${ADVERTISE_WEIGHT} Weight:${fmtInt.format(
+            START_WEIGHT * ADVERTISE_WEIGHT)}`);
         }
         weight += (START_WEIGHT * ADVERTISE_WEIGHT);
       }

@@ -1,0 +1,40 @@
+:root {
+  --main-height: 23em;
+}
+
+html, body {
+  height: var(--main-height);
+  width: max-content;
+}
+
+body {
+  margin: 13px;
+  border: 2px rgba(144, 238, 144, 0.48) solid;
+  padding: 13px;
+  display: inline-block;
+  align-items: stretch;
+  background-color: black;
+  overflow: hidden;
+  user-select: none;
+}
+
+iframe {
+  border: 0;
+  width: 28.5em;
+  height: 2em;
+  padding-left: .5em;
+}
+
+.inline-icon {
+  zoom: 1;
+  line-height: 0;
+  align-content: center !important;
+}
+
+li, ol {
+  padding-bottom: .5em;
+}
+
+br.half-br {
+  line-height: 0.5em;
+}

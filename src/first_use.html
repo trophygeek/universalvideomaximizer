@@ -1,0 +1,37 @@
+<!Doctype html>
+<html lang="en">
+<head>
+  <title>Universal Video Maximizer</title>
+  <meta charset="utf-8">
+  <link href="chota.css" rel="stylesheet" type="text/css">
+  <link href="first_use.css" rel="stylesheet" type="text/css">
+  <script src="first_use.js" type="module"></script>
+</head>
+<body class="dark">
+<div id="intro">
+  <h2>Welcome to Version 3</h2>
+  <p>Updated to continue working with Chrome.</p>
+  <p>Use the NEW experimental design to control video from this extension?</p>
+  <p>
+    &nbsp;<button id="useSimpleFeatures">Keep it simple</button>&nbsp;<button id="useAdvancedFeatures">Try the new
+    design
+  </button>&nbsp;
+  </p>
+  <p>You can change this setting later via the Options.</p>
+  <p>See the <a href="help.html#newdesign" rel="noopener" target="_blank">Help ↗</a> page for more details.</p>
+</div>
+<div class="is-hidden" id="tutorial">
+  <b>Here's what it looks like</b> <br/>
+  <iframe id="tryitframe"></iframe>
+  <br class="half-br">This will show up <b>after</b> a video is maximized and you click the button again.
+  <br/>
+  <br/>Try it right now:
+  <ul>
+    <li>Use the arrow-right/left keys to skip around video.</li>
+    <li>Click a 0.25 speed to slow down playback to 1/4th normal</li>
+    <li>Click the <img alt="unzoom icon" class="inline-icon" src="/icons/icon19undo.png"> to unzoom.</li>
+  </ul>
+  <button id="done">ok</button>
+</div>
+</body>
+</html>
