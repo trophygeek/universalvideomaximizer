@@ -1,6 +1,6 @@
 {
-  "name": "Universal Video Maximizer BETA v3",
-  "version": "3.0.85",
+  "name": "Video Maximizer BETA v3",
+  "version": "3.0.86",
   "manifest_version": 3,
   "description": "Zoom videos and theater mode on most websites while maintaining your privacy.",
   "homepage_url": "https://github.com/trophygeek/universalvideomaximizer",
@@ -11,7 +11,7 @@
   },
   "default_locale": "en",
   "action": {
-    "default_title": "Click to zoom video on page.\nRight-click to see Options"
+    "default_title": "Click to zoom video on page.\nRight-click to change Options"
   },
   "background": {
     "service_worker": "background.js",

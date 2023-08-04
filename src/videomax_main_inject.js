@@ -34,6 +34,7 @@ try { // scope and prevent errors from leaking out to page.
   const NO_HIDE_CLASS_CHECK         = true;
   const ALWAYS_BACK_UP_STYLES       = true;
   const LAST_DITCH_HIDE             = true;
+  const REAPPLY_PLAYBACKSPEED       = true;
 
   const MIN_IFRAME_WIDTH  = 320;
   const MIN_IFRAME_HEIGHT = 240;
@@ -58,7 +59,7 @@ try { // scope and prevent errors from leaking out to page.
   const MAX_DURATION_SECS       = 60 * 60 * 2; // 2hrs max - live videos skew results
   const VIDEO_NO_LOOP_WEIGHT    = 1.0;
   const VIDEO_HAS_SOUND_WEIGHT  = 10.0;
-  const URL_OVERLAP_WEIGHT      = 500.0;
+  const URL_OVERLAP_WEIGHT      = 100.0;
   const TITLE_OVERLAP_WEIGHT    = 100;
   const ALLOW_FULLSCREEN_WEIGHT = 10.0;
   const ADVERTISE_WEIGHT        = -100.0; // de don't hide ads, but we dont' want to match them as
@@ -852,7 +853,7 @@ try { // scope and prevent errors from leaking out to page.
       if (recurseFirst) {
         const matches = [...e.querySelectorAll(`[role="slider"]`),
                          ...e.querySelectorAll(`[role="presentation"]`)];
-        runningCount += matches.length;
+        runningCount += matches.length * 2;  // 2x points if there's a slider under this element.
         if (COMMON_PARENT_SCORES) {
           containDbgMsg += `\n Slider count: +${matches.length} result:${runningCount}`;
         }
@@ -2083,7 +2084,8 @@ try { // scope and prevent errors from leaking out to page.
       }
 
       // Found an html5 video tag
-      if (elem.nodeName.toLowerCase() === "video") {
+      const isVideo = (elem.nodeName.toLowerCase() === "video");
+      if (isVideo) {
         /** @type {HTMLMediaElement} **/
         const videoElem = elem;
         if (EMBED_SCORES) {
@@ -2150,7 +2152,18 @@ try { // scope and prevent errors from leaking out to page.
           if (pageUrl?.length &&
               (pageUrl.startsWith("https://") || pageUrl.startsWith("blob:https://"))) {
             // no see if we can get this video's source.
-            const elemUrl = elem?.src || "";
+            let elemUrl = elem?.src || "";
+            if (elemUrl === "" && isVideo) {
+              // sometimes there's a <video><source src=""></video> approach.
+              // this is used when there might be different data formatting available for
+              // the same video (e.g. one for video/mp4 and another for video/webm).
+              // if a site is going through this much work, it's probably NOT an ad.
+              const matchedSources = elem.getElementsByTagName("source");
+              if (matchedSources.length > 0) {
+                // there may be multiple, but they are likely very simailar.
+                elemUrl = matchedSources[0].src || "";
+              }
+            }
             if (elemUrl.length &&
                 (elemUrl.startsWith("https://") || elemUrl.startsWith("blob:https://"))) {
               const pageParts    = splitUrlWords(pageUrl);
@@ -2235,6 +2248,17 @@ try { // scope and prevent errors from leaking out to page.
         hideNode(elem);
       }
     }
+  };
+
+  const updateSpeedFromAttr = () => {
+    setTimeout(() => {
+      const speedStr = getAttr(videomaxGlobals.matchedVideo, PLAYBACK_SPEED_ATTR);
+      if (speedStr !== null && speedStr !== "" && videomaxGlobals?.matchedVideo?.playbackRate !==
+          undefined) {
+        trace(`Reapplying playback speed after "canplay" event. Speed: ${speedStr}`);
+        videomaxGlobals.matchedVideo.playbackRate = parseFloat(speedStr);
+      }
+    }, 1);
   };
 
   /**
@@ -2589,6 +2613,9 @@ try { // scope and prevent errors from leaking out to page.
       videomaxGlobals.observerClassMod.disconnect();
       videomaxGlobals.observerClassMod = null;
     }
+    try {
+      videomaxGlobals.matchedVideo.removeEventListener("canplay", updateSpeedFromAttr);
+    } catch (_err) {}
   };
 
   const OBSERVE_ATTRIB_OPTIONS = {
@@ -2647,6 +2674,14 @@ try { // scope and prevent errors from leaking out to page.
       observer.observe(topElem, OBSERVE_ATTRIB_OPTIONS);
     });
     videomaxGlobals.observerClassMod.observe(topElem, OBSERVE_ATTRIB_OPTIONS);
+
+    try {
+      if (REAPPLY_PLAYBACKSPEED && videomaxGlobals.matchedIsHtml5Video) {
+        videomaxGlobals.matchedVideo.removeEventListener("canplay", updateSpeedFromAttr);
+        videomaxGlobals.matchedVideo.addEventListener("canplay", updateSpeedFromAttr);
+      }
+    } catch (err) {
+    }
   };
 
 // <editor-fold defaultstate="collapsed" desc="UndoZoom">
