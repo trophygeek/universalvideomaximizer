@@ -143,6 +143,8 @@ const STATE_DATA = {
 // refresh to re-prompt?!?
 const GET_IFRAME_PERMISSIONS = true;
 
+const BLOCKED_SKIP_DOMAINS = ["netflix."]; // skipping breaks these sites
+
 // holds subframe urls so we can request access to them. no GC because chrome frees this
 // background service pretty aggressively.
 /** @type {SubFramePermMatching} */
@@ -832,11 +834,17 @@ async function getSpeed(tabId, domain) {
 /**
  * @param tabId {number}
  * @param secondToSkipStr {string} Neg skips backwards
+ * @param domain {string}
  * @returns {Promise<chrome.scripting.InjectionResult[]>}
  */
-async function skipPlayback(tabId, secondToSkipStr) {
+async function skipPlayback(tabId, secondToSkipStr, domain) {
   try {
     trace("skipPlayback", tabId, secondToSkipStr);
+    if (domain?.length &&
+        BLOCKED_SKIP_DOMAINS.filter((d) => domain.includes(d)).length > 0) {
+      console.trace("netflix fails if we skip");
+      return null;
+    }
     if (typeof parseFloat(secondToSkipStr) !== "number") {
       logerr(`secondToSkipStr NOT valid number '${secondToSkipStr}'`);
       return null;
@@ -1110,7 +1118,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           break;
 
         case "SKIP_PLAYBACK_CMD":
-          await skipPlayback(tabId, speed);
+          await skipPlayback(tabId, speed, domain);
           break;
 
         case "FIRST_USE_SET":

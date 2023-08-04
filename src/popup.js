@@ -3,7 +3,6 @@
 import { DEFAULT_SETTINGS, DEFAULT_SPEED, getSettings, logerr, trace } from "./common.js";
 
 try {
-  const BLOCKED_SKIP_DOMAINS = ["netflix."]; // skipping breaks these sites
   const UNZOOM_LABEL         = "[]";
   const UNZOOM_ICON          = "./icons/icon19undo.png";
 
@@ -254,10 +253,6 @@ try {
 
       case "ArrowLeft":
         trace("ArrowLeft");
-        if (globals.domain?.length && BLOCKED_SKIP_DOMAINS.includes(globals.domain)) {
-          console.trace("netflix can't skip");
-          return;
-        }
         const skipSecBack      = evt.shiftKey ?
                                  globals.settings.longSkipSeconds :
                                  globals.settings.regSkipSeconds;
@@ -276,10 +271,6 @@ try {
 
       case "ArrowRight":
         trace("ArrowRight");
-        if (globals.domain?.length && BLOCKED_SKIP_DOMAINS.includes(globals.domain)) {
-          console.trace("netflix can't skip");
-          return;
-        }
         const skipSecFwd      = evt.shiftKey ?
                                 globals.settings.longSkipSeconds :
                                 globals.settings.regSkipSeconds;
