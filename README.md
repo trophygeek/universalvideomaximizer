@@ -1,4 +1,4 @@
-# Universal Video Maximizer
+# Video Maximizer (was Universal Video Maximizer)
 Chrome extension that finds and enlarges the main video filling browser window.
 
 
@@ -11,9 +11,11 @@ Just added the `./node_modules/@types/chrome` directory. After running `yarn ins
 
 
 # License
-Because AI bots are crawling code and putting it behind paywalls, this code is now
-Create Commons Attributed. You can use the code in your own projects to make them better, 
-sell your product, but you cannot turn around and sell my code.
+Because AI bots are crawling code and putting results behind paywalls, this code is now
+Create Commons Attributed. You can use the code in your own projects to make them better but you cannot turn around and sell my open source code.
+
+Please use it to create more awesome, free extensions, but do not just not
+clone this extension and and charge for it.
 
 Shield: [![CC BY-SA 4.0][cc-by-sa-shield]][cc-by-sa]
 
