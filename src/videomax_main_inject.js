@@ -313,7 +313,7 @@ try { // scope and prevent errors from leaking out to page.
 
   /**
    * Returns the document of an IFrame and tries to handle security
-   * @param iframe {HTMLFrameElement | HTMLIFrameElement | undefined}
+   * @param iframe {HTMLFrameElement | HTMLIFrameElement | Document | undefined}
    * @return {Document|HTMLDocument}
    */
   const getIFrameDoc = (iframe) => {

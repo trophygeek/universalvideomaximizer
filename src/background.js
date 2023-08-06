@@ -248,8 +248,7 @@ function injectVideoSpeedAdjust(newspeed) {
       const playbackSpeed = video_elem?.getAttribute(PLAYBACK_SPEED_ATTR);
       if (playbackSpeed) {
         const speedNumber = parseFloat(playbackSpeed);
-        if (video_elem?.playbackRate !== speedNumber) {
-          // auto-playing next video can reset speed. Need to hook into content change
+        if (video_elem?.playbackRate !== speedNumber) { // it's changed
           video_elem.playbackRate = speedNumber;
         }
       }
@@ -266,6 +265,15 @@ function injectVideoSpeedAdjust(newspeed) {
         try {
           eachVideo.defaultPlaybackRate = speed;
           eachVideo.playbackRate        = speed;
+
+
+          const speedNumber = parseFloat(speed);
+          if (eachVideo?.paused === true && speedNumber !== 0.0) {
+            eachVideo.play();
+          } else if (speedNumber === 0.0) {
+            // auto-playing next video can reset speed. Need to hook into content change
+            eachVideo.pause();
+          }
 
           eachVideo.setAttribute(PLAYBACK_SPEED_ATTR, `${speed}`);
           eachVideo.removeEventListener("loadstart", _loadStart);
@@ -840,8 +848,7 @@ async function getSpeed(tabId, domain) {
 async function skipPlayback(tabId, secondToSkipStr, domain) {
   try {
     trace("skipPlayback", tabId, secondToSkipStr);
-    if (domain?.length &&
-        BLOCKED_SKIP_DOMAINS.filter((d) => domain.includes(d)).length > 0) {
+    if (domain?.length && BLOCKED_SKIP_DOMAINS.filter((d) => domain.includes(d)).length > 0) {
       console.trace("netflix fails if we skip");
       return null;
     }

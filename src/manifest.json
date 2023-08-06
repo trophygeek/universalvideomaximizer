@@ -1,8 +1,8 @@
 {
-  "name": "Video Maximizer BETA v3",
-  "version": "3.0.87",
+  "name": "Video Maximizer",
+  "version": "3.0.90",
   "manifest_version": 3,
-  "description": "Zoom videos and theater mode on most websites while maintaining your privacy.",
+  "description": "Removes the clutter. Maximizes videos to view in full page theater mode on any site.",
   "homepage_url": "https://github.com/trophygeek/universalvideomaximizer",
   "icons": {
     "48": "icons/icon48.png",
