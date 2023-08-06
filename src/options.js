@@ -2,9 +2,11 @@
 import {
   clearSettings,
   DEFAULT_SETTINGS,
-  getDomain, getManifestJson,
+  getDomain,
+  getManifestJson,
   getSettings,
   listToArray,
+  logerr,
   numbericOnly,
   rangeInt,
   saveSettings,
@@ -29,7 +31,7 @@ const getManifestVersion = async () => {
     const manifest = await getManifestJson();
     return manifest?.version || "";
   } catch (err) {
-    console.error(err);
+    logerr(err);
   }
   return "";
 };
@@ -45,7 +47,7 @@ const setChecked = (elementId, isChecked) => {
   if (htmlElement?.type === "checkbox") {
     htmlElement.checked = isChecked;
   } else {
-    console.error(`element "${elementId}" not checkbox`);
+    logerr(`element "${elementId}" not checkbox`);
   }
 };
 
@@ -58,10 +60,10 @@ const getChecked = (elementId) => {
   const htmlElement = /** @type {HTMLInputElement} */ document.getElementById(elementId);
   if (htmlElement?.type === "checkbox") {
     return htmlElement?.checked || false;
-  } else {
-    console.error(`element "${elementId}" not checkbox?`);
-    return false;
   }
+  logerr(`element "${elementId}" not checkbox?`);
+  return false;
+
 };
 
 
@@ -83,7 +85,7 @@ const setTextNum = (elementId, value) => {
 const getTextNum = (elementId) /** @type number */ => {
   const htmlElement = /** @type {HTMLInputElement} */ document.getElementById(elementId);
   const valStr      = numbericOnly(htmlElement.value) || "1";
-  const valInt      = Math.abs(parseInt(valStr));
+  const valInt      = Math.abs(parseInt(valStr, 10));
   return rangeInt(valInt, 1, 900);
 };
 
@@ -105,7 +107,7 @@ const loadSettingsIntoFields = (settings) => {
   {
     /* Used to build list */
     const LI_START  = `<li class="list-group-item container"><div class="container"><div class="row is-center">`;
-    const LI_START2 = LI_START + `<div class="col-1 is-left domain">`;
+    const LI_START2 = `${LI_START}<div class="col-1 is-left domain">`;
     const LI_END    = `</div><div class="col-10 is-right"><button name="removeBtn" class="delete-button">Remove</button></div></div></div></li>`;
     const listarr   = listToArray(settings.zoomExclusionListStr);
     // noinspection UnnecessaryLocalVariableJS
@@ -115,14 +117,15 @@ const loadSettingsIntoFields = (settings) => {
     setTimeout(() => {
       const buttons = document.getElementsByName("removeBtn");
       for (const eachButton of buttons) {
-        eachButton.addEventListener("click", (e) => {
+        eachButton.addEventListener("click", async (e) => {
           const parentLi = e?.currentTarget?.closest("li");
           const domain   = parentLi?.querySelector(`div[class*="domain"]`)?.innerText || "";
           parentLi.classList.add("fade-out");
           // remove domain from list and save.
-          g_settings.zoomExclusionListStr = g_settings.zoomExclusionListStr.replace(`,${domain}`,
-            "");
-          (async () => await saveSettings(g_settings))();
+          const updateSettings = await getSettings();
+          updateSettings.zoomExclusionListStr = updateSettings?.zoomExclusionListStr.replace(`,${domain}`,
+            "") || "";
+          await saveSettings(updateSettings);
         });
       }
     }, 0);
@@ -130,21 +133,22 @@ const loadSettingsIntoFields = (settings) => {
 };
 
 /**
- * @param settings {SettingsType}
+ * @param settingsIn {SettingsType}
  * @return {SettingsType}
  */
-const saveFieldsIntoSettings = (settings) => {
+const saveFieldsIntoSettings = (settingsIn) => {
   try {
+    const settings               = settingsIn;
     settings.useAdvancedFeatures = getChecked("useAdvancedFeatures");
-    settings.regSkipSeconds        = getTextNum("regSkipSeconds");
-    settings.longSkipSeconds       = getTextNum("longSkipSeconds");
+    settings.regSkipSeconds      = getTextNum("regSkipSeconds");
+    settings.longSkipSeconds     = getTextNum("longSkipSeconds");
     // settings.preportionalSkipTimes = getChecked("preportionalSkipTimes");
-    settings.allSitesAccess        = getChecked("allSitesAccess");
-    settings.wholeDomainAccess     = getChecked("wholeDomainAccess");
+    settings.allSitesAccess      = getChecked("allSitesAccess");
+    settings.wholeDomainAccess   = getChecked("wholeDomainAccess");
   } catch (err) {
-    console.error(err);
+    logerr(err);
   }
-  return settings;
+  return settingsIn;
 };
 
 const save = async () => {
@@ -153,13 +157,13 @@ const save = async () => {
     loadSettingsIntoFields(g_settings);
     await saveSettings(g_settings);
   } catch (err) {
-    console.error(err);
+    logerr(err);
   }
 };
 
 const enableAdvanceFeaturesOptions = () => {
   const useAdvancedFeatures = getChecked("useAdvancedFeatures");
-  const disableFields         = document.getElementsByClassName("diableForSimpleFeatures");
+  const disableFields       = document.getElementsByClassName("diableForSimpleFeatures");
   for (const eachField of disableFields) {
     if (useAdvancedFeatures) {
       eachField.classList.remove("is-disabled");
@@ -200,6 +204,7 @@ ${userAgent}
         enableAdvanceFeaturesOptions();
         setTimeout(() => {
           if (!getChecked("useAdvancedFeatures")) {
+            // eslint-disable-next-line no-alert
             alert(`
 This will remove the speed controls.
 
@@ -212,6 +217,7 @@ To access this Option page in the future, RIGHT-CLICK on the extension's icon in
       .addEventListener("click", async (_e) => {
         setTimeout(() => {
           if (getChecked("allSitesAccess")) {
+            // eslint-disable-next-line no-alert
             alert(`
 Enabling this feature will prompt you ONE last time to grant this extension FULL ACCESS.
 
@@ -222,6 +228,7 @@ You may need to REFRESH the video page before it takes effect.`);
 
     document.getElementById("addpathblacklist")
       .addEventListener("click", async (e) => {
+        // eslint-disable-next-line no-alert
         const newDomainStr = prompt("New domain name to exclude from zooming:");
         if (newDomainStr?.length) {
           const domain                    = getDomain(newDomainStr);
@@ -247,6 +254,6 @@ You may need to REFRESH the video page before it takes effect.`);
       });
 
   } catch (err) {
-    console.error(err);
+    logerr(err);
   }
 });

@@ -74,11 +74,11 @@ export const getSettings = async () => {
     if (!result[SETTINGS_STORAGE_KEY]?.length) {
       return { ...DEFAULT_SETTINGS }; // make a copy
     }
-    /** @type SettingsType **/
+    /** @type SettingsType * */
     const savedSetting = JSON.parse(result[SETTINGS_STORAGE_KEY]);
     return { ...DEFAULT_SETTINGS, ...savedSetting };
   } catch (err) {
-    console.error(err);
+    logerr(err);
     return { ...DEFAULT_SETTINGS }; // make a copy
   }
 };
@@ -88,7 +88,7 @@ export const getSettings = async () => {
  * @param newSettings SettingsType
  * @returns {Promise<void>}
  */
-export const saveSettings = async (newSettings /** @type Promise<SettingsType>*/) => {
+export const saveSettings = async (newSettings /** @type Promise<SettingsType> */) => {
   try {
     const settings = { ...DEFAULT_SETTINGS, ...newSettings };
     // remove an settings that are default and don't save them.
@@ -107,7 +107,7 @@ export const saveSettings = async (newSettings /** @type Promise<SettingsType>*/
     const jsonStr = JSON.stringify(settings);
     await chrome?.storage?.local?.set({ [SETTINGS_STORAGE_KEY]: jsonStr });
   } catch (err) {
-    console.error(err);
+    logerr(err);
   }
 };
 
@@ -115,7 +115,7 @@ export const clearSettings = async () => {
   try {
     await chrome?.storage?.local?.remove(Object.keys(DEFAULT_SETTINGS));
   } catch (err) {
-    console.error(err);
+    logerr(err);
   }
 };
 
@@ -135,11 +135,12 @@ export const rangeInt = (num, lower, upper) => Math.max(lower, Math.min(upper, n
 
 /**
  *
- * @param url {string}
+ * @param fullUrl {string}
  * @return {string}
  */
-export const getDomain = (url) => {
+export const getDomain = (fullUrl) => {
   try {
+    let url = fullUrl;
     if (!url.length) {
       return url; // undefined and ""
     }
@@ -152,7 +153,7 @@ export const getDomain = (url) => {
     }
     return (new URL(url)).host.toLowerCase();
   } catch (err) {
-    return url;
+    return fullUrl;
   }
 };
 
@@ -198,13 +199,14 @@ export const isPageExcluded = (domain, zoomExclusionListStr) => {
 
 /**
  *
- * @param domainStr {string}
+ * @param domain {string}
  * @param wholeDomainAccess {boolean}
  * @return {string}
  */
-export const domainToSiteWildcard = (domainStr, wholeDomainAccess) => {
+export const domainToSiteWildcard = (domain, wholeDomainAccess) => {
+  let domainStr = domain;
   if (!domainStr?.length) {
-    return domainStr;
+    return "";
   }
   if (domainStr.startsWith("file:")) {
     return domainStr;
@@ -237,10 +239,10 @@ export const getManifestJson = async () => {
       return json || {};
     }
   } catch (err) {
-    console.error(err);
+    logerr(err);
   }
   return {};
 };
 
-/** used by unit tests **/
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+/** used by unit tests * */
+// const sleep = (ms) => new Promise(r => setTimeout(r, ms));

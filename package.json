@@ -46,6 +46,7 @@
   "eslintConfig": {
     "env": {
       "browser": true,
+      "webextensions": true,
       "es2022": true,
       "es6": true,
       "node": false
@@ -76,7 +77,19 @@
       "camelcase": 0,
       "no-continue": 0,
       "no-use-before-define": 0,
-      "no-empty": 0
+      "no-empty": 0,
+      "import/extensions": "off",
+      "no-return-await": "off",
+      "no-useless-concat": "off",
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          "argsIgnorePattern": "^_",
+          "varsIgnorePattern": "^_",
+          "caughtErrorsIgnorePattern": "^_"
+        }
+      ]
     }
   }
 }

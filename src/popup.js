@@ -72,14 +72,17 @@ try {
    */
   const itemId = (ii) => `speed-${ii}`;
 
+  /**
+   * @param itemValue {string}
+   */
   const checkItem = (itemValue) => {
-    itemValue   = String(itemValue);
+    const itemValueStr   = String(itemValue);
     const group = document.getElementById("speedBtnGroup");
     for (const eachElem of group.children) {
       if (eachElem.type !== "checkbox") {
         continue;
       }
-      eachElem.checked = (eachElem.dataset.value === itemValue);
+      eachElem.checked = (eachElem.dataset.value === itemValueStr);
       if (eachElem.checked) {
         eachElem.focus();
       }
@@ -112,12 +115,11 @@ try {
 
   /**
    * @param doc {Document}
-   * @param parent {HTMLElement}
+   * @param parentElem {HTMLElement}
    * @param tabId {string}
    */
-  const addSpeedControlUI = (doc, parent, tabId) => {
-    const htmlArr = [];
-    MENU.map((item, ii) => {
+  const addSpeedControlUI = (doc, parentElem, tabId) => {
+    const htmlArr = MENU.map((item, ii) => {
       const id    = itemId(ii);
       const label = (item.label === UNZOOM_LABEL) ?
                     `<img src='${UNZOOM_ICON}' class='closeicon'>` :
@@ -126,20 +128,20 @@ try {
       // radio buttons grabs the arrows keys to move between items.
       // but the checkboxes' "role" is more like radio buttons
       // (only one selected at a time)
-      const elemhtml = `
+      return `
       <input type="checkbox"
              role="radio"
              name="${id}"
              id="${id}"
              data-value="${item.value}" />
       <label for="${id}">${label}</label>`;
-      htmlArr.push(elemhtml);
     });
-    parent.innerHTML = htmlArr.join("\n");
-    parent.classList.add("control-container");
+    // eslint-disable-next-line  no-param-reassign
+    parentElem.innerHTML = htmlArr.join("\n");
+    parentElem?.classList.add("control-container");
 
     // could also interate by item id
-    for (const radioItem of parent.children) {
+    for (const radioItem of parentElem.children) {
       radioItem.addEventListener("keydown", (evt) => {
         trace("document.addEventListener keydown", evt);
         if (evt.code === "Space") {
@@ -149,7 +151,7 @@ try {
           }
           globals.debounceTimerId = setTimeout(() => {
             // we toggle between a current speed and stop.
-            if ("0.00" !== globals.currentSpeed) {
+            if (globals.currentSpeed !== "0.00") {
               // if we're not stopped
               globals.toggledSpeed = globals.currentSpeed; // save the current speed.
               globals.currentSpeed = "0.00"; // stop
@@ -251,13 +253,14 @@ try {
         window.close();
         break;
 
-      case "ArrowLeft":
+      case "ArrowLeft": {
         trace("ArrowLeft");
         const skipSecBack      = evt.shiftKey ?
                                  globals.settings.longSkipSeconds :
                                  globals.settings.regSkipSeconds;
         // currentSpeed could be zero, so floor it to 0.25
-        const relativeTimeBack = skipSecBack * (Math.max(parseFloat(globals.currentSpeed), 0.25)) * -1;
+        const relativeTimeBack = skipSecBack * (Math.max(parseFloat(globals.currentSpeed), 0.25)) *
+                                 -1;
         chrome.runtime.sendMessage({
           message: {
             cmd:    "SKIP_PLAYBACK_CMD",
@@ -267,9 +270,10 @@ try {
           },
         });
         evt.stopImmediatePropagation();
+      }
         break;
 
-      case "ArrowRight":
+      case "ArrowRight": {
         trace("ArrowRight");
         const skipSecFwd      = evt.shiftKey ?
                                 globals.settings.longSkipSeconds :
@@ -285,6 +289,7 @@ try {
           },
         });
         evt.stopImmediatePropagation();
+      }
         break;
 
       case "ArrowUp":
@@ -335,23 +340,19 @@ try {
         ?.focus();
 
       document.addEventListener("keydown", (evt) => {
-        console.trace(`DOCUMENT.addEventListener("keydown")...`);
+        trace(`DOCUMENT.addEventListener("keydown")...`);
         HandleKeydown(evt);
       });
 
       container.addEventListener("keydown", (evt) => {
-        console.trace(`CONTAINER.addEventListener("keydown")...`);
+        trace(`CONTAINER.addEventListener("keydown")...`);
         HandleKeydown(evt);
       });
-
-      // window.addEventListener('blur', function() {
-      //   window.close();
-      // });
 
     } catch (err) {
       logerr(err);
     }
   });
 } catch (e) {
-  console.error(e);
+  logerr(e);
 }

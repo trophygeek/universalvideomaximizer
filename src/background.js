@@ -1,4 +1,16 @@
 // @ts-check
+/*
+
+ Video Maximizer
+ Removes the clutter. Maximizes videos to view in full-page theater mode on most sites.
+
+ Copyright (C) 2023 trophygeek@gmail.com
+ www.videomaximizer.com
+
+ Creative Commons Share Alike 4.0
+ To view a copy of this license, visit https://creativecommons.org/licenses/by-sa/4.0/
+
+ */
 import {
   BETA_UPDATE_NOTIFICATION_VERISON,
   CSS_FILE,
@@ -246,11 +258,12 @@ function injectVideoSpeedAdjust(newspeed) {
     try {
       const video_elem    = event?.target;
       const playbackSpeed = video_elem?.getAttribute(PLAYBACK_SPEED_ATTR);
-      if (playbackSpeed) {
-        const speedNumber = parseFloat(playbackSpeed);
-        if (video_elem?.playbackRate !== speedNumber) { // it's changed
-          video_elem.playbackRate = speedNumber;
-        }
+      if (!playbackSpeed) {
+        return;
+      }
+      const speedNumber = parseFloat(playbackSpeed);
+      if (video_elem?.playbackRate !== speedNumber) { // it's changed
+        video_elem.playbackRate = speedNumber;
       }
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -299,7 +312,6 @@ function injectVideoSpeedAdjust(newspeed) {
     try {
       const framedoc = frame?.contentDocument || frame?.contentWindow?.document;
       if (!framedoc) {
-        // console.log(`VideoMax speed no contentDocument frame:`, frame);
         continue;
       }
       _speedUpFoundVideos(framedoc, speadNumber);
@@ -315,7 +327,7 @@ function injectVideoSpeedAdjust(newspeed) {
           const iframeUrl = window._VideoMaxExt.matchedVideo.src?.toLowerCase() || "";
           if (iframeUrl.indexOf(domain) !== -1) {
             result.add(domain);
-            // console.warn(`VideoMax speed error Need access to ${domain}`);
+            trace(`VideoMax speed error Need access to ${domain}`);
           }
         }
       }
@@ -334,6 +346,7 @@ function injectGetPlaypackSpeed() {
   } catch (err) {
     // eslint-disable-next-line no-console
     console.warn(`VideoMaxExt: injectGetPlaypackSpeed err for video`, err);
+    return DEFAULT_SPEED;
   }
 }
 
@@ -420,6 +433,7 @@ function injectIsCssHeaderIsBlocked(cssHRef) {
   } catch (_err) {
   }
   if (isBlocked) {
+    // eslint-disable-next-line no-console
     console.log("VideoMaxExt: css include file blocked.");
   }
   return isBlocked;
@@ -429,13 +443,14 @@ function injectIsCssHeaderIsBlocked(cssHRef) {
 /**
  *
  * @param tabId {number}
- * @param state {BackgroundState|""}
+ * @param startingState {BackgroundState|""}
  * @param domain {String}
  * @param speed {String}
  * @return {Promise<void>}
  */
-async function setCurrentTabState(tabId, state, domain = "", speed = DEAULT_SPEED) {
+async function setCurrentTabState(tabId, startingState, domain = "", speed = DEAULT_SPEED) {
   try {
+    let state = startingState;
     // map state to another state.
     if (state === "") {  // means "preserve state"
       trace(`setCurrentState "" => preserve state`);
@@ -449,14 +464,16 @@ async function setCurrentTabState(tabId, state, domain = "", speed = DEAULT_SPEE
     switch (state) {
       case "ZOOMING":
         trace(`setCurrentState "${state}"`);
-        const useAdvFeatures = await getSettingUseAdvFeatures();
-        state                = useAdvFeatures ? "ZOOMED_SPEED" : "ZOOMED_NOSPEED";
+        state = await getSettingUseAdvFeatures() ? "ZOOMED_SPEED" : "ZOOMED_NOSPEED";
         break;
 
       case "ZOOMING_SPEED_ONLY":
         trace(`setCurrentState "${state}"`);
         state = "SPEED_ONLY";
         break;
+
+      default:
+      // no-op
     }
 
     const {
@@ -521,7 +538,7 @@ async function getCurrentTabState(tabId) {
     // Normally, would could test if the string is in BackgroundState
     // but typescript doesn't support string unions as of 2023
     const key = /** @type {[BackgroundState]} */ Object.keys(STATE_DATA)
-      .filter(key => STATE_DATA[key].title === title);
+      .filter(k => STATE_DATA[k].title === title);
     if (!key?.length) {
       trace(`getTabCurrentState NO MATCH "${key}"`);
       return /** @type {BackgroundState} */  "UNZOOMED";
@@ -768,9 +785,9 @@ function processIFrameExtraPermissionsResult(results, tabId, domain) {
   if (extraDomainsArry.length) {
     setSubframeData(tabId, domain, extraDomainsArry.join(","));
     return true;
-  } else {
-    return false;
   }
+  return false;
+
 }
 
 /**
@@ -812,7 +829,12 @@ async function setSpeed(tabId, domain, speedStr = DEAULT_SPEED) {
   }
 }
 
-
+/**
+ *
+ * @param tabId {number}
+ * @param domain {string}
+ * @return {Promise<string>}
+ */
 async function getSpeed(tabId, domain) {
   try {
     const speed = getGlobalSpeedData(tabId, domain);
@@ -836,6 +858,7 @@ async function getSpeed(tabId, domain) {
     return results[0].result;
   } catch (err) {
     trace("getSpeed error", err);
+    return DEAULT_SPEED;
   }
 }
 
@@ -849,7 +872,7 @@ async function skipPlayback(tabId, secondToSkipStr, domain) {
   try {
     trace("skipPlayback", tabId, secondToSkipStr);
     if (domain?.length && BLOCKED_SKIP_DOMAINS.filter((d) => domain.includes(d)).length > 0) {
-      console.trace("netflix fails if we skip");
+      trace("netflix fails if we skip");
       return null;
     }
     if (typeof parseFloat(secondToSkipStr) !== "number") {
@@ -961,7 +984,6 @@ chrome.action.onClicked.addListener((tab) => {
     if (!(tab?.url?.startsWith("https://") || tab?.url?.startsWith("http://") ||
           tab?.url?.startsWith("file:"))) {
       // do not run on chrome: or about: urls.
-      // TODO: show limited popup to access config/settings ux
       (async () => await setCurrentTabState(tabId, "ERR_URL"))();
       trace("ERR_URL");
       return;
@@ -1031,7 +1053,6 @@ chrome.action.onClicked.addListener((tab) => {
           logerr(`permissions to run were denied for "${tab?.url}", so extension is not injecting`);
           const fileAccessEnabledForExtention = await chrome.extension.isAllowedFileSchemeAccess();
           if (!fileAccessEnabledForExtention) {
-            // todo: open special help page
             await chrome.tabs.create({
               url:    chrome?.runtime?.getURL("help.html#localfile"),
               active: false,
@@ -1059,7 +1080,7 @@ chrome.action.onClicked.addListener((tab) => {
 
 // handle popup messages
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  const cmd    = /** @type CmdType*/ request?.message?.cmd || "";
+  const cmd    = /** @type CmdType */ request?.message?.cmd || "";
   const tabId  = parseFloat(request?.message?.tabId || "0");
   const speed  = request?.message?.speed || DEAULT_SPEED;
   const domain = request?.message?.domain || "";
@@ -1077,7 +1098,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   setTimeout(async () => {
     try {
       switch (cmd) {
-        case "OPTIONS_CMD":
+        case "OPTIONS_CMD": {
           const url = chrome?.runtime?.getURL("options.html") || "";
           if (!url) {
             return;
@@ -1087,6 +1108,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             url,
             active: true,
           });
+        }
           break;
 
         case "UNZOOM_CMD":
@@ -1098,7 +1120,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                              setSpeed(tabId, domain, speed)]);
           break;
 
-        case "REZOOM_CMD":
+        case "REZOOM_CMD": {
           // the popup is about to display and thinks the page is zoomed, but it's may not be
           // (e.g. if escape key was pressed.)
           // in theory, re-injecting should be fine
@@ -1115,13 +1137,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
             // we need to see if we're in "SPEED_ONLY" mode because
             // we don't have access to the url to see if it's a site like hulu
-            const currentState = await getCurrentTabState(tabId);
-            const nextState    = currentState === "SPEED_ONLY" ? "ZOOMING_SPEED_ONLY" : "ZOOMING";
+            const nextState = currentState === "SPEED_ONLY" ? "ZOOMING_SPEED_ONLY" : "ZOOMING";
             await Promise.all([setCurrentTabState(tabId, nextState, currentSpeed),
                                DoZoom(tabId, currentState, currentSpeed),
                                setSpeed(tabId, domain, currentSpeed)]);
             trace("REZOOM_CMD -- Zooming -- COMPLETE");
           }
+        }
           break;
 
         case "SKIP_PLAYBACK_CMD":
@@ -1132,16 +1154,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           // this is from
           await setCurrentTabState(tabId, "", domain);
           break;
+
+        default:
+          logerr(`Unknown command: "${cmd}"`);
       }
     } catch (err) {
       logerr(err);
     }
   }, 0);
 
-  sendResponse && sendResponse({ success: true }); // used to close popup.
+  if (sendResponse) {
+    sendResponse({ success: true }); // used to close popup.
+  }
 });
 
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, _tab) => {
+chrome.tabs.onUpdated.addListener((tabId, changeInfo/* , _tab */) => {
   try {
     const domain = getDomain(changeInfo.url);
     trace(`tabs.onUpated event tabId=${tabId} changeInfo:`, changeInfo);

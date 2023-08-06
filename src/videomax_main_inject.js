@@ -1,3 +1,12 @@
+// @ts-check
+/*
+ Video Maximizer
+ Removes the clutter. Maximizes videos to view in full-page theater mode on most sites.
+ Copyright (C) 2023 trophygeek@gmail.com
+ www.videomaximizer.com
+ Creative Commons Share Alike 4.0
+ To view a copy of this license, visit https://creativecommons.org/licenses/by-sa/4.0/
+ */
 try { // scope and prevent errors from leaking out to page.
   const FULL_DEBUG          = false;
   const DEBUG_ENABLED       = FULL_DEBUG;
@@ -248,6 +257,7 @@ try { // scope and prevent errors from leaking out to page.
     }
   } else {
     // running in iFrame
+    // eslint-disable-next-line no-lonely-if
     if (document._VideoMaxExt) {
       videomaxGlobals = document._VideoMaxExt;
     } else {
@@ -397,17 +407,6 @@ try { // scope and prevent errors from leaking out to page.
     return result;
   };
 
-  // const getFramedWindow = (f) => {
-  //   if (!f?.parentNode) {
-  //     f = document.body.appendChild(f); // hummm.
-  //   }
-  //   let w = (f.contentWindow || f.contentDocument);
-  //   if (w?.nodeType === 9) {
-  //     w = (w.defaultView || w.parentWindow);
-  //   }
-  //   return w;
-  // };
-
   /**
    * We want to SAVE these results somewhere that automated unit tests can e
    * easily extract the scores to measure changes across revisions
@@ -461,16 +460,13 @@ try { // scope and prevent errors from leaking out to page.
    * @return {string}
    * @constructor
    */
-  const PrintRect = (rect) => {
-    return `tlbr:[${rect.top}, ${rect.left}, ${rect.bottom}, ${rect.right}] w=${rect.width} h=${rect.height}`;
-  };
 
-  // Intl.NumberFormat is slow unless cached like this.
+        // Intl.NumberFormat is slow unless cached like this.
   const fmtInt = new Intl.NumberFormat("en-US", {
-    useGrouping:           true,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  });
+          useGrouping:           true,
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0,
+        });
   const fmtFlt = new Intl.NumberFormat("en-US", {
     useGrouping:           false,
     minimumFractionDigits: 2,
@@ -482,9 +478,7 @@ try { // scope and prevent errors from leaking out to page.
    * @param value {number} The number to round
    * @returns {number} The value rounded to the given number of significant figures
    */
-  const round = (value) => {
-    return parseFloat(fmtFlt.format(value));
-  };
+  const round = (value) => parseFloat(fmtFlt.format(value));
 
   /**
    * @param strMessage {string}
@@ -759,8 +753,9 @@ try { // scope and prevent errors from leaking out to page.
       const view = getElemsDocumentView(node);
       return view.getComputedStyle(node, null);
     } catch (err) {
-      // can throw if cross iframe boundry
+      // can throw if cross iframe boundary
       logerr(err);
+      return {};
     }
   };
 
@@ -810,9 +805,10 @@ try { // scope and prevent errors from leaking out to page.
    * @param compStyleElem {CSSStyleDeclaration}
    * @return {boolean}
    */
-  const hasTransitionEffect = (compStyleElem) => {
-    return compStyleElem?.transition !== "all 0s ease 0s"; // kind of lame
-  };
+  const hasTransitionEffect = (compStyleElem) => compStyleElem?.transition !== "all 0s ease 0s" // kind
+                                                                                                // of
+                                                                                                // lame
+  ;
 
   let containDbgMsg = "";
 
@@ -829,8 +825,7 @@ try { // scope and prevent errors from leaking out to page.
     if (DEBUG_ENABLED) {
       const matches = document.querySelectorAll(`.${MARKER_COMMON_CONTAINER_CLASS}`);
       if (matches?.length) {
-        trace(`Already found common container, shouldn't match two. IFrame issue?`, matches);
-        debugger;
+        logerr(`Already found common container, shouldn't match two. IFrame issue?`, matches);
       }
     }
     if (!videomaxGlobals.matchedIsHtml5Video) {
@@ -850,12 +845,13 @@ try { // scope and prevent errors from leaking out to page.
     const videoRect = videomaxGlobals.matchVideoRect;
 
     const countChildren = (e, recurseFirst = true, runningCount = 0) => {
+      let count = runningCount;
       if (recurseFirst) {
         const matches = [...e.querySelectorAll(`[role="slider"]`),
                          ...e.querySelectorAll(`[role="presentation"]`)];
-        runningCount += matches.length * 2;  // 2x points if there's a slider under this element.
+        count += matches.length * 2;  // 2x points if there's a slider under this element.
         if (COMMON_PARENT_SCORES) {
-          containDbgMsg += `\n Slider count: +${matches.length} result:${runningCount}`;
+          containDbgMsg += `\n Slider count: +${matches.length} result:${count}`;
         }
 
         // Tubi is horrible about 508 accessiblity. It just uses <svg> for all controls.
@@ -864,7 +860,7 @@ try { // scope and prevent errors from leaking out to page.
         // const volSgvCount   = [...e.querySelectorAll(`svg > title`)].filter(
         //   (e) => e?.innerHTML?.toLowerCase().includes("volume")).length;
       }
-      const checkChildren = [...e?.children].filter(e => !isIgnoreCommonContainerNode(e));
+      const checkChildren = [...e.children].filter(el => !isIgnoreCommonContainerNode(el));
       let index           = 0; // used for debugging only.
       for (const eachChild of checkChildren) {
         try {
@@ -872,48 +868,48 @@ try { // scope and prevent errors from leaking out to page.
           const compStyleElem = getElemComputedStyle(eachChild); // $$$
           const rect          = getCoords(eachChild);
           if (isBoundedRect(videoRect, rect)) {
-            runningCount++;
+            count++;
             if (COMMON_PARENT_SCORES) {
               containDbgMsg += `\n ${recurseFirst ?
                                      "" :
-                                     "\t"} #${index}\t isBoundedRect: \t +1 result: \t ${runningCount}`;
+                                     "\t"} #${index}\t isBoundedRect: \t +1 result: \t ${count}`;
             }
           }
-          if (compStyleElem.position === "absolute") {
-            runningCount++;
+          if (compStyleElem?.position === "absolute") {
+            count++;
             if (COMMON_PARENT_SCORES) {
               containDbgMsg += `\n ${recurseFirst ?
                                      "" :
-                                     "\t"} #${index}\t absPosition:   \t +1 result: \t ${runningCount}`;
+                                     "\t"} #${index}\t absPosition:   \t +1 result: \t ${count}`;
             }
           }
           if (INCLUDE_TRANSITION_MATCHING && hasTransitionEffect(compStyleElem)) {
             // tag it so we don't have to call getElemComputedStyle again later.
             eachChild.classList?.add(MARKER_TRANSITION_CLASS);
-            runningCount++;
+            count++;
             if (COMMON_PARENT_SCORES) {
               containDbgMsg += `\n  ${recurseFirst ?
                                       "" :
-                                      "\t"} #${index}\t transition:   \t +1 result: \t ${runningCount} "${compStyleElem.transitionTimingFunction}"`;
+                                      "\t"} #${index}\t transition:   \t +1 result: \t ${count} "${compStyleElem?.transitionTimingFunction}"`;
             }
           }
           ///
           if (recurseFirst) {
             // we recurse ONCE. Youtube and plutoTV put controls one level down.
-            runningCount = countChildren(eachChild, false, runningCount);
+            count = countChildren(eachChild, false, count);
           }
         } catch (err) {
           logerr(err);
         }
       }
       if (COMMON_PARENT_SCORES && recurseFirst === false) {
-        trace(`${containDbgMsg}\nTotal:${runningCount}`, e);
+        trace(`${containDbgMsg}\nTotal:${count}`, e);
         containDbgMsg = "";
       }
-      return runningCount;
+      return count;
     };
 
-    const savedWalkerCurrentNode = walker.currentNode; //restore at end
+    const savedWalkerCurrentNode = walker.currentNode; // restore at end
     walker.currentNode           = videoElem;
     let bestMatch                = videoElem;
     let bestMatchWeight          = 1;
@@ -1084,7 +1080,6 @@ try { // scope and prevent errors from leaking out to page.
    */
   const fixUpAttribs = (node) => {
     if (!node) {
-      debugger;
       return node;
     }
     trace(`FixUpAttribs for elem type ${node?.nodeName}`, node);
@@ -1316,13 +1311,6 @@ try { // scope and prevent errors from leaking out to page.
       return false;
     }
 
-    // if (isADecendantElem(elem, videomaxGlobals.matchedCommonCntl)) {
-    //   if (DEBUG_HIDENODE) {
-    //     trace("  NOT HIDING isADecendantElem", elem);
-    //   }
-    //   return false;
-    // }
-
     // some never hide elements.
     if (NEVER_HIDE_SMELLS_LIKE_TEST && isSpecialCaseNeverHide(elem)) {
       if (DEBUG_HIDENODE) {
@@ -1509,16 +1497,14 @@ try { // scope and prevent errors from leaking out to page.
    * @param rectC {DomRect}
    * @return {DomRect}
    */
-  const wholeClientRect = (rectC) => {
-    return {
-      top:    Math.round(rectC.top),
-      left:   Math.round(rectC.left),
-      bottom: Math.round(rectC.bottom),
-      right:  Math.round(rectC.right),
-      width:  Math.round(rectC.width),
-      height: Math.round(rectC.height),
-    };
-  };
+  const wholeClientRect = (rectC) => ({
+    top:    Math.round(rectC.top),
+    left:   Math.round(rectC.left),
+    bottom: Math.round(rectC.bottom),
+    right:  Math.round(rectC.right),
+    width:  Math.round(rectC.width),
+    height: Math.round(rectC.height),
+  });
 
   /**
    *
@@ -1566,8 +1552,8 @@ try { // scope and prevent errors from leaking out to page.
   const cumulativePositionRect = (elemIn, compStyle = undefined) => {
     const result = getOuterBoundingRect(elemIn);
     // always use initial position
-    let top      = elemIn.offsetTop,
-        left     = elemIn.offsetLeft;
+    let top      = elemIn.offsetTop;
+    let left     = elemIn.offsetLeft;
     let elem     = elemIn.offsetParent;
 
     while (elem?.offsetParent) {
@@ -1612,8 +1598,8 @@ try { // scope and prevent errors from leaking out to page.
   const getCoords = (elem) => { // crossbrowser version
     const box = elem.getBoundingClientRect();
 
-    const body  = document.body;
-    const docEl = document.documentElement;
+    const { body } = document;
+    const docEl    = document.documentElement;
 
     const scrollTop  = window.pageYOffset || docEl.scrollTop || body.scrollTop;
     const scrollLeft = window.pageXOffset || docEl.scrollLeft || body.scrollLeft;
@@ -1656,31 +1642,23 @@ try { // scope and prevent errors from leaking out to page.
   };
 
 
-  const NEVERHIDEMATCHES       = [new RegExp(/ytp-ad-module/i), // youtube skip add
-                                  new RegExp(/mgp_ccContainer/i), // pornhub cc
-                                  new RegExp(/web-player-icon-resize/i), // tubi's non-508 playback
+  const NEVERHIDEMATCHES       = [/ytp-ad-module/i, // youtube skip add
+                                  /mgp_ccContainer/i, // pornhub cc
+                                  /web-player-icon-resize/i, // tubi's non-508 playback
   ];
   /**
    * @param elem {Node}
    * @return {boolean}
    */
-  const isSpecialCaseNeverHide = (elem) => {
-    const neverHideElem = smellsLikeMatch(elem, NEVERHIDEMATCHES);
-    if (neverHideElem) {
-      trace("isSpecialCaseNeverHide skip");
-      return false;
-    }
-  };
+  const isSpecialCaseNeverHide = (elem) => smellsLikeMatch(elem, NEVERHIDEMATCHES);
 
 
   /**
    * @param _elem {Node}
    * @return {boolean}
    */
-  const isSpecialCaseNeverOverlap = (_elem) => {
-    // in theory more logic can go here.
-    return false;
-  };
+  const isSpecialCaseNeverOverlap = (_elem) => // in theory more logic can go here.
+    false;
 
   /**
    * Does NOT block ads.
@@ -1691,29 +1669,29 @@ try { // scope and prevent errors from leaking out to page.
    */
   const smellsLikeAd = (elem) => {
     const arialabel = getAttr(elem, "aria-label");
-    if (arialabel !== null && arialabel.match(/^adver/i)) {
+    if (arialabel?.match(/^adver/i)) {
       trace(`smellsLikeAd: matched aria-label for "adver" '${arialabel}'`);
       return true;
     }
-    if (arialabel !== null && arialabel.match(/^ad-/i)) {
+    if (arialabel?.match(/^ad-/i)) {
       trace(`smellsLikeAd: matched aria-label for "ad-" '${arialabel}'`);
       return true;
     }
     const className = getAttr(elem, "class");
-    if (className !== null && className.match(/^adver/i)) {
+    if (className?.match(/^adver/i)) {
       trace(`smellsLikeAd: matched classname for "adver"? '${className}'`);
       return true;
     }
-    if (className !== null && className.match(/^branding/i)) {
+    if (className?.match(/^branding/i)) {
       trace(`msmellsLikeAd: atched classname for "branding"? '${className}'`);
       return true;
     }
     const title = getAttr(elem, "title");
-    if (title !== null && title.match(/^adver/i)) {
+    if (title?.match(/^adver/i)) {
       trace(`smellsLikeAd: matched title for "adver" '${title}'`);
       return true;
     }
-    if (title !== null && title.match(/^ad-/i)) {
+    if (title?.match(/^ad-/i)) {
       trace(`smellsLikeAd: matched title for "ad-" '${title}'`);
       return true;
     }
@@ -1776,7 +1754,7 @@ try { // scope and prevent errors from leaking out to page.
       }
     }
 
-    let videoElem = videomaxGlobals.matchedVideo; // readability
+    const videoElem = videomaxGlobals.matchedVideo; // readability
     exceptionToRuleFixup(getOwnerDoc(videoElem), videoElem);
 
     if (ALWAYS_MAX_BODY) {
@@ -1788,7 +1766,7 @@ try { // scope and prevent errors from leaking out to page.
    * @constructor
    */
   function ElemMatcherClass() {
-    /** @type {undefined | HTMLElement | HTMLFrameElement} **/
+    /** @type {undefined | HTMLElement | HTMLFrameElement} * */
     this.largestElem = undefined;
     /** @type {number} */
     this.largestScore = 0;
@@ -1837,6 +1815,7 @@ try { // scope and prevent errors from leaking out to page.
 
       if (score > this.largestScore) {
         if (BREAK_ON_BEST_MATCH) {
+          // eslint-disable-next-line no-debugger
           debugger;
         }
         // special case when we can dig down through iframes and find videos
@@ -1856,6 +1835,7 @@ try { // scope and prevent errors from leaking out to page.
         this.matchCount++;
         return true;
       }
+      return false;
     };
 
     this.getBestMatch      = () => this.largestElem;
@@ -1999,14 +1979,14 @@ try { // scope and prevent errors from leaking out to page.
         }
       }
 
-      {
-        if (EMBED_SCORES) {
-          traceweights.push(`  ORDER_WEIGHT: ${fmtInt.format(
-            START_WEIGHT * videomaxGlobals.match_counter *
-            ORDER_WEIGHT)} Order: ${videomaxGlobals.match_counter} Weight:${ORDER_WEIGHT}`);
-        }
-        weight += START_WEIGHT * videomaxGlobals.match_counter * ORDER_WEIGHT;
+
+      if (EMBED_SCORES) {
+        traceweights.push(`  ORDER_WEIGHT: ${fmtInt.format(
+          START_WEIGHT * videomaxGlobals.match_counter *
+          ORDER_WEIGHT)} Order: ${videomaxGlobals.match_counter} Weight:${ORDER_WEIGHT}`);
       }
+      weight += START_WEIGHT * videomaxGlobals.match_counter * ORDER_WEIGHT;
+
 
       // try to figure out if iframe src looks like a video link.
       // frame shaped like videos?
@@ -2086,7 +2066,7 @@ try { // scope and prevent errors from leaking out to page.
       // Found an html5 video tag
       const isVideo = (elem.nodeName.toLowerCase() === "video");
       if (isVideo) {
-        /** @type {HTMLMediaElement} **/
+        /** @type {HTMLMediaElement} * */
         const videoElem = elem;
         if (EMBED_SCORES) {
           traceweights.push(
@@ -2216,9 +2196,8 @@ try { // scope and prevent errors from leaking out to page.
 
       weight = Math.round(weight);
       if (DEBUG_ENABLED) {
-        if (isNaN(weight)) {
+        if (Number.isNaN(weight)) {
           logerr("======weight got corrupted======");
-          debugger;
         }
       }
       if (EMBED_SCORES) {
@@ -2274,7 +2253,7 @@ try { // scope and prevent errors from leaking out to page.
       return 0;
     }
     const allElementsToFix = doc.querySelectorAll(`[class*="${PREFIX_CSS_CLASS_PREP}"]`);
-    let count              = allElementsToFix.length;
+    const count            = allElementsToFix.length;
     // that matches PREFIX_CSS_CLASS_PREP
     for (const eachElem of allElementsToFix) {
       try {
@@ -2318,19 +2297,18 @@ try { // scope and prevent errors from leaking out to page.
   /**
    *
    * @param doc {Document|HTMLDocument}
-   * @return {number};
    */
   const recursiveIFrameFlipClassPrep = (doc) => {
     try {
       if (document.videmax_cmd === "unzoom") {
         trace("UNZOOMING!!! - skipping recursiveIFrameFlipClassPrep");
-        return 0;
+        return;
       }
       flipCssRemovePrep(doc);
 
       if (typeof (doc?.querySelectorAll) !== "function") {
         // security can block
-        return 0;
+        return;
       }
       const allIFrames = doc.querySelectorAll("iframe");
       for (const frame of allIFrames) {
@@ -2342,11 +2320,11 @@ try { // scope and prevent errors from leaking out to page.
           flipCssRemovePrep(framedoc);
           recursiveIFrameFlipClassPrep(framedoc);
         } catch (err) {
-          // probably iframe boundary security related
+          // probably cross-domain frame boundry issue
         }
       }
     } catch (err) {
-      // probably security related
+      // probably cross-domain frame boundry issue
     }
   };
 
@@ -2376,7 +2354,7 @@ try { // scope and prevent errors from leaking out to page.
     const doRehideTimeoutLoop = () => {
       if (document.videmax_cmd === "unzoom") {
         trace("UNZOOMING!!! - skipping doRehideTimeoutLoop");
-        return 0;
+        return;
       }
       let rehideCount = 0;
       try {
@@ -2390,7 +2368,7 @@ try { // scope and prevent errors from leaking out to page.
         recursiveIFrameFlipClassPrep(document);
         recursiveIFrameFlipClassPrep(getTopElemNode());
       } catch (err) {
-        console.log(err);
+        logerr(err);
       }
       if (REHIDE_RETRY_UNTIL_NONE && rehideCount !== 0) {
         trace("Retrying rehide until no more matches. 1000ms");
@@ -2406,9 +2384,7 @@ try { // scope and prevent errors from leaking out to page.
     // some sites (mba) position a full sized overlay that needs to be centered.
     if (// !isRunningInIFrame() && // NBCNews iframe styles constantly getting updated
       videomaxGlobals.matchedIsHtml5Video && videomaxGlobals.matchedCommonCntl) {
-      addClassObserverOnCommonCntl(videomaxGlobals.matchedCommonCntl);
-      //   // see if the container is at the op
-      //   const matches = document.elementsFromPoint(document.width , videoCoor.top + 1);
+      addClassObserverOnCommonCntl();
     }
   };
 
@@ -2523,8 +2499,9 @@ try { // scope and prevent errors from leaking out to page.
 
       const bestMatchCount = videomaxGlobals.elementMatcher.getBestMatchCount();
       if (bestMatchCount > 1) {
-        trace(`FOUND TOO MANY VIDEOS ON PAGE? #${bestMatchCount}`);
         if (DEBUG_ENABLED) {
+          trace(`FOUND TOO MANY VIDEOS ON PAGE? #${bestMatchCount}`);
+          // eslint-disable-next-line no-debugger
           debugger;
         }
       } else {
@@ -2637,17 +2614,17 @@ try { // scope and prevent errors from leaking out to page.
       observer.disconnect();
       if (document.videmax_cmd === "unzoom") {
         trace("UNZOOMING!!! - skipping MutationObserver");
-        return 0;
+        return;
       }
       // check to see if things are in the process of going away. They might be.
       if (videomaxGlobals.observerClassMod && videomaxGlobals.isMaximized) {
-        for (let eachMutation of mutations) {
+        for (const eachMutation of mutations) {
           if (eachMutation.type !== "attributes") {
             continue;
           }
 
           // is one of our classnames on the old value?
-          if (!(eachMutation?.oldValue?.indexOf(PREFIX_CSS_CLASS) >= 0)) {
+          if (eachMutation?.oldValue?.indexOf(PREFIX_CSS_CLASS) < 0) {
             // nope
             continue;
           }
@@ -2661,7 +2638,7 @@ try { // scope and prevent errors from leaking out to page.
           // if we reach here then our classname was removed
           const oldClassNames = eachMutation.oldValue.split(" ");
           // figure out what classnames were removed and re-add it.
-          for (let eachClassname of oldClassNames) {
+          for (const eachClassname of oldClassNames) {
             if (eachClassname.startsWith(PREFIX_CSS_CLASS)) {
               eachMutation.target?.classList?.add(eachClassname);
               trace(
@@ -2885,6 +2862,7 @@ try { // scope and prevent errors from leaking out to page.
           const missedRemoved1 = document.querySelectorAll(`[class*="${PREFIX_CSS_CLASS}"]`);
           if (missedRemoved1.length) {
             // undo didn't remove all "videomax-ext" classes from this doc (maybe iframe)
+            // eslint-disable-next-line no-debugger
             debugger;
           }
 
@@ -2894,6 +2872,7 @@ try { // scope and prevent errors from leaking out to page.
               `[class*="${PREFIX_CSS_CLASS}"]`);
             if (notRemoved2.length) {
               // undo didn't remove all "videomax-ext" classes from document where video was found
+              // eslint-disable-next-line no-debugger
               debugger;
             }
           }
@@ -2934,8 +2913,6 @@ try { // scope and prevent errors from leaking out to page.
       mainZoom();
       break;
   }
-  // window.videmax_cmd   = ""; // clear it.
-  // document.videmax_cmd = "";
 } catch (err) {
   // eslint-disable-next-line no-console
   console.error("videomax extension error", err, err.stack);

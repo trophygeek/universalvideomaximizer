@@ -1,4 +1,5 @@
-import { getSettings, saveSettings } from "./common.js";
+
+import { getSettings, logerr, saveSettings } from "./common.js";
 
 try {
   /**
@@ -63,5 +64,5 @@ try {
       });
   });
 } catch (e) {
-  console.error(e);
+  logerr(e);
 }
