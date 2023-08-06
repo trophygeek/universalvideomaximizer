@@ -609,35 +609,66 @@ try { // scope and prevent errors from leaking out to page.
   };
 
   /**
-   * find and restore all the saved attributes
+   *
+   * @param styleStr {string}
+   * @param mergeIntoObj {{[key: string]: string}}
+   * @return {{[key: string]: string}}
+   */
+  const styleStrToObject = (styleStr, mergeIntoObj) => {
+    const parts = styleStr.split(";");
+    for (const eachPart of parts) {
+      const pair = eachPart.split(":");
+      if (pair.length !== 2) {
+        continue;
+      }
+      const key         = pair[0].trim();
+      mergeIntoObj[key] = pair[1].trim();
+    }
+    return mergeIntoObj;
+  };
+
+  /**
+   * find and restore all the saved attributes. If you touch this, verify youtube toggle and crunchyroll
    * @param elem {HTMLElement}
    */
   const restoreAllSavedAttr = (elem) => {
-    const attrNames = /** @type string[] */ [...(elem?.getAttributeNames() || [])]; // clone array
+    // filter on `data-videomax-saved-*` attributes
+    const attrNames = /** @type string[] */ [...(elem?.getAttributeNames() || [])]
+      .filter((attr) => attr.startsWith(VIDEO_MAX_DATA_ATTRIB_UNDO_PREFIX)); // clone array
     for (const eachAttrName of attrNames) {
-      if (eachAttrName.startsWith(VIDEO_MAX_DATA_ATTRIB_UNDO_PREFIX)) {
-        let savedValue         = getAttr(elem, eachAttrName);
-        // we need to get the name from the suffix
-        const originalAttrName = eachAttrName.substring(
-          VIDEO_MAX_DATA_ATTRIB_UNDO_PREFIX.length + 1);
-        removeAttr(elem, eachAttrName); // our "save" data attrib
-        if (savedValue !== null) {
-          if (originalAttrName === "style") {
-            // we add our changes back but if there are new changes, we append.
-            const currentVal = getAttr(elem, "style");
-            savedValue       = `${savedValue} ${currentVal || ""}`;
+      const savedValue       = getAttr(elem, eachAttrName);
+      // we need to get the name from the suffix
+      const originalAttrName = eachAttrName.substring(VIDEO_MAX_DATA_ATTRIB_UNDO_PREFIX.length + 1);
+      removeAttr(elem, eachAttrName); // our "save" data attrib
+      if (savedValue === null) {
+        // nothing to restore
+        continue;
+      }
+      const currentVal = getAttr(elem, originalAttrName);
+      if (savedValue === currentVal) {
+        // same, do nothing
+        continue;
+      }
+      if (currentVal === null) {
+        /// just restore, no merge require
+        setAttr(elem, originalAttrName, savedValue); // restore it.
+        continue;
+      }
+      // case where we want to remove values we set?  removeAttr(elem, originalAttrName);
+      if (originalAttrName === "style") {
+        // we add our changes back but if there are new changes, we append.
+        const currentStyleParts = styleStrToObject(savedValue, styleStrToObject(currentVal, {}));
 
-            // if you zoom during starting pre-video commercials,
-            // then some sites have the main video hidden (cruchyroll).
-            // special case to make sure the style doesn't have "opacity: 0;"
-            // maybe need to extend to other types of "hidden" approaches?
-            savedValue = savedValue.replace(`opacity: 0;`, "");
-          }
+        let mergedValue = Object.keys(currentStyleParts).map(key => `${key}: ${currentStyleParts[key]}`)
+          .join("; ");
 
-          setAttr(elem, originalAttrName, savedValue); // restore it.
-        } else {
-          removeAttr(elem, originalAttrName);
-        }
+
+        // if you zoom during starting pre-video commercials,
+        // then some sites have the main video hidden (cruchyroll).
+        // special case to make sure the style doesn't have "opacity: 0;"
+        // maybe need to extend to other types of "hidden" approaches?
+        mergedValue = mergedValue.replace(`opacity: 0;`, "");
+        setAttr(elem, originalAttrName, mergedValue); // restore it.
       }
     }
     // we're all done restoring, remove our marker tag

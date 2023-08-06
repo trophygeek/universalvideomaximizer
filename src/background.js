@@ -327,7 +327,7 @@ function injectVideoSpeedAdjust(newspeed) {
           const iframeUrl = window._VideoMaxExt.matchedVideo.src?.toLowerCase() || "";
           if (iframeUrl.indexOf(domain) !== -1) {
             result.add(domain);
-            trace(`VideoMax speed error Need access to ${domain}`);
+            // console.trace(`VideoMax speed error Need access to ${domain}`);
           }
         }
       }
