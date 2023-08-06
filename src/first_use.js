@@ -1,4 +1,3 @@
-
 import { getSettings, logerr, saveSettings } from "./common.js";
 
 try {
@@ -8,41 +7,46 @@ try {
    */
   const setUseAdvancedFeatures = (newUseAdvancedFeatures) => {
     setTimeout(async () => {
-      const url    = new URL(document.location.href);
+      const url = new URL(document.location.href);
       const params = new URLSearchParams(url.hash.replace("#", ""));
-      const tabId  = params.get("tabId");
-      const speed  = params.get("speed");
+      const tabId = params.get("tabId");
+      const speed = params.get("speed");
       const domain = params.get("domain"); // needed because Netflix errs on skip
-      const badge  = params.get("badge");
+      const badge = params.get("badge");
 
-      const settings               = await getSettings();
+      const settings = await getSettings();
       settings.useAdvancedFeatures = newUseAdvancedFeatures;
-      settings.firstUseShown       = true;
+      settings.firstUseShown = true;
       await saveSettings(settings);
       // we need this to remove the popup="first_use.js" or it's set and locked in.
       chrome.runtime.sendMessage({
-        message: {
-          cmd: "FIRST_USE_SET",
-          tabId,
-          domain,
-          speed,
-        },
-      }, (_response) => {
+                                   message: {
+                                     cmd: "FIRST_USE_SET",
+                                     tabId,
+                                     domain,
+                                     speed,
+                                   },
+                                 }, (_response) => {
         if (!newUseAdvancedFeatures) {
           chrome.runtime.sendMessage({
-            message: {
-              cmd: "UNZOOM_CMD",
-              tabId,
-              domain,
-              speed,
-            },
-          }, () => {
+                                       message: {
+                                         cmd: "UNZOOM_CMD",
+                                         tabId,
+                                         domain,
+                                         speed,
+                                       },
+                                     }, () => {
             window.close();
           });
         } else {
-          document.getElementById("intro").classList.add("is-hidden");
-          document.getElementById("tutorial").classList.remove("is-hidden");
-          document.getElementById("tryitframe").src = `popup.html#tabId=${tabId}&speed=${speed}&domain=${domain}&badge=${badge}`;
+          document.getElementById("intro")
+            .classList
+            .add("is-hidden");
+          document.getElementById("tutorial")
+            .classList
+            .remove("is-hidden");
+          document.getElementById(
+            "tryitframe").src = `popup.html#tabId=${tabId}&speed=${speed}&domain=${domain}&badge=${badge}`;
         }
       }); // FIRST_USE_SET
     }, 0);// timeout

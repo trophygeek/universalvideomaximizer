@@ -1,15 +1,15 @@
 // @ts-check
 
-const FULL_DEBUG        = false;
-const DEBUG_ENABLED     = FULL_DEBUG;
-const TRACE_ENABLED     = FULL_DEBUG;
+const FULL_DEBUG = false;
+const DEBUG_ENABLED = FULL_DEBUG;
+const TRACE_ENABLED = FULL_DEBUG;
 const ERR_BREAK_ENABLED = FULL_DEBUG;
 
 export const DEFAULT_SPEED = "1.0";
 
-export const CSS_FILE            = "videomax_inject.css";
+export const CSS_FILE = "videomax_inject.css";
 export const CSS_STYLE_HEADER_ID = "maximizier-css-inject";
-export const DEAULT_SPEED        = "1.0";
+export const DEAULT_SPEED = "1.0";
 
 export const logerr = (...args) => {
   if (DEBUG_ENABLED === false) {
@@ -17,7 +17,7 @@ export const logerr = (...args) => {
   }
   // eslint-disable-next-line no-console
   console.trace(`%c VideoMax ERROR`, `color: white; font-weight: bold; background-color: red`,
-    ...args);
+                ...args);
   if (ERR_BREAK_ENABLED) {
     // eslint-disable-next-line no-debugger
     debugger;
@@ -51,8 +51,8 @@ export const DEFAULT_ZOOM_EXCLUSION_LIST = "amazon," + "hbomax," + "play.max," +
  * @type {SettingsType}
  */
 export const DEFAULT_SETTINGS = {
-  lastBetaVersion:           "0", // number as string used to show initial "help" (also for major
-                                  // releases)
+  lastBetaVersion: "0", // number as string used to show initial "help" (also for major
+                        // releases)
   useAdvancedFeatures:       false,
   spacebarTogglesPlayback:   true,
   regSkipSeconds:            5,
@@ -235,7 +235,7 @@ export const getManifestJson = async () => {
     if (cssFilePath !== "") {
       // this fetch is to load a file internal to the chrome extension (our manifest) as data
       const response = await fetch(cssFilePath);
-      const json     = await response.json();
+      const json = await response.json();
       return json || {};
     }
   } catch (err) {
