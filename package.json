@@ -39,7 +39,7 @@
     }
   },
   "scripts": {
-    "lint:eslint:write": "eslint --fix 'src/**/*.{js,ts,jsx,tsx}'",
+    "eslint": "eslint --fix 'src/**/*.{js,ts,jsx,tsx}'",
     "test": "uvu -r esbuild-register tests",
     "update": "git checkout -- yarn.lock && yarn install && yarn upgrade-interactive --lastest"
   },

@@ -199,7 +199,7 @@ function setSubframeData(tabId, domain, subFrameStr) {
 /**
  * This will get GC deleted often, but if the background knows it, it saves
  * an async call into the page to re-get the last playback speed.
- * @type {TabToSpeedMap} */
+ * @type {KeyValuePair} */
 const g_SpeedByTabData = {};
 
 /**
@@ -221,6 +221,33 @@ function setSpeedGlobalData(tabId, domain, speed) {
  */
 function getGlobalSpeedData(tabId, domain) {
   return g_SpeedByTabData[`${tabId}-${domain}`] || DEAULT_SPEED;
+}
+
+/** @type {number[]} */
+let g_PopupOpenedForTabs = [];
+
+/**
+ * Some sites (hampster) will trigger an
+ * @type {KeyValuePair} */
+let g_LastUrlFromOnUpdated = {};
+
+/**
+ * @param tabId {number}
+ * @param url {string}
+ * @return {boolean}
+ */
+function setLastUrlFromOnUpdated(tabId, url) {
+  const wasSet = g_LastUrlFromOnUpdated[`${tabId}`] !== undefined;
+  g_LastUrlFromOnUpdated[`${tabId}`] = url;
+  return wasSet;
+}
+
+/**
+ * @param tabId {number}
+ * @return {string}
+ */
+function getLastUrlFromOnUpdated(tabId) {
+  return g_LastUrlFromOnUpdated[`${tabId}`] || "";
 }
 
 /**
@@ -248,52 +275,224 @@ function injectionResultCheck(injectionResults, defaultVal = false) {
  * @param newspeed {string}
  * @return {string[]}
  */
-function injectVideoSpeedAdjust(newspeed) {
+const injectVideoSpeedAdjust = async (newspeed) => {
   const PLAYBACK_SPEED_ATTR = "data-videomax-playbackspeed";
+  const PLAYBACK_PAUSED_ATTR = "data-videomax-paused";
   /** @type {Set<string>} */
   const result = new Set(); // use Set to dedup
 
   /** nested local function * */
   const _loadStart = (event) => {
     try {
+      console.log(`VideoMaxExt: loadStart\n`, event);
       const video_elem = event?.target;
+      const isVis = video_elem?.checkVisibility({
+                                                  checkOpacity:       true,
+                                                  checkVisibilityCSS: true,
+                                                }) || false;
+      // we only mess with the playback speed if we set it.
       const playbackSpeed = video_elem?.getAttribute(PLAYBACK_SPEED_ATTR);
-      if (!playbackSpeed) {
+      if (!!playbackSpeed) {
+        // eslint-disable-next-line no-console
+        console.log(
+          `VideoMaxExt: loadStart injectVideoSpeedAdjust Attr"${PLAYBACK_SPEED_ATTR}": undefined skipping`);
         return;
       }
-      const speedNumber = parseFloat(playbackSpeed);
+      const speedNumber = Math.abs(parseFloat(playbackSpeed));
       if (video_elem?.playbackRate !== speedNumber) { // it's changed
+        // eslint-disable-next-line no-console
+        console.log(
+          `VideoMaxExt: loadStart injectVideoSpeedAdjust 
+          speedNumber: ${speedNumber}
+          isVis: ${isVis}
+          Attr"${PLAYBACK_SPEED_ATTR}": ${playbackSpeed} !== video_elem.playbackRate: ${video_elem?.playbackRate}`);
         video_elem.playbackRate = speedNumber;
+      } else {
+        // eslint-disable-next-line no-console
+        console.log(
+          `VideoMaxExt: loadStart injectVideoSpeedAdjust
+          speedNumber: ${speedNumber}
+          isVis: ${isVis}
+          Attr"${PLAYBACK_SPEED_ATTR}": ${playbackSpeed} === video_elem.playbackRate: ${video_elem?.playbackRate}`);
       }
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.log(`_loadStart err`, err);
+      console.log(`VideoMaxExt: loadStart err`, err);
     }
   };
-  const _speedUpFoundVideos = (doc, speed) => {
+
+  /**
+   *
+   * @param doc {Document}
+   * @param speed {number} Neg means paused, but the speed is the "toggle back to speed"
+   * @private
+   */
+  const _injectSetSpeedForVideos = async (doc, speed) => {
+    const _isVisible = (el) => el?.checkVisibility({
+                                                     checkOpacity:       true,
+                                                     checkVisibilityCSS: true,
+                                                   }) || false;
+    const _getCoords = (el) => { // crossbrowser version
+      try {
+        const { body } = document;
+        const docEl = document.documentElement;
+
+        const scrollTop = window.pageYOffset || docEl.scrollTop || body.scrollTop;
+        const scrollLeft = window.pageXOffset || docEl.scrollLeft || body.scrollLeft;
+
+        const clientTop = docEl.clientTop || body.clientTop || 0;
+        const clientLeft = docEl.clientLeft || body.clientLeft || 0;
+
+        const box = el?.getBoundingClientRect();
+        const top = Math.round(box.top + scrollTop - clientTop);
+        const left = Math.round(box.left + scrollLeft - clientLeft);
+        const bottom = top + box.height; // already rounded.
+        const right = left + box.width;
+
+        return {
+          top,
+          left,
+          bottom,
+          right,
+          width:  box.width,
+          height: box.height,
+        };
+      } catch (err) {
+        console.error(err);
+        return {
+          top:    0,
+          left:   0,
+          bottom: 0,
+          right:  0,
+          width:  0,
+          height: 0,
+        };
+      }
+    };
+    const _isTopVisibleVideoElem = (videoElem) => {
+      const {
+        top,
+        left,
+        width,
+        height,
+      } = _getCoords(videoElem);
+      const layedElems = document.elementsFromPoint(Math.round(left + (width / 2)),
+                                                    Math.round(top + (height / 2)));
+
+      // we walk down the layers checking to see if it's a video and if it's visible.
+      const matches = layedElems.filter((eachLayer) => {
+        if (eachLayer.nodeName.toLowerCase() !== "video") {
+          return false;
+        }
+        return _isVisible(eachLayer);
+      });
+      if (matches.length === 0) {
+        return false;
+      }
+      return videoElem.isSameNode(matches[0]);
+    };
+
+    const PLAYBACK_SPEED_ATTR = "data-videomax-playbackspeed";
     try {
       /** @type {NodeListOf<HTMLVideoElement>} */
       const videos = doc.querySelectorAll("video");
       for (const eachVideo of videos) {
         try {
-          eachVideo.defaultPlaybackRate = speed;
-          eachVideo.playbackRate = speed;
-
-
-          const speedNumber = parseFloat(speed);
-          if (eachVideo?.paused === true && speedNumber !== 0.0) {
-            eachVideo.play();
-          } else if (speedNumber === 0.0) {
-            // auto-playing next video can reset speed. Need to hook into content change
-            eachVideo.pause();
+          eachVideo.removeEventListener("loadstart", _loadStart);
+          const isVisible = _isVisible(eachVideo);
+          if (!isVisible) {
+            // eslint-disable-next-line no-console
+            console.log(
+              "VideoMaxExt: injectVideoSpeedAdjust: eachVideo.checkVisibility is false for ",
+              eachVideo);
+            continue;
+          }
+          const wantsToBePaused = speed <= 0;
+          const videoMaxSavedSpeed = eachVideo.getAttribute(PLAYBACK_SPEED_ATTR);
+          const weSetSpeed = !!videoMaxSavedSpeed;
+          const isTopVisible = _isTopVisibleVideoElem(eachVideo);
+          if (!isTopVisible) {
+            console.log(`VideoMaxExt: injectVideoSpeedAdjust: not top visible video, skipping`,
+                        eachVideo);
+            continue;
           }
 
-          eachVideo.setAttribute(PLAYBACK_SPEED_ATTR, `${speed}`);
-          eachVideo.removeEventListener("loadstart", _loadStart);
-          eachVideo.addEventListener("loadstart", _loadStart);
+          // not paused, but should be.
+          if (eachVideo?.paused === false && // should not already be paused.
+              eachVideo.defaultPlaybackRate !== 0 &&
+              wantsToBePaused) {
+            // don't worry about setting the speed, since we're about to pause?
+            console.log(`VideoMaxExt: injectVideoSpeedAdjust: pausing
+                eachVideo?.paused ${eachVideo?.paused}
+                eachVideo.defaultPlaybackRate: "${eachVideo.defaultPlaybackRate}"
+                wantsToBePaused: ${wantsToBePaused}
+                isTopVisible: ${isTopVisible}
+                elem:`, eachVideo);
+            eachVideo.pause();
+            eachVideo.setAttribute(PLAYBACK_SPEED_ATTR, String(speed));
+            continue;
+          }
+
+          // the user clicked a speed.
+          // problem... crunchyroll AGAIN. If there are ads and the main video on the page,
+          // this this can trigger BOTH of them playing. so we check PLAYBACK_PAUSED_ATTR so
+          // we ONLY unpause videos we paused. In theory, we could try to check if this is the
+          // topmost video, but because of ad iframes on different sites cover videos - but both
+          // are
+          // // technically "visible" (AND the iframes having videos in them, but are on different
+          // domains with cross-frame security blocking coodinations), it gets really really tricky
+          // fast. Experimented with just setting playback speed to zero and not pausing, but then
+          // it can get confusing to unpause.
+          if (wantsToBePaused === false &&
+              eachVideo?.paused === true &&
+              weSetSpeed) {
+            // don't worry about setting the speed, since we're about to pause?
+            console.log(`VideoMaxExt: injectVideoSpeedAdjust: UNpausing
+                eachVideo?.paused ${eachVideo?.paused}
+                eachVideo.defaultPlaybackRate: "${eachVideo.defaultPlaybackRate}"
+                wantsToBePaused: ${wantsToBePaused}
+                weSetSpeed: ${weSetSpeed}
+                isTopVisible: ${isTopVisible}
+                elem:`, eachVideo);
+
+
+            eachVideo.removeAttribute(PLAYBACK_PAUSED_ATTR);
+            await eachVideo.play();
+            eachVideo.defaultPlaybackRate = speed;
+            eachVideo.playbackRate = speed;
+            continue;
+          }
+
+          // finally just a boring "set the new speed"
+          if (speed > 0 && speed !== eachVideo.defaultPlaybackRate) {
+            console.log(`VideoMaxExt: injectVideoSpeedAdjust: Just setting speed
+                speed >0 && speed !==eachVideo.defaultPlaybackRate 
+                speed: ${speed}
+                eachVideo.defaultPlaybackRate: ${eachVideo?.defaultPlaybackRate}
+                eachVideo?.paused: ${eachVideo?.paused}
+                weSetSpeed: ${weSetSpeed}
+                isTopVisible: ${isTopVisible}
+                elem:`, eachVideo);
+
+
+            eachVideo.defaultPlaybackRate = speed;
+            eachVideo.playbackRate = speed;
+            eachVideo.setAttribute(PLAYBACK_SPEED_ATTR, `${speed}`);
+            eachVideo.addEventListener("loadstart", _loadStart);
+            continue;
+          }
+          console.log(`VideoMaxExt: injectVideoSpeedAdjust: No rules applied, not doing anything
+                eachVideo.defaultPlaybackRate: ${eachVideo?.defaultPlaybackRate}
+                eachVideo?.paused: ${eachVideo?.paused}
+                speed: ${speed}
+                wantsToBePaused: ${wantsToBePaused}
+                weSetSpeed: ${weSetSpeed}
+                isTopVisible: ${isTopVisible}
+                elem:`, eachVideo);
         } catch (err) {
           // eslint-disable-next-line no-console
-          console.warn(`VideoMaxExt: speed error _speedUpFoundVideos for "video"`, eachVideo, err);
+          console.error(`VideoMaxExt: injectVideoSpeedAdjust _speedUpFoundVideos for "video"`,
+                        eachVideo, err);
         }
       }
     } catch (err) {
@@ -301,11 +500,12 @@ function injectVideoSpeedAdjust(newspeed) {
       console.warn(`VideoMaxExt: doc.querySelectorAll("video") blocked cross iframe?`, doc, err);
     }
   };
-  if (window._VideoMaxExt?.playbackSpeed) {
-    window._VideoMaxExt.playbackSpeed = newspeed;
+
+  if (document._VideoMaxExt?.playbackSpeed) {
+    document._VideoMaxExt.playbackSpeed = newspeed;
   }
   const speadNumber = parseFloat(newspeed);
-  _speedUpFoundVideos(document, speadNumber);
+  await _injectSetSpeedForVideos(document, speadNumber);
 
   const allIFrames = document.querySelectorAll("iframe");
   for (const frame of [...allIFrames]) {
@@ -314,7 +514,7 @@ function injectVideoSpeedAdjust(newspeed) {
       if (!framedoc) {
         continue;
       }
-      _speedUpFoundVideos(framedoc, speadNumber);
+      await _injectSetSpeedForVideos(framedoc, speadNumber);
     } catch (err) {
       // in theory, we could try to record this url and add it to the request?
       // but this is run in the context of the page see GET_IFRAME_PERMISSIONS
@@ -334,7 +534,7 @@ function injectVideoSpeedAdjust(newspeed) {
     }
   }
   return [...result]; // Set->array
-}
+};
 
 /**
  *
@@ -342,7 +542,7 @@ function injectVideoSpeedAdjust(newspeed) {
  */
 function injectGetPlaypackSpeed() {
   try {
-    return window._VideoMaxExt?.playbackSpeed || DEFAULT_SPEED;
+    return document._VideoMaxExt?.playbackSpeed || DEFAULT_SPEED;
   } catch (err) {
     // eslint-disable-next-line no-console
     console.warn(`VideoMaxExt: injectGetPlaypackSpeed err for video`, err);
@@ -357,8 +557,23 @@ function injectVideoSkip(skipSecondsStr) {
   const skipSeconds = parseFloat(skipSecondsStr);
   for (const eachVideo of document.querySelectorAll("video")) {
     try {
+      if (!eachVideo.checkVisibility({
+                                       checkOpacity:       true,
+                                       checkVisibilityCSS: true,
+                                     })) {
+        console.log(`VideoMaxExt: injectVideoSkip checkVisibility=false, skipping`, eachVideo);
+        continue;
+      }
+      if (!eachVideo?.seekable?.length > 0) {
+        console.log(`VideoMaxExt: injectVideoSkip not seekable, skipping`, eachVideo?.seekable);
+        continue;
+      }
       // restore playback speed after we skip
       const savedSpeed = eachVideo.playbackRate || 1.0;
+
+      // eachVideo.pause(); // pause/play trigger controls to briefly show. (doesn't rehide on some
+      // sites)
+
       // don't go negative;
       eachVideo.currentTime = Math.max(0, eachVideo.currentTime + skipSeconds);
       eachVideo.playbackRate = savedSpeed;
@@ -807,18 +1022,20 @@ function processIFrameExtraPermissionsResult(results, tabId, domain) {
  */
 async function setSpeed(tabId, domain, speedStr = DEAULT_SPEED) {
   try {
-    trace(`setSpeed enter tabId:${tabId} speed:${speedStr}`);
+    trace(`setSpeed: enter tabId:${tabId} speed:${speedStr}`);
 
     if (typeof parseFloat(speedStr) !== "number") {
-      logerr(`Speed NOT valid number '${speedStr}'`);
+      logerr(`setSpeed: Speed NOT valid number '${speedStr}'`);
       return false;
     }
     const wasSet = setSpeedGlobalData(tabId, domain, speedStr);
 
     if (!wasSet && speedStr === DEAULT_SPEED) {
-      trace("NOT setting video speed since it doesn't seem required (max compatability mode)");
+      trace(
+        "setSpeed: NOT setting video speed since it doesn't seem required (max compatability mode)");
       return false;
     }
+    trace(`setSpeed: executeScript: injectVideoSpeedAdjust with arg [${speedStr}]`);
     // "allFrames" is broken unless manifest requests permissions
     // `"optional_host_permissions": ["<all_urls>"]`
     const results = await chrome.scripting.executeScript({
@@ -829,7 +1046,7 @@ async function setSpeed(tabId, domain, speedStr = DEAULT_SPEED) {
                                                            func:   injectVideoSpeedAdjust,
                                                            args:   [speedStr],
                                                          });
-    trace(`setSpeed leave tabId:${tabId} speed:${speedStr}`);
+    trace(`setSpeed: leave tabId:${tabId} speed:${speedStr}`);
     return processIFrameExtraPermissionsResult(results, tabId, domain);
   } catch (err) {
     logerr(err);
@@ -841,9 +1058,10 @@ async function setSpeed(tabId, domain, speedStr = DEAULT_SPEED) {
  *
  * @param tabId {number}
  * @param domain {string}
+ * @param defaultSpeed {string}
  * @return {Promise<string>}
  */
-async function getSpeed(tabId, domain) {
+async function getSpeed(tabId, domain, defaultSpeed = DEFAULT_SPEED) {
   try {
     const speed = getGlobalSpeedData(tabId, domain);
     if (speed) {
@@ -861,12 +1079,12 @@ async function getSpeed(tabId, domain) {
                                                          });
     trace("getSpeed leave", tabId, speed);
     if (!results?.length) {
-      return DEAULT_SPEED;
+      return defaultSpeed;
     }
     return results[0].result;
   } catch (err) {
     trace("getSpeed error", err);
-    return DEAULT_SPEED;
+    return defaultSpeed;
   }
 }
 
@@ -1079,12 +1297,46 @@ chrome.action.onClicked.addListener((tab) => {
         }
         // domain will be empty for "file://"
         await toggleZoomState(tabId, getDomain(tab.url));
+        // used to detect SPA nav. Clip anchor
+        setLastUrlFromOnUpdated(tabId, tab.url.split("#")[0]);
       });
     });
   } catch (err) {
     logerr(err);
   }
 });
+
+/**
+ * Called when we're zoomed but the popup is redisplayed.
+ * @param tabId {number}
+ * @param domain {string}
+ * @param speed {string}
+ * @return {Promise<void>}
+ */
+const ReZoom = async (tabId, domain, speed) => {
+  // the popup is about to display and thinks the page is zoomed, but it's may not be
+  // (e.g. if escape key was pressed.)
+  // in theory, re-injecting should be fine
+  const currentState = await getCurrentTabState(tabId);
+  // ignore the speed sent in. For rezoom, the popup has been deleted, so it can't
+  // send the speed, we have to reget it.
+  const currentSpeed = await getSpeed(tabId, domain, speed);
+  if (currentState === "ZOOMING_SPEED_ONLY") {
+    trace("REZOOM_CMD - Speed only, not rezooming");
+    await setSpeed(tabId, domain, currentSpeed);
+  } else {
+    trace("REZOOM_CMD -- Zooming");
+    // a full zoom isn't needed, just the css reinjected.
+
+    // we need to see if we're in "SPEED_ONLY" mode because
+    // we don't have access to the url to see if it's a site like hulu
+    const nextState = currentState === "SPEED_ONLY" ? "ZOOMING_SPEED_ONLY" : "ZOOMING";
+    await Promise.all([setCurrentTabState(tabId, nextState, currentSpeed),
+                       DoZoom(tabId, currentState, currentSpeed),
+                       setSpeed(tabId, domain, currentSpeed)]);
+    trace("REZOOM_CMD -- Zooming -- COMPLETE");
+  }
+};
 
 // handle popup messages
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -1116,6 +1368,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                                      url,
                                      active: true,
                                    });
+
+          // also, the popup is closing
         }
           break;
 
@@ -1128,30 +1382,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                              setSpeed(tabId, domain, speed)]);
           break;
 
-        case "REZOOM_CMD": {
-          // the popup is about to display and thinks the page is zoomed, but it's may not be
-          // (e.g. if escape key was pressed.)
-          // in theory, re-injecting should be fine
-          const currentState = await getCurrentTabState(tabId);
-          // ignore the speed sent in. For rezoom, the popup has been deleted, so it can't
-          // send the speed, we have to reget it.
-          const currentSpeed = await getSpeed(tabId, domain);
-          if (currentState === "ZOOMING_SPEED_ONLY") {
-            trace("REZOOM_CMD - Speed only, not rezooming");
-            await setSpeed(tabId, domain, currentSpeed);
-          } else {
-            trace("REZOOM_CMD -- Zooming");
-            // a full zoom isn't needed, just the css reinjected.
-
-            // we need to see if we're in "SPEED_ONLY" mode because
-            // we don't have access to the url to see if it's a site like hulu
-            const nextState = currentState === "SPEED_ONLY" ? "ZOOMING_SPEED_ONLY" : "ZOOMING";
-            await Promise.all([setCurrentTabState(tabId, nextState, currentSpeed),
-                               DoZoom(tabId, currentState, currentSpeed),
-                               setSpeed(tabId, domain, currentSpeed)]);
-            trace("REZOOM_CMD -- Zooming -- COMPLETE");
-          }
-        }
+        case "REZOOM_CMD":
+          await ReZoom(tabId, domain, speed);
           break;
 
         case "SKIP_PLAYBACK_CMD":
@@ -1163,6 +1395,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           await setCurrentTabState(tabId, "", domain);
           break;
 
+        case "POPUP_CLOSING":
+          // stop controlling pause.
+          debugger;
+          break;
+
         default:
           logerr(`Unknown command: "${cmd}"`);
       }
@@ -1172,11 +1409,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }, 0);
 
   if (sendResponse) {
+    trace("closing popup");
     sendResponse({ success: true }); // used to close popup.
   }
 });
 
-chrome.tabs.onUpdated.addListener((tabId, changeInfo/* , _tab */) => {
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   try {
     const domain = getDomain(changeInfo.url);
     trace(`tabs.onUpated event tabId=${tabId} changeInfo:`, changeInfo);
@@ -1184,11 +1422,29 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo/* , _tab */) => {
       setTimeout(async () => {
         const state = await getCurrentTabState(tabId);
         if (isActiveState(state)) {
-          trace("chrome.tabs.onUpdated loading so starting unzoom. likely SPA nav");
+          trace(`tabs.onUpdated event likely SPA nav: 
+          changeInfo: ${JSON.stringify(changeInfo, null, 2)}}
+          tab: ${JSON.stringify(tab, null, 2)} `);
+
+          // some sites (hampster) will set an anchor in url when progress clicked near end.
+          const newUrl = (changeInfo?.url || "").split("#")[0].toLowerCase(); // trim off after
+                                                                              // anchor?
+          const lastUrl = getLastUrlFromOnUpdated(tabId);
           // some SPA won't do a clean refetch, we need to uninstall.
-          await unZoom(tabId, domain);
+          if (g_PopupOpenedForTabs.includes(tabId)) {
+            // popup is open, so keep zoomed
+            trace("tabs.onUpdated: Popup UI Open so REzooming");
+            await ReZoom(tabId, domain, DEFAULT_SPEED);
+          } else if (newUrl !== lastUrl) {
+            setLastUrlFromOnUpdated(tabId, newUrl);
+            trace(`tabs.onUpdated: Popup UI CLOSED so UNzooming. 
+              newUrl: "${newUrl}"
+              lastUrl: "${lastUrl}
+              `);
+            await unZoom(tabId, domain);
+          }
         } else {
-          trace(`tabId not currently zoomed ${tabId}`);
+          trace(`tabs.onUpdated event tabId not currently zoomed ${tabId}`);
         }
       }, 0);
     }
@@ -1196,3 +1452,47 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo/* , _tab */) => {
     logerr(err);
   }
 });
+
+chrome.runtime.onConnect.addListener((externalPort) => {
+  {
+    const popupUrl = externalPort.sender.url;
+    const url = new URL(popupUrl);
+    const params = new URLSearchParams(url.hash.replace("#", ""));
+    const tabId = Number(params.get("tabId") || "0");
+
+    if (!g_PopupOpenedForTabs.includes(tabId)) {
+      g_PopupOpenedForTabs = [...g_PopupOpenedForTabs, tabId];
+      trace(
+        `Popup opened. Added tabId:'${tabId}' g_PopupOpenedForTabs: [${g_PopupOpenedForTabs.join(
+          ",")}]`);
+    }
+  }
+  externalPort.onMessage((message, port) => {
+    // todo: while popup is open, allow it to query the playback speed (and if the video is paused)?
+  });
+  // called when disconnected.
+  externalPort.onDisconnect.addListener((portDisconnectEvent) => {
+    // we can get the tab by looking at the url.
+    const popupUrl = portDisconnectEvent.sender.url;
+    const url = new URL(popupUrl);
+    const params = new URLSearchParams(url.hash.replace("#", ""));
+    const tabId = Number(params.get("tabId") || "0");
+
+    if (g_PopupOpenedForTabs.includes(tabId)) {
+      trace(
+        `Popup closed. Removed tabId:'${tabId}' g_PopupOpenedForTabs: [${g_PopupOpenedForTabs.join(
+          ",")}]`);
+      g_PopupOpenedForTabs = g_PopupOpenedForTabs.filter((eachId) => tabId !== eachId);
+    }
+
+    // we track the popup open/closed, if it's open for a tab and there's a url-only "navigate",
+    // don't unzoom.
+
+    try {
+      const ignoreError = chrome.runtime.lastError;
+    } catch (err) {
+      trace(err);
+    }
+  });
+});
+

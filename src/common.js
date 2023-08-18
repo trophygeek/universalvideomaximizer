@@ -1,6 +1,6 @@
 // @ts-check
 
-const FULL_DEBUG = false;
+const FULL_DEBUG = true;
 const DEBUG_ENABLED = FULL_DEBUG;
 const TRACE_ENABLED = FULL_DEBUG;
 const ERR_BREAK_ENABLED = FULL_DEBUG;
@@ -58,7 +58,7 @@ export const DEFAULT_SETTINGS = {
   regSkipSeconds:            5,
   longSkipSeconds:           20,
   preportionalSkipTimes:     true,
-  wholeDomainAccess:         false, // "all example.com sites" vs "on www.example.com"
+  wholeDomainAccess:         true, // "all example.com sites" vs "on www.example.com"
   allSitesAccess:            false,
   allSitesAccessNeedsRevoke: false,
   firstUseShown:             false, // set to true once first_use picks a mode.
