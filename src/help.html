@@ -11,7 +11,7 @@
   <h1><img alt="logo" class="logo" src="icons/icon128.png">Video Maximizer - Help</h1>
   <hr>
   <h2>
-    Version 3.0.93 (Aug 2023 update)
+    Version 3.0.94 (Aug 2023 update)
   </h2>
 
   <section class="padding-1">
@@ -21,7 +21,7 @@
       <li><span class="emphasis">NEW</span> Prompt for Advanced UI (for upgrading v2 users)</li>
       <li>Arrow keys enable video rewind/forward skipping</li>
       <li>Improved speed adjusted playback</li>
-      <li>Option to grant extra permissions in settings that reduces security prompts</li>
+      <li>Settings to automatically grant extra permissions that reduces security prompts</li>
     </ul>
   </section>
 
@@ -53,15 +53,18 @@
 
   <hr/>
 
-  <h3 id="newdesign">New playback speed option</h3>
+  <h3 id="newdesign">New playback features</h3>
   <section class="padding-3">
     <span class="emphasis bold"> Why include playback controls?</span><br>
     Video Maximizer does its best to include the original playback controls when zooming, but
-    some sites may still fail. That's when having some basic playback controls as part of Video Maximizer come in handy.
-    It allows: pause, skip and speed control directly from the extension.
+    some sites may still fail and end up missing them. That's when having some basic playback controls as part of
+    Video Maximizer comes in handy.
+  </section>
+  <section class="padding-2">
+    The feature allows: pause, skip and speed control directly from the extension.
   </section>
 
-  <section class="padding-3">
+  <section class="padding-2">
     On pages where videos are actually hosted on a different site, it may require a <i>second</i> permissions prompt
     (e.g. misc sites embedding youtube videos). This appears to be a limitation of the Chrome APIs but
     hopefully will improve in future versions.<br/>
@@ -70,20 +73,19 @@
       class="emphasis bold">unzoom and rezoom</span> to see if you get another permissions prompt.
   </section>
 
-  <section class="padding-3">
+  <section class="padding-2">
   Permissions are remembered by Chrome and you should not be asked again for the same site.
   </section>
 
-  <section class="padding-5">
+  <section class="padding-2">
     <img alt="screen shot" class="illustration" src="img/new_speed_control_bar.png">
     After zooming, clicking the Video Maximizer button shows extra options to control playback speed.
   </section>
 
-
   <h3>Why speed control fails on some sites</h3>
-  <section class="padding-3">
+  <section class="padding-2">
     <img alt="screen shot" class="illustration" src="img/permissions_prompt.png">
-    When pages load their videos from a different site (e.g. a youtube video embedded in a non youtube site), then
+    When pages load their videos from a different site (e.g. a youtube video embedded in a non-youtube site), then
     the speed control feature will not work without permissions to both sites.<br/><br/>
     If this happens, you can try rezooming a couple of times and see if more Access prompts show up. Yes, the
     multiple promptings can be annoying, but it's just how Chrome works and you will only be asked once per site.<br>
@@ -91,7 +93,7 @@
     If you continue to have access issues or find the prompting annoying there are extra permissions you can try
     in the Video Maxmizer Options page.
   </section>
-    <section class="padding-3">
+    <section class="padding-2">
     The <b>"Allow access to all sites by default"</b> in the <a href="options.html" target="videomaxoptions">Options</a> will
     increase this extension's base permissions.<br/><br/>
       <b>Privacy thoughts</b>: when granting sites individual permissions, Chrome saves the list of domains with the extension.
@@ -165,6 +167,7 @@
       <li>To pin, first click on the Extensions puzzle piece icon</li>
       <li>Click the Pin icon</li>
     </ol>
+    <br/><br/>
   </section>
   <hr/>
   <h3>

@@ -62,6 +62,7 @@ export const DEFAULT_SETTINGS = {
   allSitesAccess:            false,
   allSitesAccessNeedsRevoke: false,
   firstUseShown:             false, // set to true once first_use picks a mode.
+  firstUseShowTutorial:      false,
   zoomExclusionListStr:      DEFAULT_ZOOM_EXCLUSION_LIST,
 };
 

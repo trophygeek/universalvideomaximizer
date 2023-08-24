@@ -16,6 +16,7 @@ type SettingsType = {
   allSitesAccess: boolean,
   allSitesAccessNeedsRevoke: boolean,
   firstUseShown:             boolean,
+  firstUseShowTutorial: boolean,
   zoomExclusionListStr: string,
 };
 

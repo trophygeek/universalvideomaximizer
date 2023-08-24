@@ -8,17 +8,17 @@
  To view a copy of this license, visit https://creativecommons.org/licenses/by-sa/4.0/
  */
 try { // scope and prevent errors from leaking out to page.
-  const FULL_DEBUG = true;
+  const FULL_DEBUG = false;
   const DEBUG_ENABLED = FULL_DEBUG;
   const TRACE_ENABLED = FULL_DEBUG;
   const ERR_BREAK_ENABLED = FULL_DEBUG;
   const BREAK_ON_BEST_MATCH = false;
 
   // These are noisy and can be enabled when debugging areas. FULL_DEBUG must also be true
-  const EMBED_SCORES = false; // TRACE_ENABLED;
-  const COMMON_PARENT_SCORES = false; // TRACE_ENABLED;
-  const DEBUG_HIDENODE = false; // TRACE_ENABLED;
-  const DEBUG_MUTATION_OBSERVER = false; // TRACE_ENABLED;
+  const EMBED_SCORES = false;
+  const COMMON_PARENT_SCORES = false;
+  const DEBUG_HIDENODE = false;
+  const DEBUG_MUTATION_OBSERVER = false;
 
   // Recent changes - keep these flags to quickly regression check various fixes across sites
   // What fixes one site often breaks another.
@@ -28,7 +28,7 @@ try { // scope and prevent errors from leaking out to page.
   const USE_MUTATION_OBSERVER_ATTR = true;
   const INCLUDE_TRANSITION_MATCHING = false;
   const SAVE_STYLE_FOR_OVERLAPs = true;
-  const HIDE_EXCEPTION_CHECK = true;
+  const DO_HIDE_EXCEPTION_CHECK = true;
   const ALWAYS_BACK_UP_STYLES = true;
   const LAST_DITCH_HIDE = true;
   const REAPPLY_PLAYBACKSPEED = true;
@@ -36,9 +36,12 @@ try { // scope and prevent errors from leaking out to page.
   const MUTATION_OBSERVER_HIDE_NEW_ELEMS_ADDED = true;
   const USE_OLD_FAST_IS_VISIBLE_CHECK_IN_WALKER = false; // new code => false
   const FIND_CONTROLS_ON_MAIN_THREAD_FOR_IFRAME_MATCH = true;
-  const USE_WHOLE_WINDOW_TO_SEARCH_FOR_CONTROLS = true; // false will just search under common
-                                                        // controls
+  const USE_WHOLE_WINDOW_TO_SEARCH_FOR_CONTROLS = true;
   const IF_PATH_INVISIBLE_DO_NOT_MAXIMIZE = true;  // jasmine has some hidden div in path.
+  const NOHIDENODE_REAPPLY = true;
+  const USE_BOOST_SCORES_FIND_COMMON = true;
+  const USE_NERF_SCORES_FIND_COMMON = true;
+  const FIX_UP_BODY_CLASS_TO_SITE_SPECIFIC_CSS_MATCH = true;
 
   const MIN_IFRAME_WIDTH = 320;
   const MIN_IFRAME_HEIGHT = 240;
@@ -102,7 +105,7 @@ try { // scope and prevent errors from leaking out to page.
                                                "h5",
                                                "h6",
                                                "span"];
-  const ALLOWED_NODE_NAMES = ["#document", // iframe top element
+  const SKIPPED_NODE_NAMES = ["#document", // iframe top element
                               "svg",
                               "xml",
                               "script",
@@ -294,6 +297,38 @@ try { // scope and prevent errors from leaking out to page.
     const result = parseFloat(str);
     return Number.isNaN(result) ? 0 : result;
   }
+
+  /**
+   * @return {string}
+   */
+  const getPageUrl = () => (window?.location?.toString() !== window?.parent?.location?.toString()) ?
+               document.referrer :
+               document.location.href;
+
+  /**
+   * Needs unit tests. ATTEMPT to turn "www.foo.com" and "web.foo.net" into just "foo".
+   * @return {string}
+   */
+  const getPageDomainNormalized = () => {
+    const url = new URL(getPageUrl());
+    let domainName = url.hostname;
+
+    // normalizing the tld is next to impossible w/out some cookie setting hack
+    // so we just remove any prefix like www or web
+    const prefixesToRemove = ["www", "web", "static", "video", "tv"];
+    for (const prefix of prefixesToRemove) {
+      if (domainName.startsWith(`${prefix}.`)) {
+        domainName = domainName.substring(prefix.length + 1);
+        break; // we found one, stop
+      }
+    }
+    // now we trim off the tld ".com" or ".whatever", it won't work for some
+    // countries like 'co.uk", but it's probably good enough for our matching needs.
+    // we only use it to match css classes, not security related
+    const lastDotOffset = domainName.lastIndexOf(".");
+    domainName = domainName.substring(0, lastDotOffset > 0 ? lastDotOffset : domainName.length);
+    return domainName;
+  };
 
   /**
    * @param urlformat {string}
@@ -848,7 +883,10 @@ try { // scope and prevent errors from leaking out to page.
       // finding the common parent is a special case for this strange layout.
       const matchCommon = document?.getElementsByClassName("video-player-layout");
       if (matchCommon.length === 1) {
-        return matchCommon[0];
+        const bestPlutoMatch = matchCommon[0];
+        videomaxGlobals.matchedCommonCntl = bestPlutoMatch;
+        bestPlutoMatch?.classList?.add(MARKER_COMMON_CONTAINER_CLASS);
+        return bestPlutoMatch;
       }
       // if it doesn't match, then site maybe changed, just fallback to regular matching
     }
@@ -859,14 +897,26 @@ try { // scope and prevent errors from leaking out to page.
     const countChildren = (e, recurseFirst = true, runningCount = 0) => {
       let count = runningCount;
       if (recurseFirst) {
-        const matches = [...e.querySelectorAll(`[role="slider"]`),
-                         ...e.querySelectorAll(`[role="presentation"]`)];
-        count += matches.length * 2;  // 2x points if there's a slider under this element.
-        if (COMMON_PARENT_SCORES) {
-          containDbgMsg += `\n Slider count: +${matches.length} result:${count}`;
+        if (USE_BOOST_SCORES_FIND_COMMON) {
+          const boostMatches = [...e.querySelectorAll(`[role="slider"]`)];
+                                    // ...e.querySelectorAll(`[role="presentation"]`)]; // player puts this on every preview video on the page
+          count += boostMatches.length * 2;  // 2x points if there's a slider under this element.
+          if (COMMON_PARENT_SCORES) {
+            containDbgMsg += `\n Slider count: BOOST +${boostMatches.length}*2 result:${count}`;
+          }
         }
 
-        // Tubi is horrible about 508 accessiblity. It just uses <svg> for all controls.
+        if (USE_NERF_SCORES_FIND_COMMON) {
+          const nerfMatches = [...e.querySelectorAll(`[role="toolbar"]`),
+                               ...e.querySelectorAll(`[role="navigation"]`)];
+          count -= nerfMatches.length * 2;  // 2x points if there's a navigation components under
+                                            // this element.
+          if (COMMON_PARENT_SCORES) {
+            containDbgMsg += `\n Slider count: NERF -${nerfMatches.length}*2 result:${count}`;
+          }
+        }
+
+        // Tubi is horrible about 508 accessibility. It just uses <svg> for all controls.
         // It also removes the elements when they aren't active, so they are impossible to find.
         // example how to select if they weren't hidden
         // const volSgvCount   = [...e.querySelectorAll(`svg > title`)].filter(
@@ -959,7 +1009,7 @@ try { // scope and prevent errors from leaking out to page.
       bestMatch = bestMatch?.parentNode;
     }
 
-    // exception, don't match the playback video itself.
+    // exception, never match the playback video itself, go to it's parent
     if (bestMatch.nodeName.toLowerCase() === "video") {
       trace("findCommonContainerFromElem matched video. Using parent");
       bestMatch = bestMatch.parentElement || bestMatch.parentNode;
@@ -1006,10 +1056,20 @@ try { // scope and prevent errors from leaking out to page.
         try {
           const siblings = getSiblings(eachElem);
           for (const eachSibling of siblings) {
-            if (DEBUG_HIDENODE) {
-              trace(`lastDitchHide found unhidden element. Hiding. ${PrintNode(eachSibling)}`);
+            if (getAllElementsThatSmellsLikeControls(eachSibling).length) {
+              if (DEBUG_HIDENODE) {
+                trace(`lastDitchHide Smells like Controls. ${PrintNode(eachSibling)}`,
+                      getAllElementsThatSmellsLikeControls(eachSibling));
+              }
+              if (NOHIDENODE_REAPPLY) {
+                noHideNode(eachSibling);
+              }
+            } else {
+              if (DEBUG_HIDENODE) {
+                trace(`lastDitchHide Hiding. ${PrintNode(eachSibling)}`);
+              }
+              hideNode(eachSibling);
             }
-            hideNode(eachSibling);
           }
         } catch (err) {
           logerr(err);
@@ -1018,10 +1078,19 @@ try { // scope and prevent errors from leaking out to page.
     }
   };
 
+  /**
+   * @param el {HTMLElement}
+   * @return {boolean}
+   */
+  const isSkippedNode = (el) => SKIPPED_NODE_NAMES.includes([el?.nodeName.toLowerCase()]);
 
-  // HTMLFrameElement
+
+  /**
+   * @param el {HTMLElement}
+   * @return {1|2||3}
+   */
   const isVisibleWalkerElem = (el) => {
-    if ([ALLOWED_NODE_NAMES].includes([el.nodeName.toLowerCase()])) {
+    if (isSkippedNode(el)) {
       return NodeFilter.FILTER_SKIP;
     }
     try {
@@ -1327,6 +1396,19 @@ try { // scope and prevent errors from leaking out to page.
 
   /**
    * @param elem {Node || HTMLElement}
+   */
+  const noHideNode = (elem) => {
+    try {
+      if (!containsAnyVideoMaxClass(elem) || alwaysHideSomeElements()) {
+        elem?.classList?.add(NO_HIDE_CLASS);
+      }
+    } catch (err) {
+      trace(err);
+    }
+  };
+
+  /**
+   * @param elem {Node || HTMLElement}
    * @param skipPrep {boolean} Use the "-prep" style suffix so adding doesn't change it until we're
    *   done
    * @return {boolean} true if hidden
@@ -1371,14 +1453,21 @@ try { // scope and prevent errors from leaking out to page.
    */
   const addOverlapCtrl = (elem) => {
     if (isIgnoredNode(elem)) {
-      trace("NOT addOverlapCtrl isIgnoredNode:", IGNORE_NODES, elem);
+      if (DEBUG_HIDENODE) {
+        trace("NOT addOverlapCtrl isIgnoredNode:", IGNORE_NODES, elem);
+      }
       return;
     }
     if (containsAnyVideoMaxClass(elem)) {
-      trace(`NOT addOverlapCtrl containsAnyVideoMaxClass: ${PrintNode(elem)}}`);
+      if (DEBUG_HIDENODE) {
+        trace(`NOT addOverlapCtrl containsAnyVideoMaxClass: ${PrintNode(elem)}}`);
+      }
       return;
     }
     if (isSpecialCaseNeverOverlap(elem)) {
+      if (DEBUG_HIDENODE) {
+        trace(`NOT addOverlapCtrl special case: ${PrintNode(elem)}}`);
+      }
       return;
     }
     elem?.classList?.add(OVERLAP_CSS_CLASS);
@@ -1411,7 +1500,7 @@ try { // scope and prevent errors from leaking out to page.
             return false;
           }
         }
-        return ALLOWED_NODE_NAMES.includes(c.nodeName);
+        return !isSkippedNode(c);
       });
     } catch (err) {
       logerr(err);
@@ -1656,9 +1745,16 @@ try { // scope and prevent errors from leaking out to page.
         width:  box.width,
         height: box.height,
       };
-    } catch(err) {
+    } catch (err) {
       logerr(err);
-      return {top: 0, left: 0, bottom: 0, right:0, width: 0, height: 0};
+      return {
+        top:    0,
+        left:   0,
+        bottom: 0,
+        right:  0,
+        width:  0,
+        height: 0,
+      };
     }
   };
 
@@ -1673,7 +1769,7 @@ try { // scope and prevent errors from leaking out to page.
     if (elementAttribsStr?.length) {
       for (const eachMatch of matches) {
         if (eachMatch.test(elementAttribsStr)) {
-          trace(`smellsLikeMatch true`, elem, eachMatch);
+          trace(`smellsLikeMatch true for "${elementAttribsStr}"`, eachMatch);
           return true;
         }
       }
@@ -1763,19 +1859,23 @@ try { // scope and prevent errors from leaking out to page.
 
   /**
    *
-   * @param commonContainerElem {HTMLElement}
+   * @param commonContainerElem {HTMLElement | undefined} pass in undefined to get whole doc
    * @return {HTMLElement[]}
    */
-  const getElementsSmellsLikeControls = (commonContainerElem) => {
+  const getAllElementsThatSmellsLikeControls = (commonContainerElem) => {
     // the volume matcher can be tested on nbcnews.com/now
-    const topElem = USE_WHOLE_WINDOW_TO_SEARCH_FOR_CONTROLS ? window : commonContainerElem;
+    const topElem = commonContainerElem ? commonContainerElem : window.document;
     try {
       const matchesVolume = [...topElem.querySelectorAll(`input[type="range"]`)].filter(
-        (eachVolMatch) => smellsLikeMatch(eachVolMatch, [/volume/i]));
+        (e) => smellsLikeMatch(e, [/volume/i]));
+      const matchesSlider = [...topElem.querySelectorAll(`[role="slider"]`)].filter(
+        (e) => isSkippedNode(e));
+      const matchesPresentation = [...topElem.querySelectorAll(`[role="presentation"]`)].filter(
+        (e) => isSkippedNode(e));
       return [
         ...matchesVolume,
-        ...topElem.querySelectorAll(`[role="slider"]`),
-        ...topElem.querySelectorAll(`[role="presentation"]`)];
+        ...matchesSlider,
+        ...matchesPresentation];
     } catch (err) {
       trace(err);
     }
@@ -1796,8 +1896,10 @@ try { // scope and prevent errors from leaking out to page.
     // now we try to find playback controls that may have been missed.
     // <input type="range" class="styles_volumeSlider__gCfqY" min="-50" max="0" step="0.5"
     // value="-50" style="--volume: 0%;">
-    if (HIDE_EXCEPTION_CHECK) {
-      const matches = getElementsSmellsLikeControls(commonContainerElem);
+    if (DO_HIDE_EXCEPTION_CHECK) {
+      // pass in undefined to get all for whole document.
+      const matches = getAllElementsThatSmellsLikeControls(
+        USE_WHOLE_WINDOW_TO_SEARCH_FOR_CONTROLS ? undefined : commonContainerElem);
       for (const elem of matches) {
         // walk up to common and make sure we don't hide. We do this by adding an empty videeomax
         // style class (wistia)
@@ -2208,9 +2310,7 @@ try { // scope and prevent errors from leaking out to page.
       // does the video source url look kinda close to the page url?
       // todo: better string proximity calc is probably needed
       try {
-        const pageUrl = (window?.location?.toString() !== window?.parent?.location?.toString()) ?
-                        document.referrer :
-                        document.location.href;
+        const pageUrl = getPageUrl();
         if (pageUrl?.length &&
             (pageUrl.startsWith("https://") || pageUrl.startsWith("blob:https://"))) {
           // no see if we can get this video's source.
@@ -2312,6 +2412,7 @@ try { // scope and prevent errors from leaking out to page.
       // this might fair if the doc is an iframe across domains
       return;
     }
+    trace(`alwaysHideSomeElements`);
     for (const eachtag of ALWAYS_HIDE_NODES) {
       const elems = doc.getElementsByTagName(eachtag);
       for (const elem of elems) {
@@ -2320,6 +2421,16 @@ try { // scope and prevent errors from leaking out to page.
         }
         hideNode(elem);
       }
+    }
+    const navItems = doc?.querySelectorAll(
+      `:not([class*="${PREFIX_CSS_CLASS}"])[role="navigation"]`);
+    const toolbarItems = doc?.querySelectorAll(
+      `:not([class*="${PREFIX_CSS_CLASS}"])[role="toolbar"]`);
+    for (const eachElem of [...navItems, ...toolbarItems]) {
+      if (DEBUG_HIDENODE) {
+        trace(`ALWAYS_HIDE_NODES [role="navigation"]`, eachElem);
+      }
+      hideNode(eachElem);
     }
   };
 
@@ -2468,11 +2579,47 @@ try { // scope and prevent errors from leaking out to page.
   const postFixUpPageZoom = () => {
     // some sites (mba) position a full sized overlay that needs to be centered.
     if (// !isRunningInIFrame() && // NBCNews iframe styles constantly getting updated
-      videomaxGlobals.matchedIsHtml5Video && videomaxGlobals.matchedCommonCntl) {
-      rehideUpFromVideo(); // one more time before adding observers to keep from triggering a bunch
-                           // of events (NBC Banner ad)
-      addClassMutationObserver();
-      videoCanPlayBufferingInit();
+      !videomaxGlobals.matchedIsHtml5Video) {
+      if (DEBUG_MUTATION_OBSERVER) {
+        trace(`OBSERVER: NOT INSTALLING observer because 
+        videomaxGlobals.matchedIsHtml5Video: ${videomaxGlobals.matchedIsHtml5Video}`);
+      }
+      return;
+    }
+    if ( MUTATION_OBSERVER_WATCH_ALL_MAX===false && !videomaxGlobals.matchedCommonCntl) {
+      if (DEBUG_MUTATION_OBSERVER) {
+        trace(`OBSERVER: NOT INSTALLING observer because 
+        MUTATION_OBSERVER_WATCH_ALL_MAX = ${MUTATION_OBSERVER_WATCH_ALL_MAX}
+        videomaxGlobals.matchedCommonCntl = ${videomaxGlobals.matchedCommonCntl}`);
+      }
+      return;
+    }
+
+    rehideUpFromVideo(); // one more time before adding observers to keep from triggering a bunch
+                         // of events (NBC Banner ad)
+    addClassMutationObserver();
+    videoCanPlayBufferingInit();
+
+    if (FIX_UP_BODY_CLASS_TO_SITE_SPECIFIC_CSS_MATCH) {
+      try {
+        // The easiest way to fix site specific layout issues to to do it in CSS.
+        // but even matching on class names or ids can be problematic if two sites happen
+        // to use the same class name or id.
+        // So instead of site specific code, we add a class name to the body that is unique
+        // for the site, so the css can select on it!
+        let domainName = getPageDomainNormalized();
+
+        // now turn any "." to "-",
+        // we do this because css uses "." as a className prefix
+        // this could generate confusion for cases like "domain-name.com" vs "domain.name.com"
+        // but the consequence is that we may mess up some css layout if this happens.
+
+        domainName = domainName.replace(".", "-");
+
+        document.body.classList.add(`${PREFIX_CSS_CLASS}-${domainName}`)
+      } catch(err) {
+        logerr(err);
+      }
     }
   };
 
@@ -2702,17 +2849,31 @@ try { // scope and prevent errors from leaking out to page.
       // childList: true
       // subtree: false
       const zoomedElems = [
-        ...document.querySelectorAll(`.${MAX_CSS_CLASS}`),
-        ...document.querySelectorAll(`.${PREFIX_CSS_CLASS}-max`)];
+        ...document.querySelectorAll(`[class*="${PREFIX_CSS_CLASS}"]`),
+        ...document.querySelectorAll(`[class*="${PREFIX_CSS_CLASS_PREP}"]`)];
       for (const eachElem of zoomedElems) {
         // can call it multiple times.
         try {
           videomaxGlobals.mutationObserver.observe(eachElem, OBSERVE_ATTRIB_OPTIONS);
         } catch (err) {
-          logerr(`observe error for ${PrintNode(eachElem)}`);
+          logerr(`OBSERVER: error for ${PrintNode(eachElem)}`);
         }
       }
+      if (DEBUG_MUTATION_OBSERVER) {
+        trace(`OBSERVER: installing MUTATION_OBSERVER_WATCH_ALL_MAX on ${zoomedElems.length} elements`);
+        trace(`OBSERVER: check count using: 
+        [...document.querySelectorAll('[class*="${PREFIX_CSS_CLASS}"]'),
+        ...document.querySelectorAll('[class*="${PREFIX_CSS_CLASS_PREP}"]')].length
+        `)
+      }
     } else {
+      if (DEBUG_MUTATION_OBSERVER) {
+        if (videomaxGlobals.matchedCommonCntl) {
+          trace("OBSERVER: installing observer on matchedCommonCntl", videomaxGlobals.matchedCommonCntl);
+        } else {
+          trace("OBSERVER: \n\n \t ==== NOT installing no videomaxGlobals.matchedCommonCntl");
+        }
+      }
       // old approach
       // childList: false
       // subtree: true
@@ -2724,7 +2885,15 @@ try { // scope and prevent errors from leaking out to page.
   };
 
   const addClassMutationObserver = () => {
-    if (videomaxGlobals.mutationObserver || !USE_MUTATION_OBSERVER_ATTR) {
+    if (!USE_MUTATION_OBSERVER_ATTR) {
+      return;
+    }
+
+    if (videomaxGlobals.mutationObserver) {
+      if (DEBUG_MUTATION_OBSERVER) {
+        trace("OBSERVER: \n\n \t ==== RERUNNING observer watching setup ====");
+      }
+      startObserving();
       return;
     }
 
@@ -2775,15 +2944,23 @@ try { // scope and prevent errors from leaking out to page.
               if (eachElem.nodeName.toLowerCase() === "video") {
                 continue;
               }
+              if (DEBUG_MUTATION_OBSERVER) {
+                trace(`OBSERVER: Detected new element added ${PrintNode(eachElem)}`);
+              }
               const hidden = hideNode(eachElem, true);
-              if (hidden && DEBUG_MUTATION_OBSERVER) {
-                trace(`OBSERVER: hide newly added element ${PrintNode(eachElem)}`);
+              if (hidden) {
+                // we need to add to list of observers to make sure not changed.
+                videomaxGlobals?.mutationObserver?.observe(eachElem, OBSERVE_ATTRIB_OPTIONS);
+                if (DEBUG_MUTATION_OBSERVER) {
+                  trace("OBSERVER: Hide new element, added to observer list");
+                }
+              } else if (DEBUG_MUTATION_OBSERVER) {
+                trace("OBSERVER: Show new element");
               }
             }
           }
         }
       }
-      // startObserving();
     });
     startObserving();
   };

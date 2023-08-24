@@ -1,5 +1,5 @@
 :root {
-  --main-height: 23em;
+  --main-height: 31em;
 }
 
 html, body {
@@ -26,7 +26,7 @@ iframe {
 }
 
 .inline-icon {
-  zoom: 1;
+  zoom: 0.8;
   line-height: 0;
   align-content: center !important;
 }
