@@ -1,5 +1,5 @@
 :root {
-  --main-height: 31em;
+  --main-height: 33em;
 }
 
 html, body {
@@ -37,4 +37,9 @@ li, ol {
 
 br.half-br {
   line-height: 0.5em;
+}
+
+.margin-3 {
+  margin-left: 0.5em;
+  margin-right: 0.5em;
 }

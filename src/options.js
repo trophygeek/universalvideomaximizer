@@ -174,7 +174,7 @@ const enableAdvanceFeaturesOptions = () => {
   }
 };
 
-document.addEventListener("DOMContentLoaded", async () => {
+const setupPageFromSettings = async () => {
   try {
     g_settings = await getSettings();
     loadSettingsIntoFields(g_settings);
@@ -194,6 +194,14 @@ Browser Version:
 ${userAgent}
 
 </pre>`;
+  } catch (err) {
+    logerr(err);
+  }
+};
+
+document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    await setupPageFromSettings();
 
     document.getElementById("mainForm")
       .addEventListener("change", async (_e) => {
@@ -254,6 +262,9 @@ You may need to REFRESH the video page before it takes effect.`);
         window.close();
       });
 
+    chrome.storage.onChanged.addListener(async (_changes, _namespace) => {
+      await setupPageFromSettings();
+    });
   } catch (err) {
     logerr(err);
   }

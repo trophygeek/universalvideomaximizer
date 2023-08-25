@@ -48,14 +48,14 @@ try {
    *
    * @param newUseAdvancedFeatures {boolean}
    * @param firstUseShown {boolean}
-   * @param firstUseShowTutorial {boolean}
+   * @param firstUseOn2ndScreen {boolean}
    * @return {Promise<void>}
    */
-  const updateSettings = async (newUseAdvancedFeatures, firstUseShown, firstUseShowTutorial) => {
+  const updateSettings = async (newUseAdvancedFeatures, firstUseShown, firstUseOn2ndScreen) => {
     const settings = await getSettings();
     settings.useAdvancedFeatures = newUseAdvancedFeatures;
     settings.firstUseShown = firstUseShown;
-    settings.firstUseShowTutorial = firstUseShowTutorial;
+    settings.firstUseOn2ndScreen = firstUseOn2ndScreen;
     return saveSettings(settings);
   };
 
@@ -79,7 +79,7 @@ try {
       .addEventListener("click", async (_evt) => {
         await showTutorial();
         await updateCurrentTabState();
-        await updateSettings(false, true, true);
+        await updateSettings(true, false, true);
       });
 
     document.getElementById("useAdvancedFeatures")
@@ -89,7 +89,7 @@ try {
       });
 
     // this is if user is trying out the feature but hasn't finally decided
-    if (settings.firstUseShowTutorial) {
+    if (settings.firstUseOn2ndScreen) {
       await showTutorial();
     }
   });
