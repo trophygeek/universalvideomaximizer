@@ -2075,6 +2075,21 @@ try { // scope and prevent errors from leaking out to page.
 
     /**
      *
+     * @param pageUrl {string}
+     * @param elemUrl {string}
+     * @return {number}
+     */
+    const customDiceCoefficient = (pageUrl, elemUrl) => {
+      const pageParts = splitUrlWords(pageUrl);
+      const urlParts = splitUrlWords(elemUrl);
+      const overlapCount = getOverlapCount(pageParts, urlParts);
+      const count = Math.max(1, pageParts.length);
+      const avgCount = (count + count) / 2.0;
+      return  overlapCount / avgCount;
+    };
+
+    /**
+     *
      * @param elem {HTMLElement}
      * @param compStyle {CSSStyleDeclaration}
      * @return {number}
@@ -2328,24 +2343,21 @@ try { // scope and prevent errors from leaking out to page.
           }
           if (elemUrl.length &&
               (elemUrl.startsWith("https://") || elemUrl.startsWith("blob:https://"))) {
-            const dice = diceCoefficient(pageUrl, elemUrl);
-            const pageParts = splitUrlWords(pageUrl);
-            const urlParts = splitUrlWords(elemUrl);
-            const overlapCount = getOverlapCount(pageParts, urlParts);
-            const count = Math.max(1, pageParts.length);
-            const avgCount = (count + count) / 2.0;
-            const overlapRatio = overlapCount / avgCount;
+            const overlapRatio = customDiceCoefficient(pageUrl, elemUrl);
+
             if (EMBED_SCORES) {
+              // maybe a standard algo is better?
+              const diceRatio = diceCoefficient(pageUrl, elemUrl);
               traceweights.push(
                 `  URL_OVERLAP_WEIGHT: ${fmtInt.format(
                   START_WEIGHT * URL_OVERLAP_WEIGHT * overlapRatio)} ` +
                 `\t Weight: ${URL_OVERLAP_WEIGHT}` +
-                `\t Count:${overlapCount} ` +
                 `\t OverlapRatio:${fmtFlt.format(overlapRatio)} ` +
-                `\t Dice distance: ${fmtFlt.format(dice)}`);
+                `\t Dice distance: ${fmtFlt.format(diceRatio)}`);
             }
             weight += (START_WEIGHT * URL_OVERLAP_WEIGHT * overlapRatio);
 
+            const urlParts = splitUrlWords(elemUrl);
             const negOverlapCount = getOverlapCount(["disqus"], urlParts);
             if (EMBED_SCORES && negOverlapCount) {
               traceweights.push(
