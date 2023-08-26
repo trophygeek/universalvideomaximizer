@@ -1419,19 +1419,20 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     const domain = getDomain(changeInfo.url);
     trace(`tabs.onUpated event tabId=${tabId} changeInfo:`, changeInfo);
     if (tabId && changeInfo?.status === "loading") {
-      setTimeout(async () => {
-        const state = await getCurrentTabState(tabId);
-        if (isActiveState(state)) {
-          trace(`tabs.onUpdated event likely SPA nav: 
+      trace(`tabs.onUpdated event likely SPA nav: 
           changeInfo: ${JSON.stringify(changeInfo, null, 2)}}
           tab: ${JSON.stringify(tab, null, 2)} `);
+
+      setTimeout(async () => {
+        const popupUIActive = g_PopupOpenedForTabs.includes(tabId);
+        if (popupUIActive || isActiveState(await getCurrentTabState(tabId))) {
 
           // some sites (hampster) will set an anchor in url when progress clicked near end.
           const newUrl = (changeInfo?.url || "").split("#")[0].toLowerCase(); // trim off after
                                                                               // anchor?
           const lastUrl = getLastUrlFromOnUpdated(tabId);
           // some SPA won't do a clean refetch, we need to uninstall.
-          if (g_PopupOpenedForTabs.includes(tabId)) {
+          if (popupUIActive) {
             // popup is open, so keep zoomed
             trace("tabs.onUpdated: Popup UI Open so REzooming");
             await ReZoom(tabId, domain, DEFAULT_SPEED);

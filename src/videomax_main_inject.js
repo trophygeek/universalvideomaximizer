@@ -43,8 +43,12 @@ try { // scope and prevent errors from leaking out to page.
   const USE_NERF_SCORES_FIND_COMMON = true;
   const FIX_UP_BODY_CLASS_TO_SITE_SPECIFIC_CSS_MATCH = true;
 
-  const MIN_IFRAME_WIDTH = 320;
-  const MIN_IFRAME_HEIGHT = 240;
+  const MIN_VIDEO_WIDTH = 320;
+  const MIN_VIDEO_HEIGHT = 240;
+
+  const MIN_IFRAME_WIDTH = MIN_VIDEO_WIDTH;
+  const MIN_IFRAME_HEIGHT = MIN_VIDEO_HEIGHT;
+
 
   // when walking dom how many levels up to check when looking for controls?
   // too low and we miss some playback position controls (vimeo)
@@ -2060,7 +2064,6 @@ try { // scope and prevent errors from leaking out to page.
      */
     const diceCoefficient = (str1, str2) => {
       let intersection = 0;
-      let union = 0;
 
       for (let i = 0; i < str1.length; i++) {
         for (let j = 0; j < str2.length; j++) {
@@ -2069,7 +2072,7 @@ try { // scope and prevent errors from leaking out to page.
           }
         }
       }
-      union = str1.length + str2.length - intersection;
+      const union = str1.length + str2.length - intersection;
       return intersection / union;
     };
 
@@ -2116,8 +2119,14 @@ try { // scope and prevent errors from leaking out to page.
         height,
       } = this._getElemDimensions(elem, compStyle);
 
-      if (width === 0 && height === 0) {
-        trace("\tWidth or height not great, skipping other checks", elem);
+      // videos may be constrained by the iframe or window.
+      const doc = getElemsDocumentView(elem);
+
+      if ((width < MIN_VIDEO_WIDTH || height < MIN_VIDEO_HEIGHT) && // too small
+          doc.outerWidth > MIN_VIDEO_WIDTH && doc.outerHeight > MIN_VIDEO_HEIGHT) {  // but not a small window.
+        trace(`\tWidth or height too small, skipping other checks
+        width: ${width} < ${MIN_VIDEO_HEIGHT} (MIN_VIDEO_HEIGHT)
+        width: ${height} < ${MIN_VIDEO_WIDTH} (MIN_VIDEO_WIDTH)`, elem);
         return 0;
       }
 
@@ -2132,9 +2141,6 @@ try { // scope and prevent errors from leaking out to page.
       videomaxGlobals.match_counter++;
 
       let weight = 0;
-
-      // videos may be constrained by the iframe or window.
-      const doc = getElemsDocumentView(elem);
 
       if (EMBED_SCORES) {
         const elemStr = PrintNode(elem);
