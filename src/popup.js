@@ -71,11 +71,21 @@ try {
    */
   const itemId = (ii) => `speed-${ii}`;
 
+  /** @param speedStr {string}
+   *  @return {string} */
+  const toggleSpeedStr = (speedStr) => {
+    if (speedStr.startsWith("-")) {
+      // restore toggle speed but removing "-"
+      return speedStr.substring(1);
+    }
+    return `-${speedStr}`;
+  };
+
   /**
    * @param itemValue {string}
    */
   const checkItem = (itemValue) => {
-    const itemValueStr = itemValue.startsWith('-') ? "PAUSE_CMD" : String(itemValue);
+    const itemValueStr = itemValue.startsWith("-") ? "PAUSE_CMD" : String(itemValue);
     const group = document.getElementById("speedBtnGroup");
     for (const eachElem of group.children) {
       if (eachElem.type !== "checkbox") {
@@ -151,13 +161,7 @@ try {
           globals.debounceTimerId = setTimeout(() => {
             // we toggle between a current speed and stop.
             // neg speed means paused and the value is the "toggle"
-            if (!globals.currentSpeed.startsWith("-")) {
-              // if we're not stopped
-              globals.currentSpeed = `-${globals.currentSpeed}`; // stop and toggle speed by making negative
-            } else {
-              // restore toggle speed but removing "-"
-              globals.currentSpeed = globals.currentSpeed.substring(1);
-            }
+            globals.currentSpeed = toggleSpeedStr(globals.currentSpeed);
 
             checkItem(globals.currentSpeed);
 
@@ -201,7 +205,7 @@ try {
           }
           if (value === "PAUSE_CMD") {
             // we overload the speed. Neg means paused, the value it the "toggle back to value"
-            value = `-${globals.currentSpeed}`;
+            value = toggleSpeedStr(globals.currentSpeed);
             trace(`replacing PAUSE_CMD with negative speed: ${value}`);
           }
 
@@ -368,14 +372,13 @@ try {
 
       // to know when the popup has closed, we have to open a socket and watch for it to be closed.
       // Seriously?!? WTF!
-      g_detectCloseListenerPort = chrome.runtime.connect()
+      g_detectCloseListenerPort = chrome.runtime.connect();
     } catch (err) {
       logerr(err);
     }
   });
 
-  window.addEventListener("close", function (e) {
-    debugger;
+  window.addEventListener("close", function (_e) {
     trace("close");
     chrome.runtime.sendMessage({
                                  message: {
@@ -387,18 +390,17 @@ try {
                                });
   });
 
-  document.addEventListener('close', function() {
-      trace("popup closing via visibilitychange");
-      chrome.runtime.sendMessage({
-                                   message: {
-                                     cmd:    "POPUP_CLOSING",
-                                     domain: globals.domain,
-                                     speed:  DEFAULT_SPEED,
-                                     tabId:  globals.tabId,
-                                   },
-                                 });
+  document.addEventListener("close", function () {
+    trace("popup closing via visibilitychange");
+    chrome.runtime.sendMessage({
+                                 message: {
+                                   cmd:    "POPUP_CLOSING",
+                                   domain: globals.domain,
+                                   speed:  DEFAULT_SPEED,
+                                   tabId:  globals.tabId,
+                                 },
+                               });
   });
-
 
 
 } catch (e) {

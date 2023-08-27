@@ -29,6 +29,15 @@ import {
   trace,
 } from "./common.js";
 
+import {
+  injectVideoSpeedAdjust,
+  injectGetPlaypackSpeed,
+  injectVideoSkip,
+  injectCssHeader,
+  uninjectCssHeader,
+  injectIsCssHeaderIsBlocked,
+} from "./background_executescripts.js";
+
 // "What's the current state of a tab?" is a serious problem when trying to be a secure extension.
 // When the user clicks our extensions icon, the background can get permissions it needs to
 // get information it needs to run (like the url so it can see if the site is a "no zoom needed").
@@ -251,411 +260,6 @@ function getLastUrlFromOnUpdated(tabId) {
 }
 
 /**
- * Injection returns an array of results, this aggregates them into a single result.
- * @param injectionResults {InjectionResult[]}
- * @param defaultVal {boolean} Assume default is true or false. If any result in array is different
- *                              then it that's the result of all of the values.
- * @returns {boolean}
- */
-function injectionResultCheck(injectionResults, defaultVal = false) {
-  if ((injectionResults?.length || 0) === 0) {
-    return defaultVal;
-  }
-  for (const frameresult of injectionResults) {
-    if (frameresult.result !== defaultVal) {
-      return frameresult.result;
-    }
-  }
-  return defaultVal;
-}
-
-/**
- * This speeds up ALL <videos> not just the one zoomed.
- * Could just select the zoomed videos, but maybe useful when unzooming?
- * @param newspeed {string}
- * @return {string[]}
- */
-const injectVideoSpeedAdjust = async (newspeed) => {
-  const PLAYBACK_SPEED_ATTR = "data-videomax-playbackspeed";
-  const PLAYBACK_PAUSED_ATTR = "data-videomax-paused";
-  /** @type {Set<string>} */
-  const result = new Set(); // use Set to dedup
-
-  /** nested local function * */
-  const _loadStart = (event) => {
-    try {
-      console.log(`VideoMaxExt: loadStart\n`, event);
-      const video_elem = event?.target;
-      const isVis = video_elem?.checkVisibility({
-                                                  checkOpacity:       true,
-                                                  checkVisibilityCSS: true,
-                                                }) || false;
-      // we only mess with the playback speed if we set it.
-      const playbackSpeed = video_elem?.getAttribute(PLAYBACK_SPEED_ATTR);
-      if (!!playbackSpeed) {
-        // eslint-disable-next-line no-console
-        console.log(
-          `VideoMaxExt: loadStart injectVideoSpeedAdjust Attr"${PLAYBACK_SPEED_ATTR}": undefined skipping`);
-        return;
-      }
-      const speedNumber = Math.abs(parseFloat(playbackSpeed));
-      if (video_elem?.playbackRate !== speedNumber) { // it's changed
-        // eslint-disable-next-line no-console
-        console.log(
-          `VideoMaxExt: loadStart injectVideoSpeedAdjust 
-          speedNumber: ${speedNumber}
-          isVis: ${isVis}
-          Attr"${PLAYBACK_SPEED_ATTR}": ${playbackSpeed} !== video_elem.playbackRate: ${video_elem?.playbackRate}`);
-        video_elem.playbackRate = speedNumber;
-      } else {
-        // eslint-disable-next-line no-console
-        console.log(
-          `VideoMaxExt: loadStart injectVideoSpeedAdjust
-          speedNumber: ${speedNumber}
-          isVis: ${isVis}
-          Attr"${PLAYBACK_SPEED_ATTR}": ${playbackSpeed} === video_elem.playbackRate: ${video_elem?.playbackRate}`);
-      }
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.log(`VideoMaxExt: loadStart err`, err);
-    }
-  };
-
-  /**
-   *
-   * @param doc {Document}
-   * @param speed {number} Neg means paused, but the speed is the "toggle back to speed"
-   * @private
-   */
-  const _injectSetSpeedForVideos = async (doc, speed) => {
-    const _isVisible = (el) => el?.checkVisibility({
-                                                     checkOpacity:       true,
-                                                     checkVisibilityCSS: true,
-                                                   }) || false;
-    const _getCoords = (el) => { // crossbrowser version
-      try {
-        const { body } = document;
-        const docEl = document.documentElement;
-
-        const scrollTop = window.pageYOffset || docEl.scrollTop || body.scrollTop;
-        const scrollLeft = window.pageXOffset || docEl.scrollLeft || body.scrollLeft;
-
-        const clientTop = docEl.clientTop || body.clientTop || 0;
-        const clientLeft = docEl.clientLeft || body.clientLeft || 0;
-
-        const box = el?.getBoundingClientRect();
-        const top = Math.round(box.top + scrollTop - clientTop);
-        const left = Math.round(box.left + scrollLeft - clientLeft);
-        const bottom = top + box.height; // already rounded.
-        const right = left + box.width;
-
-        return {
-          top,
-          left,
-          bottom,
-          right,
-          width:  box.width,
-          height: box.height,
-        };
-      } catch (err) {
-        console.error(err);
-        return {
-          top:    0,
-          left:   0,
-          bottom: 0,
-          right:  0,
-          width:  0,
-          height: 0,
-        };
-      }
-    };
-    const _isTopVisibleVideoElem = (videoElem) => {
-      const {
-        top,
-        left,
-        width,
-        height,
-      } = _getCoords(videoElem);
-      const layedElems = document.elementsFromPoint(Math.round(left + (width / 2)),
-                                                    Math.round(top + (height / 2)));
-
-      // we walk down the layers checking to see if it's a video and if it's visible.
-      const matches = layedElems.filter((eachLayer) => {
-        if (eachLayer.nodeName.toLowerCase() !== "video") {
-          return false;
-        }
-        return _isVisible(eachLayer);
-      });
-      if (matches.length === 0) {
-        return false;
-      }
-      return videoElem.isSameNode(matches[0]);
-    };
-
-    const PLAYBACK_SPEED_ATTR = "data-videomax-playbackspeed";
-    try {
-      /** @type {NodeListOf<HTMLVideoElement>} */
-      const videos = doc.querySelectorAll("video");
-      for (const eachVideo of videos) {
-        try {
-          eachVideo.removeEventListener("loadstart", _loadStart);
-          const isVisible = _isVisible(eachVideo);
-          if (!isVisible) {
-            // eslint-disable-next-line no-console
-            console.log(
-              "VideoMaxExt: injectVideoSpeedAdjust: eachVideo.checkVisibility is false for ",
-              eachVideo);
-            continue;
-          }
-          const wantsToBePaused = speed <= 0;
-          const videoMaxSavedSpeed = eachVideo.getAttribute(PLAYBACK_SPEED_ATTR);
-          const weSetSpeed = !!videoMaxSavedSpeed;
-          const isTopVisible = _isTopVisibleVideoElem(eachVideo);
-          if (!isTopVisible) {
-            console.log(`VideoMaxExt: injectVideoSpeedAdjust: not top visible video, skipping`,
-                        eachVideo);
-            continue;
-          }
-
-          // not paused, but should be.
-          if (eachVideo?.paused === false && // should not already be paused.
-              eachVideo.defaultPlaybackRate !== 0 &&
-              wantsToBePaused) {
-            // don't worry about setting the speed, since we're about to pause?
-            console.log(`VideoMaxExt: injectVideoSpeedAdjust: pausing
-                eachVideo?.paused ${eachVideo?.paused}
-                eachVideo.defaultPlaybackRate: "${eachVideo.defaultPlaybackRate}"
-                wantsToBePaused: ${wantsToBePaused}
-                isTopVisible: ${isTopVisible}
-                elem:`, eachVideo);
-            eachVideo.pause();
-            eachVideo.setAttribute(PLAYBACK_SPEED_ATTR, String(speed));
-            continue;
-          }
-
-          // the user clicked a speed.
-          // problem... crunchyroll AGAIN. If there are ads and the main video on the page,
-          // this this can trigger BOTH of them playing. so we check PLAYBACK_PAUSED_ATTR so
-          // we ONLY unpause videos we paused. In theory, we could try to check if this is the
-          // topmost video, but because of ad iframes on different sites cover videos - but both
-          // are
-          // // technically "visible" (AND the iframes having videos in them, but are on different
-          // domains with cross-frame security blocking coodinations), it gets really really tricky
-          // fast. Experimented with just setting playback speed to zero and not pausing, but then
-          // it can get confusing to unpause.
-          if (wantsToBePaused === false &&
-              eachVideo?.paused === true &&
-              weSetSpeed) {
-            // don't worry about setting the speed, since we're about to pause?
-            console.log(`VideoMaxExt: injectVideoSpeedAdjust: UNpausing
-                eachVideo?.paused ${eachVideo?.paused}
-                eachVideo.defaultPlaybackRate: "${eachVideo.defaultPlaybackRate}"
-                wantsToBePaused: ${wantsToBePaused}
-                weSetSpeed: ${weSetSpeed}
-                isTopVisible: ${isTopVisible}
-                elem:`, eachVideo);
-
-
-            eachVideo.removeAttribute(PLAYBACK_PAUSED_ATTR);
-            await eachVideo.play();
-            eachVideo.defaultPlaybackRate = speed;
-            eachVideo.playbackRate = speed;
-            continue;
-          }
-
-          // finally just a boring "set the new speed"
-          if (speed > 0 && speed !== eachVideo.defaultPlaybackRate) {
-            console.log(`VideoMaxExt: injectVideoSpeedAdjust: Just setting speed
-                speed >0 && speed !==eachVideo.defaultPlaybackRate 
-                speed: ${speed}
-                eachVideo.defaultPlaybackRate: ${eachVideo?.defaultPlaybackRate}
-                eachVideo?.paused: ${eachVideo?.paused}
-                weSetSpeed: ${weSetSpeed}
-                isTopVisible: ${isTopVisible}
-                elem:`, eachVideo);
-
-
-            eachVideo.defaultPlaybackRate = speed;
-            eachVideo.playbackRate = speed;
-            eachVideo.setAttribute(PLAYBACK_SPEED_ATTR, `${speed}`);
-            eachVideo.addEventListener("loadstart", _loadStart);
-            continue;
-          }
-          console.log(`VideoMaxExt: injectVideoSpeedAdjust: No rules applied, not doing anything
-                eachVideo.defaultPlaybackRate: ${eachVideo?.defaultPlaybackRate}
-                eachVideo?.paused: ${eachVideo?.paused}
-                speed: ${speed}
-                wantsToBePaused: ${wantsToBePaused}
-                weSetSpeed: ${weSetSpeed}
-                isTopVisible: ${isTopVisible}
-                elem:`, eachVideo);
-        } catch (err) {
-          // eslint-disable-next-line no-console
-          console.error(`VideoMaxExt: injectVideoSpeedAdjust _speedUpFoundVideos for "video"`,
-                        eachVideo, err);
-        }
-      }
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn(`VideoMaxExt: doc.querySelectorAll("video") blocked cross iframe?`, doc, err);
-    }
-  };
-
-  if (document._VideoMaxExt?.playbackSpeed) {
-    document._VideoMaxExt.playbackSpeed = newspeed;
-  }
-  const speadNumber = parseFloat(newspeed);
-  await _injectSetSpeedForVideos(document, speadNumber);
-
-  const allIFrames = document.querySelectorAll("iframe");
-  for (const frame of [...allIFrames]) {
-    try {
-      const framedoc = frame?.contentDocument || frame?.contentWindow?.document;
-      if (!framedoc) {
-        continue;
-      }
-      await _injectSetSpeedForVideos(framedoc, speadNumber);
-    } catch (err) {
-      // in theory, we could try to record this url and add it to the request?
-      // but this is run in the context of the page see GET_IFRAME_PERMISSIONS
-      // console.warn(`Possible VideoMax speed error for "frame" probably cross-domain-frame`,
-      // frame, err);
-      if (frame?.src?.length && window?._VideoMaxExt?.matchedVideo?.nodeName === "IFRAME") {
-        const url = frame?.src;
-        if (url.startsWith("https://")) {
-          const domain = (new URL(url)).host.toLowerCase();
-          const iframeUrl = window._VideoMaxExt.matchedVideo.src?.toLowerCase() || "";
-          if (iframeUrl.indexOf(domain) !== -1) {
-            result.add(domain);
-            // console.trace(`VideoMax speed error Need access to ${domain}`);
-          }
-        }
-      }
-    }
-  }
-  return [...result]; // Set->array
-};
-
-/**
- *
- * @return {string}
- */
-function injectGetPlaypackSpeed() {
-  try {
-    return document._VideoMaxExt?.playbackSpeed || DEFAULT_SPEED;
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.warn(`VideoMaxExt: injectGetPlaypackSpeed err for video`, err);
-    return DEFAULT_SPEED;
-  }
-}
-
-/**
- * @param skipSecondsStr {string}  negative numbers backwards
- */
-function injectVideoSkip(skipSecondsStr) {
-  const skipSeconds = parseFloat(skipSecondsStr);
-  for (const eachVideo of document.querySelectorAll("video")) {
-    try {
-      if (!eachVideo.checkVisibility({
-                                       checkOpacity:       true,
-                                       checkVisibilityCSS: true,
-                                     })) {
-        console.log(`VideoMaxExt: injectVideoSkip checkVisibility=false, skipping`, eachVideo);
-        continue;
-      }
-      if (!eachVideo?.seekable?.length > 0) {
-        console.log(`VideoMaxExt: injectVideoSkip not seekable, skipping`, eachVideo?.seekable);
-        continue;
-      }
-      // restore playback speed after we skip
-      const savedSpeed = eachVideo.playbackRate || 1.0;
-
-      // eachVideo.pause(); // pause/play trigger controls to briefly show. (doesn't rehide on some
-      // sites)
-
-      // don't go negative;
-      eachVideo.currentTime = Math.max(0, eachVideo.currentTime + skipSeconds);
-      eachVideo.playbackRate = savedSpeed;
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn(`VideoMaxExt: injectVideoSkip err for video`, err, eachVideo);
-    }
-  }
-}
-
-/**
- *
- * @param cssHRef {string}
- * @param styleId {string}
- * @returns {boolean}
- */
-function injectCssHeader(cssHRef, styleId) {
-  try {
-    if (document.getElementById(styleId)) {
-      // eslint-disable-next-line no-console
-      console.log(`VideoMax Native Inject. Style header already injected "${styleId}"`);
-      return true;
-    }
-    const styleLink = document.createElement("link");
-    styleLink.id = styleId;
-    styleLink.href = cssHRef;
-    styleLink.type = "text/css";
-    styleLink.rel = "stylesheet";
-    styleLink.media = "all";
-    document.getElementsByTagName("head")[0]?.appendChild(styleLink);
-    return true;
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error(`****** VideoMax ERROR Native Inject
-        Injecting style header failed. CSP?
-        ******`, err);
-    return false;
-  }
-}
-
-/**
- * Remove the style element from the header
- * @param styleId {String}
- */
-function uninjectCssHeader(styleId) {
-  // warning run inside context of page
-  try {
-    const cssHeaderNode = document.getElementById(styleId);
-    cssHeaderNode?.parentNode?.removeChild(cssHeaderNode);
-  } catch (_err) { }
-}
-
-/**
- * needed because we cannot include a chrome reference css for a file:// or
- * if the CSP is too strict. Fallback it to inject from background task.
- * @param cssHRef {String}
- * @returns {boolean}
- */
-function injectIsCssHeaderIsBlocked(cssHRef) {
-  let isBlocked = true; // default to failed.
-  try {
-    for (let ii = document.styleSheets?.length || 0; ii >= 0; ii--) {
-      // we loop backward because our is most likely last.
-      if (document.styleSheets[ii]?.href === cssHRef) {
-        // try to access the rules to see if it loaded correctly
-        try {
-          isBlocked = (document.styleSheets[ii].cssRules?.length) === 0;
-        } catch (_err) { }
-        break;
-      }
-    }
-  } catch (_err) {
-  }
-  if (isBlocked) {
-    // eslint-disable-next-line no-console
-    console.log("VideoMaxExt: css include file blocked.");
-  }
-  return isBlocked;
-}
-
-
-/**
  *
  * @param tabId {number}
  * @param startingState {BackgroundState|""}
@@ -776,6 +380,26 @@ async function getCurrentTabState(tabId) {
 function isActiveState(state) {
   return STATE_DATA[state]?.zoomed || false;
 }
+
+
+/**
+ * Injection returns an array of results, this aggregates them into a single result.
+ * @param injectionResults {InjectionResult[]}
+ * @param defaultVal {boolean} Assume default is true or false. If any result in array is different
+ *                              then it that's the result of all of the values.
+ * @returns {boolean}
+ */
+const injectionResultCheck = (injectionResults, defaultVal = false) => {
+  if ((injectionResults?.length || 0) === 0) {
+    return defaultVal;
+  }
+  for (const frameresult of injectionResults) {
+    if (frameresult.result !== defaultVal) {
+      return frameresult.result;
+    }
+  }
+  return defaultVal;
+};
 
 
 /**
@@ -1469,9 +1093,8 @@ chrome.runtime.onConnect.addListener((externalPort) => {
     }
   }
   // externalPort.onMessage((message, port) => {
-  //   // todo: while popup is open, allow it to query the playback speed (and if the video is paused)?
-  // });
-  // called when disconnected.
+  //   // todo: while popup is open, allow it to query the playback speed (and if the video is
+  // paused)? }); called when disconnected.
   externalPort.onDisconnect.addListener((portDisconnectEvent) => {
     // we can get the tab by looking at the url.
     const popupUrl = portDisconnectEvent.sender.url;

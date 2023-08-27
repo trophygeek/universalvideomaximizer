@@ -15,7 +15,7 @@ try { // scope and prevent errors from leaking out to page.
   const BREAK_ON_BEST_MATCH = false;
 
   // These are noisy and can be enabled when debugging areas. FULL_DEBUG must also be true
-  const EMBED_SCORES = false;
+  const EMBED_SCORES = true;
   const COMMON_PARENT_SCORES = false;
   const DEBUG_HIDENODE = false;
   const DEBUG_MUTATION_OBSERVER = false;
@@ -162,8 +162,6 @@ try { // scope and prevent errors from leaking out to page.
 
   // from background script.
   const PLAYBACK_SPEED_ATTR = `${VIDEO_MAX_DATA_PREFIX}-playbackspeed`;
-  const PLAYBACK_PAUSED_ATTR = `${VIDEO_MAX_DATA_PREFIX}-data-videomax-paused`;
-
 
   const EMBEDED_SCORES = `${VIDEO_MAX_DATA_PREFIX}-scores`;
   const VIDEO_MAX_ATTRIB_FIND = `${VIDEO_MAX_DATA_PREFIX}-target`;
@@ -1086,7 +1084,7 @@ try { // scope and prevent errors from leaking out to page.
    * @param el {HTMLElement}
    * @return {boolean}
    */
-  const isSkippedNode = (el) => SKIPPED_NODE_NAMES.includes([el?.nodeName.toLowerCase()]);
+  const isSkippedNode = (el) => SKIPPED_NODE_NAMES.includes(el?.nodeName.toLowerCase());
 
 
   /**
@@ -2277,11 +2275,11 @@ try { // scope and prevent errors from leaking out to page.
         weight += (START_WEIGHT * VIDEO_OVER_IFRAME_WEIGHT);
 
         // if a video, lets see if it's actively playing
-        if (videoElem.paused === false) {
+        if (videoElem.paused === false && videoElem?.ended === false) {
           if (EMBED_SCORES) {
             traceweights.push(
               `  VIDEO_PLAYING: Weight:${fmtInt.format(START_WEIGHT *
-                                                       VIDEO_PLAYING_WEIGHT)} \t weight: ${VIDEO_PLAYING_WEIGHT} \t Paused:${videoElem.paused} `);
+                                                       VIDEO_PLAYING_WEIGHT)} \t weight: ${VIDEO_PLAYING_WEIGHT} \t Paused:${videoElem.paused} \t Ended: ${videoElem.ended}`);
           }
           weight += (START_WEIGHT * VIDEO_PLAYING_WEIGHT);
         }
@@ -2654,11 +2652,6 @@ try { // scope and prevent errors from leaking out to page.
           // unzoom here!
           videomaxGlobals.isMaximized = false;
           videomaxGlobals.unzooming = true;
-          if (window._VideoMaxExt?.matchedVideo) {
-            if (window._VideoMaxExt.matchedVideo.playbackRate) {
-              window._VideoMaxExt.matchedVideo.playbackRate = 1.0;
-            }
-          }
           try {
             const allVideos = document.querySelectorAll("video");
             for (const eachVideo of allVideos) {
@@ -2858,7 +2851,7 @@ try { // scope and prevent errors from leaking out to page.
   };
 
 
-  const startObserving = (observer) => {
+  const startObserving = () => {
     if (!videomaxGlobals?.mutationObserver) {
       logerr("starting observer but videomaxGlobals.mutationObserver is null");
       return;
@@ -2915,7 +2908,7 @@ try { // scope and prevent errors from leaking out to page.
       return;
     }
 
-    videomaxGlobals.mutationObserver = new MutationObserver((mutations, observer) => {
+    videomaxGlobals.mutationObserver = new MutationObserver((mutations, _observer) => {
       // called when change happens. first disconnect to avoid recursions
       // observer.disconnect();
 
@@ -3054,14 +3047,17 @@ try { // scope and prevent errors from leaking out to page.
         }
         // do we update speed on ALL visible videos or only the one we think it the frontmost?
         // this can happen when ads cover or are behind the main video.
-        const speedStr = videoElem.getAttribute(PLAYBACK_SPEED_ATTR);
+        const speedStr = document.body.getAttribute(PLAYBACK_SPEED_ATTR);
         const speedFloat = safeParseFloat(speedStr);
-        if (!videoElem.paused && speedFloat > 0 && videoElem.playbackRate !== speedFloat) {
+        if (!videoElem.paused && !videoElem.ended && speedFloat > 0 && videoElem.playbackRate !== speedFloat) {
           const isTopItem = isTopVisibleVideoElem(videoElem);
           trace(
             `updateSpeedFromAttr video: isTopVisibleVideoElem:${isTopItem} speedStr:${speedStr} \n\t\t ${PrintNode(
               videoElem)}`);
           videoElem.playbackRate = Math.abs(speedFloat);
+        } else if (videoElem.playbackRate !== speedFloat && speedFloat === 1.0) {
+          // we're trying to reset the speed to 1.0
+          videoElem.playbackRate = 1.0;
         } else {
           trace(
             `updateSpeedFromAttr not running\n\t\tvideoElem.paused:${videoElem.paused} \n\t\t speedFloat:${speedFloat} \n\t\t videoElem.playbackRate:${videoElem.playbackRate}\n\t\t ${PrintNode(
@@ -3260,7 +3256,6 @@ try { // scope and prevent errors from leaking out to page.
         const savedVideo = videomaxGlobals.matchedVideo;
         videomaxGlobals.unzooming = true;
         videomaxGlobals.isMaximized = false;
-        videomaxGlobals.playbackSpeed = 1.0;
 
         if (videomaxGlobals.matchedVideo) {
           updateEventListeners(videomaxGlobals.matchedVideo, true);
