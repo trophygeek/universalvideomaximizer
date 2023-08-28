@@ -58,10 +58,11 @@ export const DEFAULT_SETTINGS = {
   regSkipSeconds:            5,
   longSkipSeconds:           20,
   preportionalSkipTimes:     true,
-  wholeDomainAccess:         false, // "all example.com sites" vs "on www.example.com"
+  wholeDomainAccess:         true, // "all example.com sites" vs "on www.example.com"
   allSitesAccess:            false,
   allSitesAccessNeedsRevoke: false,
   firstUseShown:             false, // set to true once first_use picks a mode.
+  firstUseOn2ndScreen:       false,
   zoomExclusionListStr:      DEFAULT_ZOOM_EXCLUSION_LIST,
 };
 

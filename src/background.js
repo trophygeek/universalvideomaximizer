@@ -29,6 +29,15 @@ import {
   trace,
 } from "./common.js";
 
+import {
+  injectVideoSpeedAdjust,
+  injectGetPlaypackSpeed,
+  injectVideoSkip,
+  injectCssHeader,
+  uninjectCssHeader,
+  injectIsCssHeaderIsBlocked,
+} from "./background_executescripts.js";
+
 // "What's the current state of a tab?" is a serious problem when trying to be a secure extension.
 // When the user clicks our extensions icon, the background can get permissions it needs to
 // get information it needs to run (like the url so it can see if the site is a "no zoom needed").
@@ -199,7 +208,7 @@ function setSubframeData(tabId, domain, subFrameStr) {
 /**
  * This will get GC deleted often, but if the background knows it, it saves
  * an async call into the page to re-get the last playback speed.
- * @type {TabToSpeedMap} */
+ * @type {KeyValuePair} */
 const g_SpeedByTabData = {};
 
 /**
@@ -223,222 +232,32 @@ function getGlobalSpeedData(tabId, domain) {
   return g_SpeedByTabData[`${tabId}-${domain}`] || DEAULT_SPEED;
 }
 
+/** @type {number[]} */
+let g_PopupOpenedForTabs = [];
+
 /**
- * Injection returns an array of results, this aggregates them into a single result.
- * @param injectionResults {InjectionResult[]}
- * @param defaultVal {boolean} Assume default is true or false. If any result in array is different
- *                              then it that's the result of all of the values.
- * @returns {boolean}
+ * Some sites (hampster) will trigger an
+ * @type {KeyValuePair} */
+let g_LastUrlFromOnUpdated = {};
+
+/**
+ * @param tabId {number}
+ * @param url {string}
+ * @return {boolean}
  */
-function injectionResultCheck(injectionResults, defaultVal = false) {
-  if ((injectionResults?.length || 0) === 0) {
-    return defaultVal;
-  }
-  for (const frameresult of injectionResults) {
-    if (frameresult.result !== defaultVal) {
-      return frameresult.result;
-    }
-  }
-  return defaultVal;
+function setLastUrlFromOnUpdated(tabId, url) {
+  const wasSet = g_LastUrlFromOnUpdated[`${tabId}`] !== undefined;
+  g_LastUrlFromOnUpdated[`${tabId}`] = url;
+  return wasSet;
 }
 
 /**
- * This speeds up ALL <videos> not just the one zoomed.
- * Could just select the zoomed videos, but maybe useful when unzooming?
- * @param newspeed {string}
- * @return {string[]}
- */
-function injectVideoSpeedAdjust(newspeed) {
-  const PLAYBACK_SPEED_ATTR = "data-videomax-playbackspeed";
-  /** @type {Set<string>} */
-  const result = new Set(); // use Set to dedup
-
-  /** nested local function * */
-  const _loadStart = (event) => {
-    try {
-      const video_elem = event?.target;
-      const playbackSpeed = video_elem?.getAttribute(PLAYBACK_SPEED_ATTR);
-      if (!playbackSpeed) {
-        return;
-      }
-      const speedNumber = parseFloat(playbackSpeed);
-      if (video_elem?.playbackRate !== speedNumber) { // it's changed
-        video_elem.playbackRate = speedNumber;
-      }
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.log(`_loadStart err`, err);
-    }
-  };
-  const _speedUpFoundVideos = (doc, speed) => {
-    try {
-      /** @type {NodeListOf<HTMLVideoElement>} */
-      const videos = doc.querySelectorAll("video");
-      for (const eachVideo of videos) {
-        try {
-          eachVideo.defaultPlaybackRate = speed;
-          eachVideo.playbackRate = speed;
-
-
-          const speedNumber = parseFloat(speed);
-          if (eachVideo?.paused === true && speedNumber !== 0.0) {
-            eachVideo.play();
-          } else if (speedNumber === 0.0) {
-            // auto-playing next video can reset speed. Need to hook into content change
-            eachVideo.pause();
-          }
-
-          eachVideo.setAttribute(PLAYBACK_SPEED_ATTR, `${speed}`);
-          eachVideo.removeEventListener("loadstart", _loadStart);
-          eachVideo.addEventListener("loadstart", _loadStart);
-        } catch (err) {
-          // eslint-disable-next-line no-console
-          console.warn(`VideoMaxExt: speed error _speedUpFoundVideos for "video"`, eachVideo, err);
-        }
-      }
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn(`VideoMaxExt: doc.querySelectorAll("video") blocked cross iframe?`, doc, err);
-    }
-  };
-  if (window._VideoMaxExt?.playbackSpeed) {
-    window._VideoMaxExt.playbackSpeed = newspeed;
-  }
-  const speadNumber = parseFloat(newspeed);
-  _speedUpFoundVideos(document, speadNumber);
-
-  const allIFrames = document.querySelectorAll("iframe");
-  for (const frame of [...allIFrames]) {
-    try {
-      const framedoc = frame?.contentDocument || frame?.contentWindow?.document;
-      if (!framedoc) {
-        continue;
-      }
-      _speedUpFoundVideos(framedoc, speadNumber);
-    } catch (err) {
-      // in theory, we could try to record this url and add it to the request?
-      // but this is run in the context of the page see GET_IFRAME_PERMISSIONS
-      // console.warn(`Possible VideoMax speed error for "frame" probably cross-domain-frame`,
-      // frame, err);
-      if (frame?.src?.length && window?._VideoMaxExt?.matchedVideo?.nodeName === "IFRAME") {
-        const url = frame?.src;
-        if (url.startsWith("https://")) {
-          const domain = (new URL(url)).host.toLowerCase();
-          const iframeUrl = window._VideoMaxExt.matchedVideo.src?.toLowerCase() || "";
-          if (iframeUrl.indexOf(domain) !== -1) {
-            result.add(domain);
-            // console.trace(`VideoMax speed error Need access to ${domain}`);
-          }
-        }
-      }
-    }
-  }
-  return [...result]; // Set->array
-}
-
-/**
- *
+ * @param tabId {number}
  * @return {string}
  */
-function injectGetPlaypackSpeed() {
-  try {
-    return window._VideoMaxExt?.playbackSpeed || DEFAULT_SPEED;
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.warn(`VideoMaxExt: injectGetPlaypackSpeed err for video`, err);
-    return DEFAULT_SPEED;
-  }
+function getLastUrlFromOnUpdated(tabId) {
+  return g_LastUrlFromOnUpdated[`${tabId}`] || "";
 }
-
-/**
- * @param skipSecondsStr {string}  negative numbers backwards
- */
-function injectVideoSkip(skipSecondsStr) {
-  const skipSeconds = parseFloat(skipSecondsStr);
-  for (const eachVideo of document.querySelectorAll("video")) {
-    try {
-      // restore playback speed after we skip
-      const savedSpeed = eachVideo.playbackRate || 1.0;
-      // don't go negative;
-      eachVideo.currentTime = Math.max(0, eachVideo.currentTime + skipSeconds);
-      eachVideo.playbackRate = savedSpeed;
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn(`VideoMaxExt: injectVideoSkip err for video`, err, eachVideo);
-    }
-  }
-}
-
-/**
- *
- * @param cssHRef {string}
- * @param styleId {string}
- * @returns {boolean}
- */
-function injectCssHeader(cssHRef, styleId) {
-  try {
-    if (document.getElementById(styleId)) {
-      // eslint-disable-next-line no-console
-      console.log(`VideoMax Native Inject. Style header already injected "${styleId}"`);
-      return true;
-    }
-    const styleLink = document.createElement("link");
-    styleLink.id = styleId;
-    styleLink.href = cssHRef;
-    styleLink.type = "text/css";
-    styleLink.rel = "stylesheet";
-    styleLink.media = "all";
-    document.getElementsByTagName("head")[0]?.appendChild(styleLink);
-    return true;
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error(`****** VideoMax ERROR Native Inject
-        Injecting style header failed. CSP?
-        ******`, err);
-    return false;
-  }
-}
-
-/**
- * Remove the style element from the header
- * @param styleId {String}
- */
-function uninjectCssHeader(styleId) {
-  // warning run inside context of page
-  try {
-    const cssHeaderNode = document.getElementById(styleId);
-    cssHeaderNode?.parentNode?.removeChild(cssHeaderNode);
-  } catch (_err) { }
-}
-
-/**
- * needed because we cannot include a chrome reference css for a file:// or
- * if the CSP is too strict. Fallback it to inject from background task.
- * @param cssHRef {String}
- * @returns {boolean}
- */
-function injectIsCssHeaderIsBlocked(cssHRef) {
-  let isBlocked = true; // default to failed.
-  try {
-    for (let ii = document.styleSheets?.length || 0; ii >= 0; ii--) {
-      // we loop backward because our is most likely last.
-      if (document.styleSheets[ii]?.href === cssHRef) {
-        // try to access the rules to see if it loaded correctly
-        try {
-          isBlocked = (document.styleSheets[ii].cssRules?.length) === 0;
-        } catch (_err) { }
-        break;
-      }
-    }
-  } catch (_err) {
-  }
-  if (isBlocked) {
-    // eslint-disable-next-line no-console
-    console.log("VideoMaxExt: css include file blocked.");
-  }
-  return isBlocked;
-}
-
 
 /**
  *
@@ -561,6 +380,26 @@ async function getCurrentTabState(tabId) {
 function isActiveState(state) {
   return STATE_DATA[state]?.zoomed || false;
 }
+
+
+/**
+ * Injection returns an array of results, this aggregates them into a single result.
+ * @param injectionResults {InjectionResult[]}
+ * @param defaultVal {boolean} Assume default is true or false. If any result in array is different
+ *                              then it that's the result of all of the values.
+ * @returns {boolean}
+ */
+const injectionResultCheck = (injectionResults, defaultVal = false) => {
+  if ((injectionResults?.length || 0) === 0) {
+    return defaultVal;
+  }
+  for (const frameresult of injectionResults) {
+    if (frameresult.result !== defaultVal) {
+      return frameresult.result;
+    }
+  }
+  return defaultVal;
+};
 
 
 /**
@@ -807,18 +646,20 @@ function processIFrameExtraPermissionsResult(results, tabId, domain) {
  */
 async function setSpeed(tabId, domain, speedStr = DEAULT_SPEED) {
   try {
-    trace(`setSpeed enter tabId:${tabId} speed:${speedStr}`);
+    trace(`setSpeed: enter tabId:${tabId} speed:${speedStr}`);
 
     if (typeof parseFloat(speedStr) !== "number") {
-      logerr(`Speed NOT valid number '${speedStr}'`);
+      logerr(`setSpeed: Speed NOT valid number '${speedStr}'`);
       return false;
     }
     const wasSet = setSpeedGlobalData(tabId, domain, speedStr);
 
     if (!wasSet && speedStr === DEAULT_SPEED) {
-      trace("NOT setting video speed since it doesn't seem required (max compatability mode)");
+      trace(
+        "setSpeed: NOT setting video speed since it doesn't seem required (max compatability mode)");
       return false;
     }
+    trace(`setSpeed: executeScript: injectVideoSpeedAdjust with arg [${speedStr}]`);
     // "allFrames" is broken unless manifest requests permissions
     // `"optional_host_permissions": ["<all_urls>"]`
     const results = await chrome.scripting.executeScript({
@@ -829,7 +670,7 @@ async function setSpeed(tabId, domain, speedStr = DEAULT_SPEED) {
                                                            func:   injectVideoSpeedAdjust,
                                                            args:   [speedStr],
                                                          });
-    trace(`setSpeed leave tabId:${tabId} speed:${speedStr}`);
+    trace(`setSpeed: leave tabId:${tabId} speed:${speedStr}`);
     return processIFrameExtraPermissionsResult(results, tabId, domain);
   } catch (err) {
     logerr(err);
@@ -841,9 +682,10 @@ async function setSpeed(tabId, domain, speedStr = DEAULT_SPEED) {
  *
  * @param tabId {number}
  * @param domain {string}
+ * @param defaultSpeed {string}
  * @return {Promise<string>}
  */
-async function getSpeed(tabId, domain) {
+async function getSpeed(tabId, domain, defaultSpeed = DEFAULT_SPEED) {
   try {
     const speed = getGlobalSpeedData(tabId, domain);
     if (speed) {
@@ -861,12 +703,12 @@ async function getSpeed(tabId, domain) {
                                                          });
     trace("getSpeed leave", tabId, speed);
     if (!results?.length) {
-      return DEAULT_SPEED;
+      return defaultSpeed;
     }
     return results[0].result;
   } catch (err) {
     trace("getSpeed error", err);
-    return DEAULT_SPEED;
+    return defaultSpeed;
   }
 }
 
@@ -1079,12 +921,46 @@ chrome.action.onClicked.addListener((tab) => {
         }
         // domain will be empty for "file://"
         await toggleZoomState(tabId, getDomain(tab.url));
+        // used to detect SPA nav. Clip anchor
+        setLastUrlFromOnUpdated(tabId, tab.url.split("#")[0]);
       });
     });
   } catch (err) {
     logerr(err);
   }
 });
+
+/**
+ * Called when we're zoomed but the popup is redisplayed.
+ * @param tabId {number}
+ * @param domain {string}
+ * @param speed {string}
+ * @return {Promise<void>}
+ */
+const ReZoom = async (tabId, domain, speed) => {
+  // the popup is about to display and thinks the page is zoomed, but it's may not be
+  // (e.g. if escape key was pressed.)
+  // in theory, re-injecting should be fine
+  const currentState = await getCurrentTabState(tabId);
+  // ignore the speed sent in. For rezoom, the popup has been deleted, so it can't
+  // send the speed, we have to reget it.
+  const currentSpeed = await getSpeed(tabId, domain, speed);
+  if (currentState === "ZOOMING_SPEED_ONLY") {
+    trace("REZOOM_CMD - Speed only, not rezooming");
+    await setSpeed(tabId, domain, currentSpeed);
+  } else {
+    trace("REZOOM_CMD -- Zooming");
+    // a full zoom isn't needed, just the css reinjected.
+
+    // we need to see if we're in "SPEED_ONLY" mode because
+    // we don't have access to the url to see if it's a site like hulu
+    const nextState = currentState === "SPEED_ONLY" ? "ZOOMING_SPEED_ONLY" : "ZOOMING";
+    await Promise.all([setCurrentTabState(tabId, nextState, currentSpeed),
+                       DoZoom(tabId, currentState, currentSpeed),
+                       setSpeed(tabId, domain, currentSpeed)]);
+    trace("REZOOM_CMD -- Zooming -- COMPLETE");
+  }
+};
 
 // handle popup messages
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -1116,6 +992,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                                      url,
                                      active: true,
                                    });
+
+          // also, the popup is closing
         }
           break;
 
@@ -1128,39 +1006,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                              setSpeed(tabId, domain, speed)]);
           break;
 
-        case "REZOOM_CMD": {
-          // the popup is about to display and thinks the page is zoomed, but it's may not be
-          // (e.g. if escape key was pressed.)
-          // in theory, re-injecting should be fine
-          const currentState = await getCurrentTabState(tabId);
-          // ignore the speed sent in. For rezoom, the popup has been deleted, so it can't
-          // send the speed, we have to reget it.
-          const currentSpeed = await getSpeed(tabId, domain);
-          if (currentState === "ZOOMING_SPEED_ONLY") {
-            trace("REZOOM_CMD - Speed only, not rezooming");
-            await setSpeed(tabId, domain, currentSpeed);
-          } else {
-            trace("REZOOM_CMD -- Zooming");
-            // a full zoom isn't needed, just the css reinjected.
-
-            // we need to see if we're in "SPEED_ONLY" mode because
-            // we don't have access to the url to see if it's a site like hulu
-            const nextState = currentState === "SPEED_ONLY" ? "ZOOMING_SPEED_ONLY" : "ZOOMING";
-            await Promise.all([setCurrentTabState(tabId, nextState, currentSpeed),
-                               DoZoom(tabId, currentState, currentSpeed),
-                               setSpeed(tabId, domain, currentSpeed)]);
-            trace("REZOOM_CMD -- Zooming -- COMPLETE");
-          }
-        }
+        case "REZOOM_CMD":
+          await ReZoom(tabId, domain, speed);
           break;
 
         case "SKIP_PLAYBACK_CMD":
           await skipPlayback(tabId, speed, domain);
           break;
 
-        case "FIRST_USE_SET":
-          // this is from
+        case "FIRST_USE_REFRESH_POPUP_URL_CMD":
+          // this is from first_use
           await setCurrentTabState(tabId, "", domain);
+          break;
+
+        case "POPUP_CLOSING":
           break;
 
         default:
@@ -1172,23 +1031,43 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }, 0);
 
   if (sendResponse) {
+    trace("closing popup");
     sendResponse({ success: true }); // used to close popup.
   }
 });
 
-chrome.tabs.onUpdated.addListener((tabId, changeInfo/* , _tab */) => {
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   try {
     const domain = getDomain(changeInfo.url);
     trace(`tabs.onUpated event tabId=${tabId} changeInfo:`, changeInfo);
     if (tabId && changeInfo?.status === "loading") {
+      trace(`tabs.onUpdated event likely SPA nav: 
+          changeInfo: ${JSON.stringify(changeInfo, null, 2)}}
+          tab: ${JSON.stringify(tab, null, 2)} `);
+
       setTimeout(async () => {
-        const state = await getCurrentTabState(tabId);
-        if (isActiveState(state)) {
-          trace("chrome.tabs.onUpdated loading so starting unzoom. likely SPA nav");
+        const popupUIActive = g_PopupOpenedForTabs.includes(tabId);
+        if (popupUIActive || isActiveState(await getCurrentTabState(tabId))) {
+
+          // some sites (hampster) will set an anchor in url when progress clicked near end.
+          const newUrl = (changeInfo?.url || "").split("#")[0].toLowerCase(); // trim off after
+                                                                              // anchor?
+          const lastUrl = getLastUrlFromOnUpdated(tabId);
           // some SPA won't do a clean refetch, we need to uninstall.
-          await unZoom(tabId, domain);
+          if (popupUIActive) {
+            // popup is open, so keep zoomed
+            trace("tabs.onUpdated: Popup UI Open so REzooming");
+            await ReZoom(tabId, domain, DEFAULT_SPEED);
+          } else if (newUrl !== lastUrl) {
+            setLastUrlFromOnUpdated(tabId, newUrl);
+            trace(`tabs.onUpdated: Popup UI CLOSED so UNzooming. 
+              newUrl: "${newUrl}"
+              lastUrl: "${lastUrl}
+              `);
+            await unZoom(tabId, domain);
+          }
         } else {
-          trace(`tabId not currently zoomed ${tabId}`);
+          trace(`tabs.onUpdated event tabId not currently zoomed ${tabId}`);
         }
       }, 0);
     }
@@ -1196,3 +1075,46 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo/* , _tab */) => {
     logerr(err);
   }
 });
+
+chrome.runtime.onConnect.addListener((externalPort) => {
+  {
+    const popupUrl = externalPort.sender.url;
+    const url = new URL(popupUrl);
+    const params = new URLSearchParams(url.hash.replace("#", ""));
+    const tabId = Number(params.get("tabId") || "0");
+
+    if (!g_PopupOpenedForTabs.includes(tabId)) {
+      g_PopupOpenedForTabs = [...g_PopupOpenedForTabs, tabId];
+      trace(
+        `Popup opened. Added tabId:'${tabId}' g_PopupOpenedForTabs: [${g_PopupOpenedForTabs.join(
+          ",")}]`);
+    }
+  }
+  // externalPort.onMessage((message, port) => {
+  //   // todo: while popup is open, allow it to query the playback speed (and if the video is
+  // paused)? }); called when disconnected.
+  externalPort.onDisconnect.addListener((portDisconnectEvent) => {
+    // we can get the tab by looking at the url.
+    const popupUrl = portDisconnectEvent.sender.url;
+    const url = new URL(popupUrl);
+    const params = new URLSearchParams(url.hash.replace("#", ""));
+    const tabId = Number(params.get("tabId") || "0");
+
+    if (g_PopupOpenedForTabs.includes(tabId)) {
+      trace(
+        `Popup closed. Removed tabId:'${tabId}' g_PopupOpenedForTabs: [${g_PopupOpenedForTabs.join(
+          ",")}]`);
+      g_PopupOpenedForTabs = g_PopupOpenedForTabs.filter((eachId) => tabId !== eachId);
+    }
+
+    // we track the popup open/closed, if it's open for a tab and there's a url-only "navigate",
+    // don't unzoom.
+
+    try {
+      const ignoreError = chrome.runtime.lastError;
+    } catch (err) {
+      trace(err);
+    }
+  });
+});
+

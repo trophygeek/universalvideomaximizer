@@ -16,6 +16,7 @@ type SettingsType = {
   allSitesAccess: boolean,
   allSitesAccessNeedsRevoke: boolean,
   firstUseShown:             boolean,
+  firstUseOn2ndScreen: boolean,
   zoomExclusionListStr: string,
 };
 
@@ -31,7 +32,8 @@ type CmdType =
     | "SKIP_PLAYBACK_CMD"
     | "TOGGLE_PLAYBACK_CMD"
     | "OPTIONS_CMD"
-    | "FIRST_USE_SET";
+    | "FIRST_USE_REFRESH_POPUP_URL_CMD"
+| "POPUP_CLOSING";
 
 // Used by popup for buttons that aren't speed changes.
 type PopupMenuCmd = "UNZOOM_BTN_CMD" | "OPTIONS_BTN_CMD";
@@ -73,7 +75,7 @@ type SubFrameParamData = {
 };
 type SubFramePermMatching = { [tabId: number]: SubFrameParamData };
 
-type TabToSpeedMap = {[tabIdDomainKey:string]: string};
+type KeyValuePair = {[key:string]: string};
 
 type ActionFunction = (elem: Node) => boolean;
 

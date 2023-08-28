@@ -89,11 +89,11 @@ body::-webkit-scrollbar {
 /* cnbc jplayer controls are at top without this. Very fragile, but whatever */
 .videomax-ext-max .videomax-ext-overlap .jw-controlbar {
   position: absolute !important;
-  opacity: 1 !important; /** cnbs's jplayer is so weird */
+  opacity: 1 !important; /** cnbc's jplayer is so weird */
 }
 
 .customControls .jw-controlbar, .customControls .jw-controls {
-  opacity: 1 !important; /** cnbs's jplayer is so weird */
+  opacity: 1 !important; /** cnbc's jplayer is so weird */
 }
 
 /** 2021May
@@ -112,7 +112,7 @@ body::-webkit-scrollbar {
 }
 
 /**
-  Youtube "subscribe buttons" can sometimes be always displayed (an animated). Hide them while in theater mode
+  Youtube "subscribe buttons" can sometimes be always displayed (and animated). Hide them while in theater mode
  */
 div.videomax-ext-overlap > .ytp-chrome-top-buttons,
 div.videomax-ext-overlap > .ytp-share-button,
@@ -139,3 +139,9 @@ video::-webkit-media-controls {
   visibility: hidden !important;
 }
 
+/** this body.domain approach is new, need to convert some of the other site specific fixes **/
+/** crackle.com specific fixes **/
+body.videomax-ext-crackle #player-controls.videomax-ext-overlap {
+  top: auto !important;
+  height: calc(100vw) !important;
+}

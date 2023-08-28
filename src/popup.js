@@ -2,16 +2,18 @@
 // useful reference for exports https://web.dev/es-modules-in-sw/
 import { DEFAULT_SETTINGS, DEFAULT_SPEED, getSettings, logerr, trace } from "./common.js";
 
+let g_detectCloseListenerPort = null;
+
 try {
-  const UNZOOM_LABEL         = "[]";
-  const UNZOOM_ICON          = "./icons/icon19undo.png";
+  const UNZOOM_LABEL = "[]";
+  const UNZOOM_ICON = "./icons/icon19undo.png";
 
   const MENU = [{
     label: "⚙️️",
     value: "OPTIONS_BTN_CMD",
   }, {
     label: "🖐️",
-    value: "0.00",
+    value: "PAUSE_CMD",
   }, {
     label: "0.25",
     value: "0.25",
@@ -51,18 +53,15 @@ try {
   }];
 
   // used to simplify IncreaseSpeed()/DecreaseSpeed()
-  const MIN_SPEED = "0.00";
+  const MIN_SPEED = "0.25";
   const MAX_SPEED = "16.0";
-  const globals   = {
+  const globals = {
     url: new URL(document.location.href),
     /** @type {String} */
     currentSpeed: DEFAULT_SPEED,
-    /** @type {String} */
-    toggledSpeed: DEFAULT_SPEED,  // used when stopping/starting.
     /** @type {SettingsType} */
     settings:        DEFAULT_SETTINGS, // onload will overwrite.
     tabId:           "",
-    videofound:      "",
     debounceTimerId: undefined,
   };
 
@@ -72,11 +71,21 @@ try {
    */
   const itemId = (ii) => `speed-${ii}`;
 
+  /** @param speedStr {string}
+   *  @return {string} */
+  const toggleSpeedStr = (speedStr) => {
+    if (speedStr.startsWith("-")) {
+      // restore toggle speed but removing "-"
+      return speedStr.substring(1);
+    }
+    return `-${speedStr}`;
+  };
+
   /**
    * @param itemValue {string}
    */
   const checkItem = (itemValue) => {
-    const itemValueStr   = String(itemValue);
+    const itemValueStr = itemValue.startsWith("-") ? "PAUSE_CMD" : String(itemValue);
     const group = document.getElementById("speedBtnGroup");
     for (const eachElem of group.children) {
       if (eachElem.type !== "checkbox") {
@@ -120,7 +129,7 @@ try {
    */
   const addSpeedControlUI = (doc, parentElem, tabId) => {
     const htmlArr = MENU.map((item, ii) => {
-      const id    = itemId(ii);
+      const id = itemId(ii);
       const label = (item.label === UNZOOM_LABEL) ?
                     `<img src='${UNZOOM_ICON}' class='closeicon'>` :
                     `${item.label}`;
@@ -151,25 +160,20 @@ try {
           }
           globals.debounceTimerId = setTimeout(() => {
             // we toggle between a current speed and stop.
-            if (globals.currentSpeed !== "0.00") {
-              // if we're not stopped
-              globals.toggledSpeed = globals.currentSpeed; // save the current speed.
-              globals.currentSpeed = "0.00"; // stop
-            } else {
-              // restore toggle speed.
-              globals.currentSpeed = globals.toggledSpeed;
-            }
+            // neg speed means paused and the value is the "toggle"
+            globals.currentSpeed = toggleSpeedStr(globals.currentSpeed);
 
             checkItem(globals.currentSpeed);
+
             /** @type {string} */
             chrome.runtime.sendMessage({
-              message: {
-                cmd:    "SET_SPEED_CMD",
-                domain: globals.domain,
-                speed:  globals.currentSpeed,
-                tabId,
-              },
-            });
+                                         message: {
+                                           cmd:    "SET_SPEED_CMD",
+                                           domain: globals.domain,
+                                           speed:  globals.currentSpeed,
+                                           tabId,
+                                         },
+                                       });
           }, 10);
           evt.stopImmediatePropagation();
         }
@@ -182,22 +186,27 @@ try {
             return;
           }
 
-          const value = /** @type {CmdType} */ evt?.target?.dataset?.value;
+          let value = /** @type {CmdType} */ evt?.target?.dataset?.value;
 
           trace(`click '${value}' currentspeed='${globals.currentSpeed}'`);
 
           if (value === "OPTIONS_BTN_CMD") {
             chrome.runtime.sendMessage({
-              message: {
-                cmd:    "OPTIONS_CMD",
-                domain: globals.domain,
-                speed:  globals.currentSpeed,
-                tabId,
-              },
-            }, (_response) => {
+                                         message: {
+                                           cmd:    "OPTIONS_CMD",
+                                           domain: globals.domain,
+                                           speed:  globals.currentSpeed,
+                                           tabId,
+                                         },
+                                       }, (_response) => {
               window.close();
             });
             return;
+          }
+          if (value === "PAUSE_CMD") {
+            // we overload the speed. Neg means paused, the value it the "toggle back to value"
+            value = toggleSpeedStr(globals.currentSpeed);
+            trace(`replacing PAUSE_CMD with negative speed: ${value}`);
           }
 
           let speed = DEFAULT_SPEED;
@@ -206,19 +215,25 @@ try {
           }
 
           globals.currentSpeed = speed;
-
           checkItem(speed);
           /** @type {string} */
           const cmd = (value === "UNZOOM_BTN_CMD") ? "UNZOOM_CMD" : "SET_SPEED_CMD";
           chrome.runtime.sendMessage({
-            message: {
-              cmd,
-              domain: globals.domain,
-              speed,
-              tabId,
-            },
-          }, (_response) => {
+                                       message: {
+                                         cmd,
+                                         domain: globals.domain,
+                                         speed,
+                                         tabId,
+                                       },
+                                     }, (_response) => {
             if (cmd === "UNZOOM_CMD") {
+              chrome.runtime.sendMessage({
+                                           message: {
+                                             cmd:    "POPUP_CLOSING",
+                                             domain: globals.domain,
+                                             tabId,
+                                           },
+                                         });
               window.close();
             }
           });
@@ -232,13 +247,13 @@ try {
   const RefreshSpeed = () => {
     // The page could have been UNZOOMED by the escape key and everything could be out of sync
     chrome.runtime.sendMessage({
-      message: {
-        cmd:    "SET_SPEED_CMD",
-        domain: globals.domain,
-        speed:  globals.currentSpeed,
-        tabId:  globals.tabId,
-      },
-    });
+                                 message: {
+                                   cmd:    "SET_SPEED_CMD",
+                                   domain: globals.domain,
+                                   speed:  globals.currentSpeed,
+                                   tabId:  globals.tabId,
+                                 },
+                               });
   };
 
   /**
@@ -250,44 +265,51 @@ try {
     trace("document.addEventListener keydown", evt);
     switch (evt.code) {
       case "Escape":
+        chrome.runtime.sendMessage({
+                                     message: {
+                                       cmd:    "POPUP_CLOSING",
+                                       domain: globals.domain,
+                                       tabId:  globals.tabId,
+                                     },
+                                   });
         window.close();
         break;
 
       case "ArrowLeft": {
         trace("ArrowLeft");
-        const skipSecBack      = evt.shiftKey ?
-                                 globals.settings.longSkipSeconds :
-                                 globals.settings.regSkipSeconds;
+        const skipSecBack = evt.shiftKey ?
+                            globals.settings.longSkipSeconds :
+                            globals.settings.regSkipSeconds;
         // currentSpeed could be zero, so floor it to 0.25
         const relativeTimeBack = skipSecBack * (Math.max(parseFloat(globals.currentSpeed), 0.25)) *
                                  -1;
         chrome.runtime.sendMessage({
-          message: {
-            cmd:    "SKIP_PLAYBACK_CMD",
-            domain: globals.domain,
-            speed:  String(relativeTimeBack),
-            tabId:  globals.tabId,
-          },
-        });
+                                     message: {
+                                       cmd:    "SKIP_PLAYBACK_CMD",
+                                       domain: globals.domain,
+                                       speed:  String(relativeTimeBack),
+                                       tabId:  globals.tabId,
+                                     },
+                                   });
         evt.stopImmediatePropagation();
       }
         break;
 
       case "ArrowRight": {
         trace("ArrowRight");
-        const skipSecFwd      = evt.shiftKey ?
-                                globals.settings.longSkipSeconds :
-                                globals.settings.regSkipSeconds;
+        const skipSecFwd = evt.shiftKey ?
+                           globals.settings.longSkipSeconds :
+                           globals.settings.regSkipSeconds;
         // currentSpeed could be zero, so floor it to 0.25
         const relativeTimeFwd = skipSecFwd * (Math.max(parseFloat(globals.currentSpeed), 0.25));
         chrome.runtime.sendMessage({
-          message: {
-            cmd:    "SKIP_PLAYBACK_CMD",
-            domain: globals.domain,
-            speed:  String(relativeTimeFwd),
-            tabId:  globals.tabId,
-          },
-        });
+                                     message: {
+                                       cmd:    "SKIP_PLAYBACK_CMD",
+                                       domain: globals.domain,
+                                       speed:  String(relativeTimeFwd),
+                                       tabId:  globals.tabId,
+                                     },
+                                   });
         evt.stopImmediatePropagation();
       }
         break;
@@ -315,22 +337,21 @@ try {
 
   document.addEventListener("DOMContentLoaded", async () => {
     try {
-      const params         = new URLSearchParams(globals.url.hash.replace("#", ""));
-      globals.tabId        = params.get("tabId");
-      globals.videofound   = params.get("videofound");
-      globals.currentSpeed = params.get("speed");
-      globals.domain       = params.get("domain"); // needed because Netflix errs on skip
-      const container      = window.document.getElementById("speedBtnGroup");
+      const params = new URLSearchParams(globals.url.hash.replace("#", ""));
+      globals.tabId = params.get("tabId");
+      globals.currentSpeed = params.get("speed") || DEFAULT_SPEED;
+      globals.domain = params.get("domain"); // needed because Netflix errs on skip
+      const container = window.document.getElementById("speedBtnGroup");
 
       trace(`DOMContentLoaded params
           tabId:'${globals.tabId}'
           currentSpeed:'${globals.currentSpeed}'
-          videofound:'${globals.videofound}'`);
+          `);
 
       // if the user pressed escape in the page, then our zoom was lost, reapply it.
       RefreshSpeed();
 
-      const settings   = await getSettings();
+      const settings = await getSettings();
       globals.settings = { ...globals.settings, ...settings };
       addSpeedControlUI(window.document, container, globals.tabId);
 
@@ -349,10 +370,39 @@ try {
         HandleKeydown(evt);
       });
 
+      // to know when the popup has closed, we have to open a socket and watch for it to be closed.
+      // Seriously?!? WTF!
+      g_detectCloseListenerPort = chrome.runtime.connect();
     } catch (err) {
       logerr(err);
     }
   });
+
+  window.addEventListener("close", function (_e) {
+    trace("close");
+    chrome.runtime.sendMessage({
+                                 message: {
+                                   cmd:    "POPUP_CLOSING",
+                                   domain: globals.domain,
+                                   speed:  DEFAULT_SPEED,
+                                   tabId:  globals.tabId,
+                                 },
+                               });
+  });
+
+  document.addEventListener("close", function () {
+    trace("popup closing via visibilitychange");
+    chrome.runtime.sendMessage({
+                                 message: {
+                                   cmd:    "POPUP_CLOSING",
+                                   domain: globals.domain,
+                                   speed:  DEFAULT_SPEED,
+                                   tabId:  globals.tabId,
+                                 },
+                               });
+  });
+
+
 } catch (e) {
   logerr(e);
 }

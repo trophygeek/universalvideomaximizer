@@ -84,8 +84,8 @@ const setTextNum = (elementId, value) => {
  */
 const getTextNum = (elementId) /** @type number */ => {
   const htmlElement = /** @type {HTMLInputElement} */ document.getElementById(elementId);
-  const valStr      = numbericOnly(htmlElement.value) || "1";
-  const valInt      = Math.abs(parseInt(valStr, 10));
+  const valStr = numbericOnly(htmlElement.value) || "1";
+  const valInt = Math.abs(parseInt(valStr, 10));
   return rangeInt(valInt, 1, 900);
 };
 
@@ -106,12 +106,12 @@ const loadSettingsIntoFields = (settings) => {
   // list of no-zoom sites
   {
     /* Used to build list */
-    const LI_START  = `<li class="list-group-item container"><div class="container"><div class="row is-center">`;
+    const LI_START = `<li class="list-group-item container"><div class="container"><div class="row is-center">`;
     const LI_START2 = `${LI_START}<div class="col-1 is-left domain">`;
-    const LI_END    = `</div><div class="col-10 is-right"><button name="removeBtn" class="delete-button">Remove</button></div></div></div></li>`;
-    const listarr   = listToArray(settings.zoomExclusionListStr);
+    const LI_END = `</div><div class="col-10 is-right"><button name="removeBtn" class="delete-button">Remove</button></div></div></div></li>`;
+    const listarr = listToArray(settings.zoomExclusionListStr);
     // noinspection UnnecessaryLocalVariableJS
-    const list      = LI_START2 + listarr.join(LI_END + LI_START2) + LI_END;
+    const list = LI_START2 + listarr.join(LI_END + LI_START2) + LI_END;
 
     document.getElementById("nozoomlist").innerHTML = list;
     setTimeout(() => {
@@ -119,11 +119,12 @@ const loadSettingsIntoFields = (settings) => {
       for (const eachButton of buttons) {
         eachButton.addEventListener("click", async (e) => {
           const parentLi = e?.currentTarget?.closest("li");
-          const domain   = parentLi?.querySelector(`div[class*="domain"]`)?.innerText || "";
+          const domain = parentLi?.querySelector(`div[class*="domain"]`)?.innerText || "";
           parentLi.classList.add("fade-out");
           // remove domain from list and save.
           const updateSettings = await getSettings();
-          updateSettings.zoomExclusionListStr = updateSettings?.zoomExclusionListStr.replace(`,${domain}`,
+          updateSettings.zoomExclusionListStr = updateSettings?.zoomExclusionListStr.replace(
+            `,${domain}`,
             "") || "";
           await saveSettings(updateSettings);
         });
@@ -138,13 +139,13 @@ const loadSettingsIntoFields = (settings) => {
  */
 const saveFieldsIntoSettings = (settingsIn) => {
   try {
-    const settings               = settingsIn;
+    const settings = settingsIn;
     settings.useAdvancedFeatures = getChecked("useAdvancedFeatures");
-    settings.regSkipSeconds      = getTextNum("regSkipSeconds");
-    settings.longSkipSeconds     = getTextNum("longSkipSeconds");
+    settings.regSkipSeconds = getTextNum("regSkipSeconds");
+    settings.longSkipSeconds = getTextNum("longSkipSeconds");
     // settings.preportionalSkipTimes = getChecked("preportionalSkipTimes");
-    settings.allSitesAccess      = getChecked("allSitesAccess");
-    settings.wholeDomainAccess   = getChecked("wholeDomainAccess");
+    settings.allSitesAccess = getChecked("allSitesAccess");
+    settings.wholeDomainAccess = getChecked("wholeDomainAccess");
   } catch (err) {
     logerr(err);
   }
@@ -163,7 +164,7 @@ const save = async () => {
 
 const enableAdvanceFeaturesOptions = () => {
   const useAdvancedFeatures = getChecked("useAdvancedFeatures");
-  const disableFields       = document.getElementsByClassName("diableForSimpleFeatures");
+  const disableFields = document.getElementsByClassName("diableForSimpleFeatures");
   for (const eachField of disableFields) {
     if (useAdvancedFeatures) {
       eachField.classList.remove("is-disabled");
@@ -173,16 +174,16 @@ const enableAdvanceFeaturesOptions = () => {
   }
 };
 
-document.addEventListener("DOMContentLoaded", async () => {
+const setupPageFromSettings = async () => {
   try {
     g_settings = await getSettings();
     loadSettingsIntoFields(g_settings);
 
     // show debug info
-    const settingStr      = JSON.stringify(g_settings, null, 2);
+    const settingStr = JSON.stringify(g_settings, null, 2);
     const manifestVersion = await getManifestVersion() || "[missing manifest version]";
     // noinspection JSUnresolvedReference
-    const userAgent       = JSON.stringify(navigator?.userAgentData, null, 2);
+    const userAgent = JSON.stringify(navigator?.userAgentData, null, 2);
 
     document.getElementById("version").innerHTML = `
 <pre>
@@ -193,6 +194,14 @@ Browser Version:
 ${userAgent}
 
 </pre>`;
+  } catch (err) {
+    logerr(err);
+  }
+};
+
+document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    await setupPageFromSettings();
 
     document.getElementById("mainForm")
       .addEventListener("change", async (_e) => {
@@ -231,11 +240,11 @@ You may need to REFRESH the video page before it takes effect.`);
         // eslint-disable-next-line no-alert
         const newDomainStr = prompt("New domain name to exclude from zooming:");
         if (newDomainStr?.length) {
-          const domain                    = getDomain(newDomainStr);
+          const domain = getDomain(newDomainStr);
           g_settings.zoomExclusionListStr = `${g_settings.zoomExclusionListStr},${domain}`;
           await save();
           // scroll to bottom
-          const objDiv     = document.getElementById("nozoomlist");
+          const objDiv = document.getElementById("nozoomlist");
           objDiv.scrollTop = objDiv.scrollHeight;
         }
         e.stopPropagation();
@@ -253,6 +262,9 @@ You may need to REFRESH the video page before it takes effect.`);
         window.close();
       });
 
+    chrome.storage.onChanged.addListener(async (_changes, _namespace) => {
+      await setupPageFromSettings();
+    });
   } catch (err) {
     logerr(err);
   }

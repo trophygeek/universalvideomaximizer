@@ -1,5 +1,5 @@
 :root {
-  --main-height: 23em;
+  --main-height: 33em;
 }
 
 html, body {
@@ -26,7 +26,7 @@ iframe {
 }
 
 .inline-icon {
-  zoom: 1;
+  zoom: 0.8;
   line-height: 0;
   align-content: center !important;
 }
@@ -37,4 +37,9 @@ li, ol {
 
 br.half-br {
   line-height: 0.5em;
+}
+
+.margin-3 {
+  margin-left: 0.5em;
+  margin-right: 0.5em;
 }
