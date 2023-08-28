@@ -1014,14 +1014,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           await skipPlayback(tabId, speed, domain);
           break;
 
-        case "FIRST_USE_SET":
+        case "FIRST_USE_REFRESH_POPUP_URL_CMD":
           // this is from first_use
           await setCurrentTabState(tabId, "", domain);
           break;
 
         case "POPUP_CLOSING":
-          // stop controlling pause.
-          debugger;
           break;
 
         default:

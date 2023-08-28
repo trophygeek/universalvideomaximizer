@@ -32,7 +32,7 @@ type CmdType =
     | "SKIP_PLAYBACK_CMD"
     | "TOGGLE_PLAYBACK_CMD"
     | "OPTIONS_CMD"
-    | "FIRST_USE_SET"
+    | "FIRST_USE_REFRESH_POPUP_URL_CMD"
 | "POPUP_CLOSING";
 
 // Used by popup for buttons that aren't speed changes.

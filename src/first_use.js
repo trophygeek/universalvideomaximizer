@@ -22,13 +22,13 @@ try {
   const updateCurrentTabState = async () => {
     return chrome.runtime.sendMessage({
                                         message: {
-                                          cmd: "FIRST_USE_SET", // setCurrentTabState(tabId, "",
-                                                                // domain);
+                                          cmd: "FIRST_USE_REFRESH_POPUP_URL_CMD",
                                           tabId,
                                           domain,
                                           speed,
                                         },
                                       }, (_response) => {
+      window.setTimeout(() => window.close(), 50);
     });
   };
 
@@ -61,37 +61,36 @@ try {
 
   document.addEventListener("DOMContentLoaded", async () => {
     const settings = await getSettings();
+    // this is if user is trying out the feature but hasn't finally decided
+    if (settings.firstUseOn2ndScreen) {
+      await showTutorial();
+    }
     document.getElementById("useSimpleFeatures")
       .addEventListener("click", async (_evt) => {
         await unzoom();
         await updateSettings(false, true, false);
-        window.close();
+        await updateCurrentTabState(true);
       });
 
     document.getElementById("useSimpleFeatures2")
       .addEventListener("click", async (_evt) => {
         await unzoom();
-        await updateSettings(false, true, false);
-        window.close();
+        await updateSettings(false, true, true);
+        await updateCurrentTabState(true);
       });
 
     document.getElementById("tryAdvancedFeatures")
       .addEventListener("click", async (_evt) => {
         await showTutorial();
-        await updateCurrentTabState();
         await updateSettings(true, false, true);
       });
 
     document.getElementById("useAdvancedFeatures")
       .addEventListener("click", async (_evt) => {
-        await updateSettings(true, true, false);
-        window.close();
+        await updateSettings(true, true, true);
+        // we now need to change the popup url so it shows the regular popup
+        await updateCurrentTabState();
       });
-
-    // this is if user is trying out the feature but hasn't finally decided
-    if (settings.firstUseOn2ndScreen) {
-      await showTutorial();
-    }
   });
 } catch (e) {
   logerr(e);
