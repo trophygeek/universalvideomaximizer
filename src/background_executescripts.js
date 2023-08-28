@@ -36,8 +36,8 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
   const _loadStartFn = (event) => {
     try {
       // check to see if we're still injected into page.
-      const matches = [...document.querySelectorAll(`[class*="videomax-ext"]`)];
-      if (!matches?.length) {
+      const runningAttr = document?.body?.getAttribute("data-videomax-running") || "";
+      if (runningAttr.length <= 0) {
         if (DEBUG_INJECT) {
           // eslint-disable-next-line no-console
           console.log(`VideoMaxExt: loadStart injectVideoSpeedAdjust No longer injected, bailing`);
@@ -50,7 +50,7 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
                                                   checkOpacity:       true,
                                                   checkVisibilityCSS: true,
                                                 }) || false;
-      const speedNumber = Math.abs(parseFloat(playbackSpeed));
+      const speedNumber = Math.abs(parseFloat(newspeed));
       if (DEBUG_INJECT) {
         // eslint-disable-next-line no-console
         console.log(
@@ -83,15 +83,17 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
     const _getCenterCoordsFnFn = (doc) => {
       // we hide scrollbars as part of zoom, so body element should be good enough?
       try {
-        const box = doc.body.getBoundingClientRect();
         return {
-          centerX: Math.round(box.left + (box.width / 2)),
-          centerY: Math.round(box.top + (box.height / 2)),
+          centerX: Math.round(window.innerWidth / 2),
+          centerY: Math.round(window.innerHeight / 2),
         };
-      } catch(err) {
+      } catch (err) {
         // eslint-disable-next-line no-console
         console.log(`VideoMaxExt: _injectSetSpeedForVideosFn doc size empty`, doc);
-        return {centerX: 0, centerY: 0};
+        return {
+          centerX: 0,
+          centerY: 0,
+        };
       }
     };
 
@@ -103,17 +105,10 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
         centerY,
       } = _getCenterCoordsFnFn(doc);
 
-      if (centerX === 0 || centerY === 0) {
+      if (centerX < 50 || centerY < 50) {
         return undefined;
       }
       const layedElems = doc.elementsFromPoint(centerX, centerY);
-
-      if (DEBUG_INJECT) {
-        // eslint-disable-next-line no-console
-        console.log(`VideoMaxExt: _injectSetSpeedForVideosFn 
-        centerX:${centerX}
-        centerY:${centerY}`);
-      }
 
       // we walk down the layers checking to see if it's a video and if it's visible.
       const matches = layedElems.filter((eachLayer) => {
@@ -123,7 +118,27 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
           return false;
         }
       });
-      return matches[0] || undefined;
+      if (DEBUG_INJECT) {
+        console.log(`VideoMaxExt: _injectSetSpeedForVideosFn 
+        centerX:${centerX}
+        centerY:${centerY}
+        layedElems: ${layedElems.length}
+        matches: ${matches.length}
+        layedElems:
+        `, layedElems);
+      }
+      if (matches.length) {
+        return matches[0];
+      }
+      // can happen when page NOT tagonly like amazon.
+      const matchedVideo = doc.querySelectorAll(`[data-videomax-target]`);
+      if (DEBUG_INJECT) {
+        console.log(`VideoMaxExt: _injectSetSpeedForVideosFn
+        elementsFromPoint failed to find video. directly searching
+        matchedVideo: ${matchedVideo.length}
+        `, matchedVideo);
+      }
+      return matchedVideo[0] || undefined;
     };
 
     // Always remove possible loadstart listeners since ads may be on top of older videos

@@ -160,8 +160,9 @@ try { // scope and prevent errors from leaking out to page.
   // used to find all the VIDEO_MAX_DATA_ATTRIB_UNDO_PREFIX easily
   const VIDEO_MAX_DATA_ATTRIB_UNDO_TAG = `${VIDEO_MAX_DATA_PREFIX}-tag-saved`;
 
-  // from background script.
+  // from background script on body
   const PLAYBACK_SPEED_ATTR = `${VIDEO_MAX_DATA_PREFIX}-playbackspeed`;
+  const VIDEO_MAX_INSTALLED_ATTR = `${VIDEO_MAX_DATA_PREFIX}-running`; // data-videomax-running
 
   const EMBEDED_SCORES = `${VIDEO_MAX_DATA_PREFIX}-scores`;
   const VIDEO_MAX_ATTRIB_FIND = `${VIDEO_MAX_DATA_PREFIX}-target`;
@@ -1613,10 +1614,8 @@ try { // scope and prevent errors from leaking out to page.
    * @return {boolean}
    */
   const hasInjectedAlready = () => {
-    const matched = [...document.querySelectorAll(
-      `video[class*="${PLAYBACK_VIDEO_MATCHED_CLASS}"]`),
-                     ...document.querySelectorAll(`video[class*="videomax-ext-video-matched"]`)];
-    return matched.length > 0;
+    const attr = document.body.getAttribute(VIDEO_MAX_INSTALLED_ATTR) || "";
+    return attr?.length > 0;
   };
 
   /**
@@ -2652,6 +2651,7 @@ try { // scope and prevent errors from leaking out to page.
           // unzoom here!
           videomaxGlobals.isMaximized = false;
           videomaxGlobals.unzooming = true;
+          document.body.removeAttribute(VIDEO_MAX_INSTALLED_ATTR);
           try {
             const allVideos = document.querySelectorAll("video");
             for (const eachVideo of allVideos) {
@@ -2766,13 +2766,14 @@ try { // scope and prevent errors from leaking out to page.
 
     videomaxGlobals.isMaximized = true;
 
-
     // this timer will hide everything
     if (videomaxGlobals.tagonly) {
+      document.body.setAttribute(VIDEO_MAX_INSTALLED_ATTR, "tagonly");
       recursiveIFrameFlipClassPrep(document);
       recursiveIFrameFlipClassPrep(getTopElemNode());
       trace("Tag only is set. Will not modify page to zoom video");
     } else {
+      document.body.setAttribute(VIDEO_MAX_INSTALLED_ATTR, "zoomed");
       videomaxGlobals.hideEverythingTimer?.startTimer(() => {
         if (document.videmax_cmd === "unzoom") {
           trace("UNZOOMING! - skipping hideEverythingTimer");
@@ -2791,6 +2792,7 @@ try { // scope and prevent errors from leaking out to page.
         forceRefresh(window);
 
         videomaxGlobals.isMaximized = true;
+        document.body.setAttribute(VIDEO_MAX_INSTALLED_ATTR, "running");
         return true; // stop retrying - we kep trying to rehide
       });
     }
@@ -3256,6 +3258,7 @@ try { // scope and prevent errors from leaking out to page.
         const savedVideo = videomaxGlobals.matchedVideo;
         videomaxGlobals.unzooming = true;
         videomaxGlobals.isMaximized = false;
+        document.body.removeAttribute(VIDEO_MAX_INSTALLED_ATTR);
 
         if (videomaxGlobals.matchedVideo) {
           updateEventListeners(videomaxGlobals.matchedVideo, true);
