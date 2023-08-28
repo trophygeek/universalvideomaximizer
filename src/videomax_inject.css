@@ -145,3 +145,7 @@ body.videomax-ext-crackle #player-controls.videomax-ext-overlap {
   top: auto !important;
   height: calc(100vw) !important;
 }
+
+body.videomax-ext-redd div.mx-auto.videomax-ext-overlap {
+  visibility: hidden !important;
+}

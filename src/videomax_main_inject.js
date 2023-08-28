@@ -15,7 +15,7 @@ try { // scope and prevent errors from leaking out to page.
   const BREAK_ON_BEST_MATCH = false;
 
   // These are noisy and can be enabled when debugging areas. FULL_DEBUG must also be true
-  const EMBED_SCORES = true;
+  const EMBED_SCORES = false;
   const COMMON_PARENT_SCORES = false;
   const DEBUG_HIDENODE = false;
   const DEBUG_MUTATION_OBSERVER = false;
@@ -42,6 +42,7 @@ try { // scope and prevent errors from leaking out to page.
   const USE_BOOST_SCORES_FIND_COMMON = true;
   const USE_NERF_SCORES_FIND_COMMON = true;
   const FIX_UP_BODY_CLASS_TO_SITE_SPECIFIC_CSS_MATCH = true;
+  const OVERLAPS_REQUIRE_TRANSITION_EFFECTS = false;
 
   const MIN_VIDEO_WIDTH = 320;
   const MIN_VIDEO_HEIGHT = 240;
@@ -304,7 +305,7 @@ try { // scope and prevent errors from leaking out to page.
   /**
    * @return {string}
    */
-  const getPageUrl = () => (window?.location?.toString() !== window?.parent?.location?.toString()) ?
+  const getPageUrl = () => isRunningInIFrame() ?
                document.referrer :
                document.location.href;
 
@@ -851,14 +852,20 @@ try { // scope and prevent errors from leaking out to page.
     }, 10);
   }
 
+  // cache this. Trying to avoid hard-coding "all 0s ease 0s"
+  let g_cachedDefaultTransitionString = "";
   /**
    * @param compStyleElem {CSSStyleDeclaration}
    * @return {boolean}
    */
-  const hasTransitionEffect = (compStyleElem) => compStyleElem?.transition !== "all 0s ease 0s" // kind
-                                                                                                // of
-                                                                                                // lame
-  ;
+  const hasTransitionEffect = (compStyleElem) => {
+    if (g_cachedDefaultTransitionString.length === 0) {
+      const bodystyle = getElemComputedStyle(document.body);
+      g_cachedDefaultTransitionString = bodystyle.transition;
+      trace(`g_cachedDefaultTransitionString: "${g_cachedDefaultTransitionString}"`);
+    }
+    return compStyleElem?.transition !== g_cachedDefaultTransitionString;
+  };
 
   let containDbgMsg = "";
 
@@ -1428,10 +1435,14 @@ try { // scope and prevent errors from leaking out to page.
     if (containsAnyVideoMaxClass(elem)) {
       // if we hit a "no-hide" then we need to add the overlap!
       if (elem.classList.contains(NO_HIDE_CLASS)) {
-        trace(`  hideNode: Adding overlap class since it contained NO_HIDE_CLASS! ${printElem}`);
+        if (DEBUG_HIDENODE) {
+          trace(`  hideNode: Adding overlap class since it contained NO_HIDE_CLASS! ${printElem}`);
+        }
         addOverlapCtrl(elem);
       } else if (DEBUG_HIDENODE) {
-        trace(`  hideNode: NOT HIDING already contains videomax class ${printElem}`);
+        if (DEBUG_HIDENODE) {
+          trace(`  hideNode: NOT HIDING already contains videomax class ${printElem}`);
+        }
       }
       return false;
     }
@@ -1472,6 +1483,16 @@ try { // scope and prevent errors from leaking out to page.
         trace(`NOT addOverlapCtrl special case: ${PrintNode(elem)}}`);
       }
       return;
+    }
+    if (OVERLAPS_REQUIRE_TRANSITION_EFFECTS && !hasTransitionEffect(getElemComputedStyle(elem))) {
+      // this is risky because some "skip ads" buttons do not disappear.
+      if (DEBUG_HIDENODE) {
+        trace(`NOT addOverlapCtrl hasTransitionEffect: ${PrintNode(elem)}}`);
+      }
+      return
+    }
+    if (DEBUG_HIDENODE) {
+      trace(`addOverlapCtrl: ${PrintNode(elem)}}`);
     }
     elem?.classList?.add(OVERLAP_CSS_CLASS);
     if (SAVE_STYLE_FOR_OVERLAPs) {
@@ -2614,7 +2635,6 @@ try { // scope and prevent errors from leaking out to page.
                          // of events (NBC Banner ad)
     addClassMutationObserver();
     videoCanPlayBufferingInit();
-
     if (FIX_UP_BODY_CLASS_TO_SITE_SPECIFIC_CSS_MATCH) {
       try {
         // The easiest way to fix site specific layout issues to to do it in CSS.
@@ -3078,6 +3098,9 @@ try { // scope and prevent errors from leaking out to page.
     const videos = document.getElementsByTagName("video");
     for (const eachVideo of videos) {
       try {
+        if (eachVideo.playbackRate !== 1.0) {
+          eachVideo.playbackRate = 1.0;
+        }
         eachVideo.removeEventListener("canplay", updateSpeedFromAttr);
       } catch (err) {
         logerr(err);
