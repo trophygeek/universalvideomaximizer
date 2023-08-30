@@ -1891,9 +1891,15 @@ try { // scope and prevent errors from leaking out to page.
       const matchesVolume = [...topElem.querySelectorAll(`input[type="range"]`)].filter(
         (e) => smellsLikeMatch(e, [/volume/i]));
       const matchesSlider = [...topElem.querySelectorAll(`[role="slider"]`)].filter(
-        (e) => isSkippedNode(e));
+        (e) => !isSkippedNode(e));
       const matchesPresentation = [...topElem.querySelectorAll(`[role="presentation"]`)].filter(
-        (e) => isSkippedNode(e));
+        (e) => !isSkippedNode(e));
+      if (DEBUG_HIDENODE) {
+        trace(`getAllElementsThatSmellsLikeControls for ${PrintNode(commonContainerElem)}
+        matchesVolume: `,matchesVolume,`
+        matchesSlider: `,matchesSlider,`
+        matchesPresentation: `, matchesPresentation);
+      }
       return [
         ...matchesVolume,
         ...matchesSlider,
