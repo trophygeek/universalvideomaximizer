@@ -132,10 +132,10 @@ video::-webkit-media-controls {
 /* livejasmin elements that block video and don't fade out.
    fragile solution, but if it becomes an issue we can use elementsFromPoint() and
    see if any matches do not have a transition on them. */
-.mc_video_overlay.mc_js_video_overlay.videomax-ext-overlap,
-.curtains.mc_js_curtains.curtains_hidden.videomax-ext-overlap,
-.mc_video_background.videomax-ext-overlap,
-.mc_bonus_animation.js_bonus_animation.mc_bonus_animation--with_sidebar.videomax-ext-overlap {
+body.livejasmin .mc_video_overlay.mc_js_video_overlay.videomax-ext-overlap,
+body.livejasmin .curtains.mc_js_curtains.curtains_hidden.videomax-ext-overlap,
+body.livejasmin .mc_video_background.videomax-ext-overlap,
+body.livejasmin .mc_bonus_animation.js_bonus_animation.mc_bonus_animation--with_sidebar.videomax-ext-overlap {
   visibility: hidden !important;
 }
 

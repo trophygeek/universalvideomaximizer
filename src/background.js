@@ -1058,7 +1058,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
             // popup is open, so keep zoomed
             trace("tabs.onUpdated: Popup UI Open so REzooming");
             await ReZoom(tabId, domain, DEFAULT_SPEED);
-          } else if (newUrl !== lastUrl) {
+          } else if (!!newUrl?.length && newUrl !== lastUrl) {
             setLastUrlFromOnUpdated(tabId, newUrl);
             trace(`tabs.onUpdated: Popup UI CLOSED so UNzooming. 
               newUrl: "${newUrl}"

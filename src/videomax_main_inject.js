@@ -43,6 +43,7 @@ try { // scope and prevent errors from leaking out to page.
   const USE_NERF_SCORES_FIND_COMMON = true;
   const FIX_UP_BODY_CLASS_TO_SITE_SPECIFIC_CSS_MATCH = true;
   const OVERLAPS_REQUIRE_TRANSITION_EFFECTS = false;
+  const REMOVE_STYLE_FROM_ELEMS = false; // test to see it can be removed
 
   const MIN_VIDEO_WIDTH = 320;
   const MIN_VIDEO_HEIGHT = 240;
@@ -137,6 +138,11 @@ try { // scope and prevent errors from leaking out to page.
                               "form",
                               "hgroup",
                               "input"];
+  const SKIPPED_NODE_NAMES_FOR_PLAYBACK_CTRLS = [
+    ...IGNORE_NODES,
+    ...SKIPPED_NODE_NAMES,
+    ...IGNORE_COMMON_CONTAINER_COUNT_NODES];
+
   const CSS_STYLE_HEADER_ID = "maximizier-css-inject";
 
   // we use the prop class then flip all the classes at the end.
@@ -171,7 +177,6 @@ try { // scope and prevent errors from leaking out to page.
 
 
   const REMOVE_ATTR_LIST = [PLAYBACK_SPEED_ATTR,
-
                             VIDEO_MAX_ATTRIB_FIND,
                             EMBEDED_SCORES,
     // old videomax for comparision. remove them too
@@ -306,8 +311,8 @@ try { // scope and prevent errors from leaking out to page.
    * @return {string}
    */
   const getPageUrl = () => isRunningInIFrame() ?
-               document.referrer :
-               document.location.href;
+                           document.referrer :
+                           document.location.href;
 
   /**
    * Needs unit tests. ATTEMPT to turn "www.foo.com" and "web.foo.net" into just "foo".
@@ -413,6 +418,13 @@ try { // scope and prevent errors from leaking out to page.
   };
 
   /**
+   * @param elem {Node || HTMLElement}
+   * @return {boolean}
+   */
+  const isIFrameElem = (elem) => elem?.nodeName === "IFRAME" || elem?.nodeName === "FRAME" || false;
+
+
+  /**
    *
    * @param elem {Element}
    * @return {Element || undefined}
@@ -473,7 +485,26 @@ try { // scope and prevent errors from leaking out to page.
       if (!elem) {
         return "undefined";
       }
-      const clone = elem?.cloneNode(false);
+      // lol... if <video> has autoplay, then a cloneNode can trigger the sound to play twice.
+      let restoreAutoplayAttr = null;
+      if (elem.nodeName === "VIDEO") {
+        // playeur gets duplicate sound playing. So weird.
+        restoreAutoplayAttr = getAttr(bestMatch, "autoplay");
+        if (!!restoreAutoplayAttr?.length) {
+          trace(`Removing autoplay from video element`);
+          removeAttr(elem, "autoplay");
+          // technically, we should re-add it below but this is a debug feature.
+        }
+        // now we should "play"
+      }
+
+      let clone = elem?.cloneNode(false);
+
+      if (!!restoreAutoplayAttr?.length) {
+        trace(`Restoring autoplay from video element`);
+        setAttr(elem, "autoplay", restoreAutoplayAttr);
+      }
+
       if (!clone) {
         return "";
       }
@@ -482,6 +513,11 @@ try { // scope and prevent errors from leaking out to page.
         clone.srcdoc = "";
       }
       const result = clone?.outerHTML || " - ";
+
+      // do our best to free this.
+      delete(clone);
+      clone = null;
+
       // don't allow it to be too big. iframes with inlined src can be huge
       return result.substring(0, 1024);
     } catch (err) {
@@ -585,7 +621,7 @@ try { // scope and prevent errors from leaking out to page.
    * @param node {Node || HTMLElement}
    * @return {boolean}
    */
-  const containsAnyVideoMaxClass = (node) => {
+  const hasAnyVideoMaxClass = (node) => {
     try {
       // node.className for an svg element is an array not a string.
       const className = getAttr(node, "class");
@@ -789,12 +825,6 @@ try { // scope and prevent errors from leaking out to page.
   const getElemsDocumentView = (node) => getOwnerDoc(node).defaultView;
 
   /**
-   * @param elem {Node || HTMLElement}
-   * @return {boolean}
-   */
-  const isIFrameElem = (elem) => elem?.nodeName === "IFRAME" || elem?.nodeName === "FRAME" || false;
-
-  /**
    * This is kind of an expensive op, maybe cache. The CSSStyleDeclaration is massive.
    * @param node {Node || HTMLElement}
    * @returns {CSSStyleDeclaration}
@@ -909,7 +939,8 @@ try { // scope and prevent errors from leaking out to page.
       if (recurseFirst) {
         if (USE_BOOST_SCORES_FIND_COMMON) {
           const boostMatches = [...e.querySelectorAll(`[role="slider"]`)];
-                                    // ...e.querySelectorAll(`[role="presentation"]`)]; // player puts this on every preview video on the page
+          // ...e.querySelectorAll(`[role="presentation"]`)]; // player puts this on every preview
+          // video on the page
           count += boostMatches.length * 2;  // 2x points if there's a slider under this element.
           if (COMMON_PARENT_SCORES) {
             containDbgMsg += `\n Slider count: BOOST +${boostMatches.length}*2 result:${count}`;
@@ -1088,12 +1119,13 @@ try { // scope and prevent errors from leaking out to page.
     }
   };
 
-  /**
-   * @param el {HTMLElement}
-   * @return {boolean}
-   */
+  /** @param el {HTMLElement}
+   * @return {boolean} */
   const isSkippedNode = (el) => SKIPPED_NODE_NAMES.includes(el?.nodeName.toLowerCase());
 
+  /** @param el {HTMLElement || Node}
+   * @return {boolean} */
+  const isSkippedNodeForCntl = (el) => SKIPPED_NODE_NAMES_FOR_PLAYBACK_CTRLS.includes(el?.nodeName.toLowerCase());
 
   /**
    * @param el {HTMLElement}
@@ -1137,7 +1169,9 @@ try { // scope and prevent errors from leaking out to page.
     walker.currentNode = elem;
     do {
       try {
-        // hack test
+        if (hasAnyVideoMaxClass(walker?.currentNode)) {
+          continue;
+        }
         if (IF_PATH_INVISIBLE_DO_NOT_MAXIMIZE && className === MAX_CSS_CLASS &&
             !isVisible(walker?.currentNode)) {
           if (DEBUG_HIDENODE) {
@@ -1321,7 +1355,7 @@ try { // scope and prevent errors from leaking out to page.
       newParams.width = SCALESTRING_WIDTH;
       newParams.height = SCALESTRING_HEIGHT;
       newParams.quality = "high";
-      newParams.autoplay = "true";
+      // newParams.autoplay = "true";
 
       // edit in place
       for (const eachnode of node.childNodes) {
@@ -1370,13 +1404,13 @@ try { // scope and prevent errors from leaking out to page.
                 params[key] = "showAll";
                 break;
 
-              case "autoplay":
-                if (params[key] === "0") {
-                  params[key] = "1";
-                } else {
-                  params[key] = "true";
-                }
-                break;
+              // case "autoplay":
+              //   if (params[key] === "0") {
+              //     params[key] = "1";
+              //   } else {
+              //     params[key] = "true";
+              //   }
+              //   break;
 
               case "flashlets":
               case "data": {
@@ -1409,7 +1443,10 @@ try { // scope and prevent errors from leaking out to page.
    */
   const noHideNode = (elem) => {
     try {
-      if (!containsAnyVideoMaxClass(elem) || alwaysHideSomeElements()) {
+      if (!hasAnyVideoMaxClass(elem) || alwaysHideSomeElements()) {
+        if (DEBUG_HIDENODE) {
+          trace(`Setting noHideNode for ${PrintNode(elem)}`);
+        }
         elem?.classList?.add(NO_HIDE_CLASS);
       }
     } catch (err) {
@@ -1432,7 +1469,7 @@ try { // scope and prevent errors from leaking out to page.
       return false;
     }
 
-    if (containsAnyVideoMaxClass(elem)) {
+    if (hasAnyVideoMaxClass(elem)) {
       // if we hit a "no-hide" then we need to add the overlap!
       if (elem.classList.contains(NO_HIDE_CLASS)) {
         if (DEBUG_HIDENODE) {
@@ -1472,27 +1509,28 @@ try { // scope and prevent errors from leaking out to page.
       }
       return;
     }
-    if (containsAnyVideoMaxClass(elem)) {
+    const debugPrintNode = DEBUG_HIDENODE ? PrintNode(elem) : "";
+    if (hasAnyVideoMaxClass(elem)) {
       if (DEBUG_HIDENODE) {
-        trace(`NOT addOverlapCtrl containsAnyVideoMaxClass: ${PrintNode(elem)}}`);
+        trace(`NOT addOverlapCtrl containsAnyVideoMaxClass: ${debugPrintNode}`);
       }
       return;
     }
     if (isSpecialCaseNeverOverlap(elem)) {
       if (DEBUG_HIDENODE) {
-        trace(`NOT addOverlapCtrl special case: ${PrintNode(elem)}}`);
+        trace(`NOT addOverlapCtrl special case: ${debugPrintNode}`);
       }
       return;
     }
     if (OVERLAPS_REQUIRE_TRANSITION_EFFECTS && !hasTransitionEffect(getElemComputedStyle(elem))) {
       // this is risky because some "skip ads" buttons do not disappear.
       if (DEBUG_HIDENODE) {
-        trace(`NOT addOverlapCtrl hasTransitionEffect: ${PrintNode(elem)}}`);
+        trace(`NOT addOverlapCtrl hasTransitionEffect: ${debugPrintNode}`);
       }
-      return
+      return;
     }
     if (DEBUG_HIDENODE) {
-      trace(`addOverlapCtrl: ${PrintNode(elem)}}`);
+      trace(`addOverlapCtrl: ${debugPrintNode}`);
     }
     elem?.classList?.add(OVERLAP_CSS_CLASS);
     if (SAVE_STYLE_FOR_OVERLAPs) {
@@ -1786,15 +1824,18 @@ try { // scope and prevent errors from leaking out to page.
    * @return {boolean}
    */
   const smellsLikeMatch = (elem, matches) => {
-    const elementAttribsStr = PrintNode(elem)
-      .toLowerCase();
-    if (elementAttribsStr?.length) {
-      for (const eachMatch of matches) {
-        if (eachMatch.test(elementAttribsStr)) {
-          trace(`smellsLikeMatch true for "${elementAttribsStr}"`, eachMatch);
-          return true;
+    try {
+      const elementAttribsStr = PrintNode(elem).toLowerCase();
+      if (elementAttribsStr?.length) {
+        for (const eachMatch of matches) {
+          if (eachMatch.test(elementAttribsStr)) {
+            trace(`smellsLikeMatch true for "${elementAttribsStr}"`, eachMatch);
+            return true;
+          }
         }
       }
+    } catch (err) {
+      trace(`smellsLikeMatch err`, err);
     }
     return false;
   };
@@ -1818,6 +1859,10 @@ try { // scope and prevent errors from leaking out to page.
   const isSpecialCaseNeverOverlap = (_elem) => // in theory more logic can go here.
     false;
 
+  /** optimization since the matches are called often */
+  const AdverRegex = new RegExp(/(?:^|\W|-)adver/ig);
+  const AdRegex = new RegExp(/(?:^|\W|-)ad-|-ad$/ig);
+  const BrandingRegex = new RegExp(/(?:^|\W|-)branding/ig);
   /**
    * Does NOT block ads.
    * Some specific rules where ads overlap videos and when we zoom them and
@@ -1825,32 +1870,33 @@ try { // scope and prevent errors from leaking out to page.
    * Most sights do it right, but there some that don't.
    * @param elem {Node}
    */
-  const smellsLikeAd = (elem) => {
+  const smellsLikeAdElem = (elem) => {
+    // regex /^(@)(\wadver)/ig)) <- means start of word
     const arialabel = getAttr(elem, "aria-label");
-    if (arialabel?.match(/^adver/i)) {
-      trace(`smellsLikeAd: matched aria-label for "adver" '${arialabel}'`);
+    if (arialabel?.match(AdverRegex)) {
+      trace(`smellsLikeAdElem: matched aria-label for "adver" '${arialabel}'`);
       return true;
     }
-    if (arialabel?.match(/^ad-/i)) {
-      trace(`smellsLikeAd: matched aria-label for "ad-" '${arialabel}'`);
+    if (arialabel?.match(AdRegex)) {
+      trace(`smellsLikeAdElem: matched aria-label for "ad-" '${arialabel}'`);
       return true;
     }
     const className = getAttr(elem, "class");
-    if (className?.match(/^adver/i)) {
-      trace(`smellsLikeAd: matched classname for "adver"? '${className}'`);
+    if (className?.match(AdverRegex)) {
+      trace(`smellsLikeAdElem: matched classname for "adver"? '${className}'`);
       return true;
     }
-    if (className?.match(/^branding/i)) {
-      trace(`msmellsLikeAd: atched classname for "branding"? '${className}'`);
+    if (className?.match(BrandingRegex)) {
+      trace(`smellsLikeAdElem: atched classname for "branding"? '${className}'`);
       return true;
     }
     const title = getAttr(elem, "title");
-    if (title?.match(/^adver/i)) {
-      trace(`smellsLikeAd: matched title for "adver" '${title}'`);
+    if (title?.match(AdverRegex)) {
+      trace(`smellsLikeAdElem: matched title for "adver" '${title}'`);
       return true;
     }
-    if (title?.match(/^ad-/i)) {
-      trace(`smellsLikeAd: matched title for "ad-" '${title}'`);
+    if (title?.match(AdRegex)) {
+      trace(`smellsLikeAdElem: matched title for "ad-" '${title}'`);
       return true;
     }
     return false;
@@ -1886,18 +1932,20 @@ try { // scope and prevent errors from leaking out to page.
    */
   const getAllElementsThatSmellsLikeControls = (commonContainerElem) => {
     // the volume matcher can be tested on nbcnews.com/now
+    // negative case test that matches ads on dailymail
     const topElem = commonContainerElem ? commonContainerElem : window.document;
+
     try {
       const matchesVolume = [...topElem.querySelectorAll(`input[type="range"]`)].filter(
-        (e) => smellsLikeMatch(e, [/volume/i]));
+        (e) => !isSkippedNodeForCntl(e) && smellsLikeMatch(e, [/volume/i]) && !smellsLikeAdElem(e));
       const matchesSlider = [...topElem.querySelectorAll(`[role="slider"]`)].filter(
-        (e) => !isSkippedNode(e));
+        (e) => !isSkippedNodeForCntl(e) && !smellsLikeAdElem(e));
       const matchesPresentation = [...topElem.querySelectorAll(`[role="presentation"]`)].filter(
-        (e) => !isSkippedNode(e));
+        (e) => !isSkippedNodeForCntl(e) && !smellsLikeAdElem(e));
       if (DEBUG_HIDENODE) {
         trace(`getAllElementsThatSmellsLikeControls for ${PrintNode(commonContainerElem)}
-        matchesVolume: `,matchesVolume,`
-        matchesSlider: `,matchesSlider,`
+        matchesVolume: `, matchesVolume, `
+        matchesSlider: `, matchesSlider, `
         matchesPresentation: `, matchesPresentation);
       }
       return [
@@ -2112,7 +2160,7 @@ try { // scope and prevent errors from leaking out to page.
       const overlapCount = getOverlapCount(pageParts, urlParts);
       const count = Math.max(1, pageParts.length);
       const avgCount = (count + count) / 2.0;
-      return  overlapCount / avgCount;
+      return overlapCount / avgCount;
     };
 
     /**
@@ -2278,7 +2326,7 @@ try { // scope and prevent errors from leaking out to page.
         weight += (START_WEIGHT * ALLOW_FULLSCREEN_WEIGHT);
       }
 
-      if (smellsLikeAd(elem)) {
+      if (smellsLikeAdElem(elem)) {
         // don't hide ads, but we dont' want to match them as main videos
         // ADVERTISE_WEIGHT is Neg
         if (EMBED_SCORES) {
@@ -2520,8 +2568,10 @@ try { // scope and prevent errors from leaking out to page.
           // We apply when we flip the classNames so we don't zero size things as
           // we're finding playback controls.
           if (subFrom.includes(MAX_CSS_CLASS)) {
-            // removes after saving off
-            backupAttr(eachElem, "style");
+            if (REMOVE_STYLE_FROM_ELEMS) {
+              // removes after saving off
+              backupAttr(eachElem, "style");
+            }
           }
         }
       } catch (err) {
@@ -2628,7 +2678,7 @@ try { // scope and prevent errors from leaking out to page.
       }
       return;
     }
-    if ( MUTATION_OBSERVER_WATCH_ALL_MAX===false && !videomaxGlobals.matchedCommonCntl) {
+    if (MUTATION_OBSERVER_WATCH_ALL_MAX === false && !videomaxGlobals.matchedCommonCntl) {
       if (DEBUG_MUTATION_OBSERVER) {
         trace(`OBSERVER: NOT INSTALLING observer because 
         MUTATION_OBSERVER_WATCH_ALL_MAX = ${MUTATION_OBSERVER_WATCH_ALL_MAX}
@@ -2657,8 +2707,8 @@ try { // scope and prevent errors from leaking out to page.
 
         domainName = domainName.replace(".", "-");
 
-        document.body.classList.add(`${PREFIX_CSS_CLASS}-${domainName}`)
-      } catch(err) {
+        document.body.classList.add(`${PREFIX_CSS_CLASS}-${domainName}`);
+      } catch (err) {
         logerr(err);
       }
     }
@@ -2677,7 +2727,7 @@ try { // scope and prevent errors from leaking out to page.
           // unzoom here!
           videomaxGlobals.isMaximized = false;
           videomaxGlobals.unzooming = true;
-          document.body.removeAttribute(VIDEO_MAX_INSTALLED_ATTR);
+          removeAttr(document.body, VIDEO_MAX_INSTALLED_ATTR);
           try {
             const allVideos = document.querySelectorAll("video");
             for (const eachVideo of allVideos) {
@@ -2899,16 +2949,18 @@ try { // scope and prevent errors from leaking out to page.
         }
       }
       if (DEBUG_MUTATION_OBSERVER) {
-        trace(`OBSERVER: installing MUTATION_OBSERVER_WATCH_ALL_MAX on ${zoomedElems.length} elements`);
+        trace(
+          `OBSERVER: installing MUTATION_OBSERVER_WATCH_ALL_MAX on ${zoomedElems.length} elements`);
         trace(`OBSERVER: check count using: 
         [...document.querySelectorAll('[class*="${PREFIX_CSS_CLASS}"]'),
         ...document.querySelectorAll('[class*="${PREFIX_CSS_CLASS_PREP}"]')].length
-        `)
+        `);
       }
     } else {
       if (DEBUG_MUTATION_OBSERVER) {
         if (videomaxGlobals.matchedCommonCntl) {
-          trace("OBSERVER: installing observer on matchedCommonCntl", videomaxGlobals.matchedCommonCntl);
+          trace("OBSERVER: installing observer on matchedCommonCntl",
+                videomaxGlobals.matchedCommonCntl);
         } else {
           trace("OBSERVER: \n\n \t ==== NOT installing no videomaxGlobals.matchedCommonCntl");
         }
@@ -2957,9 +3009,7 @@ try { // scope and prevent errors from leaking out to page.
             }
 
             // our classname was there, but it's removed?
-            const newClassName = getAttr(eachMutation.target, "class");
-            if (newClassName?.indexOf(PREFIX_CSS_CLASS) >= 0) {
-              // Found. likely still there. faster to assume it is then check each value.
+            if (hasAnyVideoMaxClass(eachMutation.target)) {
               continue;
             }
 
@@ -2972,6 +3022,7 @@ try { // scope and prevent errors from leaking out to page.
               }
             }
             if (oldClassNames.length > 0 && DEBUG_MUTATION_OBSERVER) {
+              const newClassName = getAttr(eachMutation.target, "class");
               trace(
                 `OBSERVER: detected classname changes\n\t before:"${eachMutation?.oldValue}"\n\t new:"${newClassName}"\n\t fixed:"${getAttr(
                   eachMutation.target, "class")}"`);
@@ -3077,7 +3128,8 @@ try { // scope and prevent errors from leaking out to page.
         // this can happen when ads cover or are behind the main video.
         const speedStr = document.body.getAttribute(PLAYBACK_SPEED_ATTR);
         const speedFloat = safeParseFloat(speedStr);
-        if (!videoElem.paused && !videoElem.ended && speedFloat > 0 && videoElem.playbackRate !== speedFloat) {
+        if (!videoElem.paused && !videoElem.ended && speedFloat > 0 && videoElem.playbackRate !==
+            speedFloat) {
           const isTopItem = isTopVisibleVideoElem(videoElem);
           trace(
             `updateSpeedFromAttr video: isTopVisibleVideoElem:${isTopItem} speedStr:${speedStr} \n\t\t ${PrintNode(

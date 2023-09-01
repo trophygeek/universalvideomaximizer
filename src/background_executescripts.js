@@ -253,10 +253,18 @@ export const injectVideoSkip = (skipSecondsStr) => {
  * @returns {boolean}
  */
 export const injectCssHeader = (cssHRef, styleId) => {
+  const MIN_IFRAME_WIDTH = 320;
+  const MIN_IFRAME_HEIGHT = 240;
+
   try {
     if (document.getElementById(styleId)) {
       // eslint-disable-next-line no-console
-      console.log(`VideoMax Native Inject. Style header already injected "${styleId}"`);
+      // console.log(`VideoMax Native Inject. Style header already injected "${styleId}"`);
+      return true;
+    }
+    if (window.innerWidth < MIN_IFRAME_WIDTH || window.innerHeight < MIN_IFRAME_HEIGHT) {
+      // eslint-disable-next-line no-console
+      // console.log(`VideoMax Native Inject. Style header already injected "${styleId}"`);
       return true;
     }
     const styleLink = document.createElement("link");
