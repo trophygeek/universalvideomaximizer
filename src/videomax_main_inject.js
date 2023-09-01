@@ -42,8 +42,9 @@ try { // scope and prevent errors from leaking out to page.
   const USE_BOOST_SCORES_FIND_COMMON = true;
   const USE_NERF_SCORES_FIND_COMMON = true;
   const FIX_UP_BODY_CLASS_TO_SITE_SPECIFIC_CSS_MATCH = true;
-  const OVERLAPS_REQUIRE_TRANSITION_EFFECTS = false;
+  const OVERLAPS_REQUIRE_TRANSITION_EFFECTS = true;
   const REMOVE_STYLE_FROM_ELEMS = false; // test to see it can be removed
+  const CHECK_PRESENTATION_ROLE = false; // removed to Youtube over-matching problem.
 
   const MIN_VIDEO_WIDTH = 320;
   const MIN_VIDEO_HEIGHT = 240;
@@ -1940,8 +1941,8 @@ try { // scope and prevent errors from leaking out to page.
         (e) => !isSkippedNodeForCntl(e) && smellsLikeMatch(e, [/volume/i]) && !smellsLikeAdElem(e));
       const matchesSlider = [...topElem.querySelectorAll(`[role="slider"]`)].filter(
         (e) => !isSkippedNodeForCntl(e) && !smellsLikeAdElem(e));
-      const matchesPresentation = [...topElem.querySelectorAll(`[role="presentation"]`)].filter(
-        (e) => !isSkippedNodeForCntl(e) && !smellsLikeAdElem(e));
+      const matchesPresentation = CHECK_PRESENTATION_ROLE ? [...topElem.querySelectorAll(`[role="presentation"]`)].filter(
+        (e) => !isSkippedNodeForCntl(e) && !smellsLikeAdElem(e)) : [];
       if (DEBUG_HIDENODE) {
         trace(`getAllElementsThatSmellsLikeControls for ${PrintNode(commonContainerElem)}
         matchesVolume: `, matchesVolume, `
