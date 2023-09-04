@@ -42,9 +42,10 @@ try { // scope and prevent errors from leaking out to page.
   const USE_BOOST_SCORES_FIND_COMMON = true;
   const USE_NERF_SCORES_FIND_COMMON = true;
   const FIX_UP_BODY_CLASS_TO_SITE_SPECIFIC_CSS_MATCH = true;
-  const OVERLAPS_REQUIRE_TRANSITION_EFFECTS = true;
+  const OVERLAPS_REQUIRE_TRANSITION_EFFECTS = false;
   const REMOVE_STYLE_FROM_ELEMS = false; // test to see it can be removed
   const CHECK_PRESENTATION_ROLE = false; // removed to Youtube over-matching problem.
+  const OVERLAPS_REQUIRE_TRANSITION_EFFECTS_RECURSIVE = true;
 
   const MIN_VIDEO_WIDTH = 320;
   const MIN_VIDEO_HEIGHT = 240;
@@ -516,7 +517,7 @@ try { // scope and prevent errors from leaking out to page.
       const result = clone?.outerHTML || " - ";
 
       // do our best to free this.
-      delete(clone);
+      delete (clone);
       clone = null;
 
       // don't allow it to be too big. iframes with inlined src can be huge
@@ -635,6 +636,11 @@ try { // scope and prevent errors from leaking out to page.
     return false;
   };
 
+  /** @param childElem {HTMLElement}
+   *  @return {boolean} */
+  const isUnderCommonCntlParentPath = (childElem) => {
+    return !!videomaxGlobals?.matchedCommonCntl?.contains(childElem);
+  };
 
   /**
    * Will copy the existing attribute into a data-videomax-{attr} as a save, then set the attr
@@ -898,6 +904,44 @@ try { // scope and prevent errors from leaking out to page.
     return compStyleElem?.transition !== g_cachedDefaultTransitionString;
   };
 
+  /**
+   * Will load computed style and work down dom as long as there's only ONE child element at
+   * each level. If the caller has compStyleElem, then first call hasTransitionEffect
+   * @param elem {HTMLElement}
+   * @param skipParent {boolean}
+   * @return {boolean}
+   */
+  const hasTransitionEffectRecursive = (elem, skipParent = false) => {
+    if (!skipParent) {
+      if (hasTransitionEffect(getElemComputedStyle(elem))) {
+        return true;
+      }
+    }
+    if (!OVERLAPS_REQUIRE_TRANSITION_EFFECTS_RECURSIVE) {
+      return false;
+    }
+    let currentElem = elem;
+    do {
+
+      if (hasTransitionEffect(getElemComputedStyle(currentElem))) {
+        return true;
+      }
+
+      const siblings = getSiblings(currentElem, isSkippedNonDiv); // filter out nodes like <script>
+      for (let sibling of siblings) {
+        if (hasTransitionEffect(getElemComputedStyle(siblings[0]))) {
+          return true;
+        }
+      }
+      if (siblings.length > 2) {
+        return false;
+      }
+      // we get here if there are no siblings, we keep drilling down.
+      currentElem = currentElem.firstElementChild;
+    } while (currentElem);
+    return false;
+  };
+
   let containDbgMsg = "";
 
   /**
@@ -913,6 +957,8 @@ try { // scope and prevent errors from leaking out to page.
     if (DEBUG_ENABLED) {
       const matches = document.querySelectorAll(`.${MARKER_COMMON_CONTAINER_CLASS}`);
       if (matches?.length) {
+        // https://www.nbcnews.com/now  iframe that we can drill down into. it finds a -common in the
+        // iframe but the actual controls are in the parent document.
         logerr(`Already found common container, shouldn't match two. IFrame issue?`, matches);
       }
     }
@@ -951,7 +997,7 @@ try { // scope and prevent errors from leaking out to page.
         if (USE_NERF_SCORES_FIND_COMMON) {
           const nerfMatches = [...e.querySelectorAll(`[role="toolbar"]`),
                                ...e.querySelectorAll(`[role="navigation"]`)];
-          count -= nerfMatches.length * 2;  // 2x points if there's a navigation components under
+          count -= nerfMatches.length * 2;  // -2x points if there's a navigation components under
                                             // this element.
           if (COMMON_PARENT_SCORES) {
             containDbgMsg += `\n Slider count: NERF -${nerfMatches.length}*2 result:${count}`;
@@ -1098,20 +1144,35 @@ try { // scope and prevent errors from leaking out to page.
         try {
           const siblings = getSiblings(eachElem);
           for (const eachSibling of siblings) {
-            if (getAllElementsThatSmellsLikeControls(eachSibling).length) {
+            if (hasAnyVideoMaxClass(eachSibling)) {
+              continue;
+            }
+            const underCommonCntl = isUnderCommonCntlParentPath(eachSibling);
+
+            if (underCommonCntl && hasTransitionEffectRecursive(eachSibling)) {
+              if (DEBUG_HIDENODE) {
+                trace(`lastDitchHide hasTransitionEffectRecursive=true not hiding. ${PrintNode(
+                  eachSibling)}`);
+              }
+              if (NOHIDENODE_REAPPLY) {
+                noHideNode(eachSibling);
+                continue;
+              }
+            }
+            if (underCommonCntl && getAllElementsThatSmellsLikeControls(eachSibling).length) {
               if (DEBUG_HIDENODE) {
                 trace(`lastDitchHide Smells like Controls. ${PrintNode(eachSibling)}`,
                       getAllElementsThatSmellsLikeControls(eachSibling));
               }
               if (NOHIDENODE_REAPPLY) {
                 noHideNode(eachSibling);
+                continue;
               }
-            } else {
-              if (DEBUG_HIDENODE) {
-                trace(`lastDitchHide Hiding. ${PrintNode(eachSibling)}`);
-              }
-              hideNode(eachSibling);
             }
+            if (DEBUG_HIDENODE) {
+              trace(`lastDitchHide Hiding. ${PrintNode(eachSibling)}`);
+            }
+            hideNode(eachSibling);
           }
         } catch (err) {
           logerr(err);
@@ -1127,6 +1188,10 @@ try { // scope and prevent errors from leaking out to page.
   /** @param el {HTMLElement || Node}
    * @return {boolean} */
   const isSkippedNodeForCntl = (el) => SKIPPED_NODE_NAMES_FOR_PLAYBACK_CTRLS.includes(el?.nodeName.toLowerCase());
+
+  /** @param el {HTMLElement}
+   * @return {boolean} */
+  const isSkippedNonDiv = (el) => !["div", "section"].includes(el.nodeName.toLowerCase());
 
   /**
    * @param el {HTMLElement}
@@ -1523,10 +1588,15 @@ try { // scope and prevent errors from leaking out to page.
       }
       return;
     }
-    if (OVERLAPS_REQUIRE_TRANSITION_EFFECTS && !hasTransitionEffect(getElemComputedStyle(elem))) {
+    // the issue: controls overlapping should have a transition effect but their are exceptions:
+    // Skip ad buttons... and ads!
+    if (OVERLAPS_REQUIRE_TRANSITION_EFFECTS &&
+        !hasTransitionEffect(getElemComputedStyle(elem)) &&
+        !hasTransitionEffectRecursive(elem, true)) {
+
       // this is risky because some "skip ads" buttons do not disappear.
       if (DEBUG_HIDENODE) {
-        trace(`NOT addOverlapCtrl hasTransitionEffect: ${debugPrintNode}`);
+        trace(`NOT addOverlapCtrl !hasTransitionEffect: ${debugPrintNode}`);
       }
       return;
     }
@@ -1543,19 +1613,23 @@ try { // scope and prevent errors from leaking out to page.
   /**
    * All siblings as an array, (but not the node passed)
    * @param node {Node}
+   * @param skipFunction {(HTMLElement) => boolean}
    * @return {Node[]}
    */
-  const getSiblings = (node) => {
+  const getSiblings = (node, skipFunction = isSkippedNode) => {
     try {
       if (!node.parentElement?.children) {
         return [];
       }
-      return [...node.parentElement.children].filter(c => {
+      const result = [...node.parentElement.children].filter(c => {
         if (c === node) {
           return false;
         }
-        if (c.nodeType === Node.ELEMENT_NODE) {
-          return true;
+        // if (c.nodeType === Node.ELEMENT_NODE) {
+        //   return true;
+        // }
+        if (c.nodeType !== Node.ELEMENT_NODE) {
+          return false;
         }
         if (c.nodeType === Node.DOCUMENT_NODE) {
           // this includes HTML, XML and SVG!
@@ -1563,8 +1637,10 @@ try { // scope and prevent errors from leaking out to page.
             return false;
           }
         }
-        return !isSkippedNode(c);
+        return !skipFunction(c);
       });
+      trace(`getSiblings`, result);
+      return result;
     } catch (err) {
       logerr(err);
       return [];
@@ -1826,7 +1902,8 @@ try { // scope and prevent errors from leaking out to page.
    */
   const smellsLikeMatch = (elem, matches) => {
     try {
-      const elementAttribsStr = PrintNode(elem).toLowerCase();
+      const elementAttribsStr = PrintNode(elem)
+        .toLowerCase();
       if (elementAttribsStr?.length) {
         for (const eachMatch of matches) {
           if (eachMatch.test(elementAttribsStr)) {
@@ -1941,8 +2018,10 @@ try { // scope and prevent errors from leaking out to page.
         (e) => !isSkippedNodeForCntl(e) && smellsLikeMatch(e, [/volume/i]) && !smellsLikeAdElem(e));
       const matchesSlider = [...topElem.querySelectorAll(`[role="slider"]`)].filter(
         (e) => !isSkippedNodeForCntl(e) && !smellsLikeAdElem(e));
-      const matchesPresentation = CHECK_PRESENTATION_ROLE ? [...topElem.querySelectorAll(`[role="presentation"]`)].filter(
-        (e) => !isSkippedNodeForCntl(e) && !smellsLikeAdElem(e)) : [];
+      const matchesPresentation = CHECK_PRESENTATION_ROLE ?
+                                  [...topElem.querySelectorAll(`[role="presentation"]`)].filter(
+                                    (e) => !isSkippedNodeForCntl(e) && !smellsLikeAdElem(e)) :
+                                  [];
       if (DEBUG_HIDENODE) {
         trace(`getAllElementsThatSmellsLikeControls for ${PrintNode(commonContainerElem)}
         matchesVolume: `, matchesVolume, `
@@ -3080,7 +3159,9 @@ try { // scope and prevent errors from leaking out to page.
 
     if (isRunningInIFrame()) {
       // this could be tricky as hell... we likely to what's outside our frame
-      debugger;
+      if (FULL_DEBUG) {
+        debugger;
+      }
     }
     // center of the element
     const {
@@ -3402,7 +3483,8 @@ try { // scope and prevent errors from leaking out to page.
               debugger;
             }
           }
-        }
+        } // DEBUG_ENABLED
+
         // clear if we have var saved in window/document
         if (!isRunningInIFrame() && window?._VideoMaxExt) {
           window._VideoMaxExt = undefined;

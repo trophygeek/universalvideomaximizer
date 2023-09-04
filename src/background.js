@@ -587,7 +587,7 @@ async function DoZoom(tabId, state, domain) {
 
     if (excluded_zoom || state === "SPEED_ONLY") {
       await Promise.all([DoInjectTagOnlyJS(tabId),
-                         DoInjectZoomCSS(tabId, true),
+                         // DoInjectZoomCSS(tabId, true),
                          setCurrentTabState(tabId, "ZOOMING_SPEED_ONLY", domain)]);
     } else {
       await Promise.all([DoInjectZoomJS(tabId),

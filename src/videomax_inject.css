@@ -149,3 +149,7 @@ body.videomax-ext-crackle #player-controls.videomax-ext-overlap {
 body.videomax-ext-redd div.mx-auto.videomax-ext-overlap {
   visibility: hidden !important;
 }
+
+body.videomax-ext-pornhub div.mgp_adRollContainer.videomax-ext-overlap {
+  visibility: reset !important;
+}
