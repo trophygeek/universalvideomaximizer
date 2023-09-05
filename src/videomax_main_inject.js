@@ -491,8 +491,8 @@ try { // scope and prevent errors from leaking out to page.
       let restoreAutoplayAttr = null;
       if (elem.nodeName === "VIDEO") {
         // playeur gets duplicate sound playing. So weird.
-        restoreAutoplayAttr = getAttr(bestMatch, "autoplay");
-        if (!!restoreAutoplayAttr?.length) {
+        restoreAutoplayAttr = getAttr(elem, "autoplay");
+        if (restoreAutoplayAttr?.length) {
           trace(`Removing autoplay from video element`);
           removeAttr(elem, "autoplay");
           // technically, we should re-add it below but this is a debug feature.
@@ -502,7 +502,7 @@ try { // scope and prevent errors from leaking out to page.
 
       let clone = elem?.cloneNode(false);
 
-      if (!!restoreAutoplayAttr?.length) {
+      if (restoreAutoplayAttr?.length) {
         trace(`Restoring autoplay from video element`);
         setAttr(elem, "autoplay", restoreAutoplayAttr);
       }
@@ -517,11 +517,10 @@ try { // scope and prevent errors from leaking out to page.
       const result = clone?.outerHTML || " - ";
 
       // do our best to free this.
-      delete (clone);
       clone = null;
 
       // don't allow it to be too big. iframes with inlined src can be huge
-      return result.substring(0, 1024);
+      return result.substring(0, 2048);
     } catch (err) {
       return " - ";
     }
@@ -638,9 +637,8 @@ try { // scope and prevent errors from leaking out to page.
 
   /** @param childElem {HTMLElement}
    *  @return {boolean} */
-  const isUnderCommonCntlParentPath = (childElem) => {
-    return !!videomaxGlobals?.matchedCommonCntl?.contains(childElem);
-  };
+  const isUnderCommonCntlParentPath = (childElem) => !!videomaxGlobals?.matchedCommonCntl?.contains(
+    childElem);
 
   /**
    * Will copy the existing attribute into a data-videomax-{attr} as a save, then set the attr
@@ -928,8 +926,8 @@ try { // scope and prevent errors from leaking out to page.
       }
 
       const siblings = getSiblings(currentElem, isSkippedNonDiv); // filter out nodes like <script>
-      for (let sibling of siblings) {
-        if (hasTransitionEffect(getElemComputedStyle(siblings[0]))) {
+      for (const sibling of siblings) {
+        if (hasTransitionEffect(getElemComputedStyle(sibling))) {
           return true;
         }
       }
@@ -957,8 +955,8 @@ try { // scope and prevent errors from leaking out to page.
     if (DEBUG_ENABLED) {
       const matches = document.querySelectorAll(`.${MARKER_COMMON_CONTAINER_CLASS}`);
       if (matches?.length) {
-        // https://www.nbcnews.com/now  iframe that we can drill down into. it finds a -common in the
-        // iframe but the actual controls are in the parent document.
+        // https://www.nbcnews.com/now  iframe that we can drill down into. it finds a -common in
+        // the iframe but the actual controls are in the parent document.
         logerr(`Already found common container, shouldn't match two. IFrame issue?`, matches);
       }
     }
@@ -1187,7 +1185,8 @@ try { // scope and prevent errors from leaking out to page.
 
   /** @param el {HTMLElement || Node}
    * @return {boolean} */
-  const isSkippedNodeForCntl = (el) => SKIPPED_NODE_NAMES_FOR_PLAYBACK_CTRLS.includes(el?.nodeName.toLowerCase());
+  const isSkippedNodeForCntl = (el) => SKIPPED_NODE_NAMES_FOR_PLAYBACK_CTRLS.includes(
+    el?.nodeName.toLowerCase());
 
   /** @param el {HTMLElement}
    * @return {boolean} */
@@ -1209,14 +1208,14 @@ try { // scope and prevent errors from leaking out to page.
                     (typeof el.getClientRects === "function") &&
                     !!el?.getClientRects()?.length;
         return vis ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
-      } else {
-
-        const vis = (el?.checkVisibility && el?.checkVisibility({
-                                                                  checkOpacity:       true,
-                                                                  checkVisibilityCSS: true,
-                                                                })) || true;
-        return vis ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
       }
+
+      const vis = (el?.checkVisibility && el?.checkVisibility({
+                                                                checkOpacity:       true,
+                                                                checkVisibilityCSS: true,
+                                                              })) || true;
+      return vis ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+
     } catch (err) {
       logerr(err, el);
       return NodeFilter.FILTER_SKIP;
@@ -1938,9 +1937,9 @@ try { // scope and prevent errors from leaking out to page.
     false;
 
   /** optimization since the matches are called often */
-  const AdverRegex = new RegExp(/(?:^|\W|-)adver/ig);
-  const AdRegex = new RegExp(/(?:^|\W|-)ad-|-ad$/ig);
-  const BrandingRegex = new RegExp(/(?:^|\W|-)branding/ig);
+  const AdverRegex = /(?:^|\W|-)adver/ig;
+  const AdRegex = /(?:^|\W|-)ad-|-ad$/ig;
+  const BrandingRegex = /(?:^|\W|-)branding/ig;
   /**
    * Does NOT block ads.
    * Some specific rules where ads overlap videos and when we zoom them and
@@ -2011,7 +2010,7 @@ try { // scope and prevent errors from leaking out to page.
   const getAllElementsThatSmellsLikeControls = (commonContainerElem) => {
     // the volume matcher can be tested on nbcnews.com/now
     // negative case test that matches ads on dailymail
-    const topElem = commonContainerElem ? commonContainerElem : window.document;
+    const topElem = commonContainerElem || window.document;
 
     try {
       const matchesVolume = [...topElem.querySelectorAll(`input[type="range"]`)].filter(
@@ -3140,12 +3139,10 @@ try { // scope and prevent errors from leaking out to page.
    * @param elem {HTMLElement}
    * @return {boolean}
    */
-  const isVisible = (elem) => {
-    return elem?.checkVisibility({
-                                   checkOpacity:       true,
-                                   checkVisibilityCSS: true,
-                                 }) || false;
-  };
+  const isVisible = (elem) => elem?.checkVisibility({
+                                                      checkOpacity:       true,
+                                                      checkVisibilityCSS: true,
+                                                    }) || false;
 
   /**
    *
@@ -3160,6 +3157,7 @@ try { // scope and prevent errors from leaking out to page.
     if (isRunningInIFrame()) {
       // this could be tricky as hell... we likely to what's outside our frame
       if (FULL_DEBUG) {
+        // eslint-disable-next-line no-debugger
         debugger;
       }
     }

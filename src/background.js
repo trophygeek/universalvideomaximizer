@@ -238,7 +238,7 @@ let g_PopupOpenedForTabs = [];
 /**
  * Some sites (hampster) will trigger an
  * @type {KeyValuePair} */
-let g_LastUrlFromOnUpdated = {};
+const g_LastUrlFromOnUpdated = {};
 
 /**
  * @param tabId {number}
@@ -1111,7 +1111,8 @@ chrome.runtime.onConnect.addListener((externalPort) => {
     // don't unzoom.
 
     try {
-      const ignoreError = chrome.runtime.lastError;
+      // eslint-disable-next-line no-console
+      console.log(chrome.runtime.lastError);
     } catch (err) {
       trace(err);
     }

@@ -19,8 +19,7 @@ try {
       "tryitframe").src = `popup.html#tabId=${tabId}&speed=${speed}&domain=${domain}&badge=${badge}`;
   };
 
-  const updateCurrentTabState = async () => {
-    return chrome.runtime.sendMessage({
+  const updateCurrentTabState = async () => chrome.runtime.sendMessage({
                                         message: {
                                           cmd: "FIRST_USE_REFRESH_POPUP_URL_CMD",
                                           tabId,
@@ -30,10 +29,8 @@ try {
                                       }, (_response) => {
       window.setTimeout(() => window.close(), 50);
     });
-  };
 
-  const unzoom = async () => {
-    return chrome.runtime.sendMessage({
+  const unzoom = async () => chrome.runtime.sendMessage({
                                         message: {
                                           cmd: "UNZOOM_CMD",
                                           tabId,
@@ -42,7 +39,6 @@ try {
                                         },
                                       }, () => {
     });
-  };
 
   /**
    *

@@ -2,6 +2,7 @@
 // useful reference for exports https://web.dev/es-modules-in-sw/
 import { DEFAULT_SETTINGS, DEFAULT_SPEED, getSettings, logerr, trace } from "./common.js";
 
+/** @type {Port} */
 let g_detectCloseListenerPort = null;
 
 try {
@@ -378,7 +379,7 @@ try {
     }
   });
 
-  window.addEventListener("close", function (_e) {
+  window.addEventListener("close", (_e) => {
     trace("close");
     chrome.runtime.sendMessage({
                                  message: {
@@ -390,7 +391,7 @@ try {
                                });
   });
 
-  document.addEventListener("close", function () {
+  document.addEventListener("close", () => {
     trace("popup closing via visibilitychange");
     chrome.runtime.sendMessage({
                                  message: {

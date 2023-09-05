@@ -23,6 +23,7 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
       document.body.setAttribute("data-videomax-playbackspeed", newspeed);
     } catch (err) {
       // could be cross frame error?
+      // eslint-disable-next-line no-debugger
       debugger;
     }
   }
@@ -75,12 +76,12 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
    * @private
    */
   const _injectSetSpeedForVideosFn = async (doc, newPlaybackRate) => {
-    /** @param el {HTMLVideoElement} **/
+    /** @param el {HTMLVideoElement} * */
     const _isVisibleFnFn = (el) => el?.checkVisibility({
                                                          checkOpacity:       true,
                                                          checkVisibilityCSS: true,
                                                        }) || false;
-    const _getCenterCoordsFnFn = (doc) => {
+    const _getCenterCoordsFnFn = () => {
       // we hide scrollbars as part of zoom, so body element should be good enough?
       try {
         return {
@@ -97,7 +98,7 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
       }
     };
 
-    /** @return {HTMLVideoElement || undefined} **/
+    /** @return {HTMLVideoElement || undefined} * */
     const _getTopVisibleVideoElemFnFn = () => {
 
       const {
@@ -114,11 +115,12 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
       const matches = layedElems.filter((eachLayer) => {
         if (eachLayer?.nodeName.toLowerCase() === "video") {
           return _isVisibleFnFn(eachLayer);
-        } else {
-          return false;
         }
+          return false;
+
       });
       if (DEBUG_INJECT) {
+        // eslint-disable-next-line no-console
         console.log(`VideoMaxExt: _injectSetSpeedForVideosFn 
         centerX:${centerX}
         centerY:${centerY}
@@ -133,6 +135,7 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
       // can happen when page NOT tagonly like amazon.
       const matchedVideo = doc.querySelectorAll(`[data-videomax-target]`);
       if (DEBUG_INJECT) {
+        // eslint-disable-next-line no-console
         console.log(`VideoMaxExt: _injectSetSpeedForVideosFn
         elementsFromPoint failed to find video. directly searching
         matchedVideo: ${matchedVideo.length}
@@ -156,12 +159,11 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
     // if the speed is negative, then we pause
     if (newPlaybackRate <= 0) {
       await topVisVideo.pause();
-      newPlaybackRate = Math.abs(newPlaybackRate);
     } else if (topVisVideo?.paused && !topVisVideo?.ended) {
       await topVisVideo.play();
     }
     // topVisVideo.defaultPlaybackRate = speed;
-    topVisVideo.playbackRate = newPlaybackRate;
+    topVisVideo.playbackRate = Math.abs(newPlaybackRate);
     topVisVideo.addEventListener("loadstart", _loadStartFn);
   };
 
@@ -197,7 +199,7 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
   return [...resultCrossDomainErrs]; // Set->array
 };
 
-/** @return {string} **/
+/** @return {string} * */
 export const injectGetPlaypackSpeed = () => {
   try {
     // we stash the current injected speed in the body as an attr.
@@ -223,10 +225,12 @@ export const injectVideoSkip = (skipSecondsStr) => {
                                        checkOpacity:       true,
                                        checkVisibilityCSS: true,
                                      })) {
+        // eslint-disable-next-line no-console
         console.log(`VideoMaxExt: injectVideoSkip checkVisibility=false, skipping`, eachVideo);
         continue;
       }
       if (!eachVideo?.seekable?.length > 0) {
+        // eslint-disable-next-line no-console
         console.log(`VideoMaxExt: injectVideoSkip not seekable, skipping`, eachVideo?.seekable);
         continue;
       }
