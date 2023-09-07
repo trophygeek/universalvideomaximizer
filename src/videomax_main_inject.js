@@ -487,32 +487,14 @@ try { // scope and prevent errors from leaking out to page.
       if (!elem) {
         return "undefined";
       }
-      // lol... if <video> has autoplay, then a cloneNode can trigger the sound to play twice.
-      let restoreAutoplayAttr = null;
 
-      let clone = elem?.cloneNode(false);
-
-      if (["VIDEO", "AUDIO"].includes(elem.nodeName)) {
-        try {
-          clone.pause();
-          clone.volume = 0;
-        } catch (_err) {
-        }
-      }
-      if (!clone) {
-        return "";
-      }
-      clone.innerText = "";
-      if (clone?.srcdoc?.length) {
-        clone.srcdoc = "";
-      }
-      const result = clone?.outerHTML || " - ";
-
-      // do our best to free this.
-      clone = null;
-
-      // don't allow it to be too big. iframes with inlined src can be huge
-      return result.substring(0, 2048);
+      let attrStr = "";
+      [...elem.attributes].forEach((attr) => {
+        const value = attr.value ? `="${attr.value.substring(0, 2048)}"` : "";
+        const name = attr.name;
+        attrStr = `${attrStr} ${name}${value}`;
+      });
+      return `<${elem.nodeName.toLowerCase()} ${attrStr} />`;
     } catch (err) {
       return " - ";
     }
