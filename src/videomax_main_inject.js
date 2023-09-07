@@ -23,10 +23,9 @@ try { // scope and prevent errors from leaking out to page.
   // Recent changes - keep these flags to quickly regression check various fixes across sites
   // What fixes one site often breaks another.
   // Eventually, these can go away as we verify no adverse interactions.
-  const ONLY_RUN_AFTER_DOC_LOADED = true;
   const IFRAME_PARENT_NODE_WORKS = true;
   const USE_MUTATION_OBSERVER_ATTR = true;
-  const INCLUDE_TRANSITION_MATCHING = false;
+  const INCLUDE_TRANSITION_WEIGHT_FOR_COMMON_SCORE = false;
   const SAVE_STYLE_FOR_OVERLAPs = true;
   const DO_HIDE_EXCEPTION_CHECK = true;
   const ALWAYS_BACK_UP_STYLES = true;
@@ -1005,7 +1004,7 @@ try { // scope and prevent errors from leaking out to page.
                                      "\t"} #${index}\t absPosition:   \t +1 result: \t ${count}`;
             }
           }
-          if (INCLUDE_TRANSITION_MATCHING && hasTransitionEffect(compStyleElem)) {
+          if (INCLUDE_TRANSITION_WEIGHT_FOR_COMMON_SCORE && hasTransitionEffect(compStyleElem)) {
             // tag it so we don't have to call getElemComputedStyle again later.
             eachChild.classList?.add(MARKER_TRANSITION_CLASS);
             count++;
@@ -2828,7 +2827,7 @@ try { // scope and prevent errors from leaking out to page.
       return true; // stop retrying
     }
 
-    if (ONLY_RUN_AFTER_DOC_LOADED && !documentLoaded()) {
+    if (!documentLoaded()) {
       trace(`document state not complete: '${document.readyState}'`);
       return false;
     }

@@ -156,3 +156,11 @@ body.videomax-ext-redd div.mx-auto.videomax-ext-overlap {
 body.videomax-ext-pornhub div.mgp_adRollContainer.videomax-ext-overlap {
   visibility: unset !important;
 }
+
+body.videomax-ext-youtube div.ytp-chrome-bottom {
+  width: calc(98vw) !important;
+}
+
+body.videomax-ext-youtube div.ytp-chapter-hover-container {
+  width: calc(98vw) !important;
+}
