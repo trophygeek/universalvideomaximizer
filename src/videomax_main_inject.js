@@ -489,24 +489,16 @@ try { // scope and prevent errors from leaking out to page.
       }
       // lol... if <video> has autoplay, then a cloneNode can trigger the sound to play twice.
       let restoreAutoplayAttr = null;
-      if (elem.nodeName === "VIDEO") {
-        // playeur gets duplicate sound playing. So weird.
-        restoreAutoplayAttr = getAttr(elem, "autoplay");
-        if (restoreAutoplayAttr?.length) {
-          trace(`Removing autoplay from video element`);
-          removeAttr(elem, "autoplay");
-          // technically, we should re-add it below but this is a debug feature.
-        }
-        // now we should "play"
-      }
 
       let clone = elem?.cloneNode(false);
 
-      if (restoreAutoplayAttr?.length) {
-        trace(`Restoring autoplay from video element`);
-        setAttr(elem, "autoplay", restoreAutoplayAttr);
+      if (["VIDEO", "AUDIO"].includes(elem.nodeName)) {
+        try {
+          clone.pause();
+          clone.volume = 0;
+        } catch (_err) {
+        }
       }
-
       if (!clone) {
         return "";
       }

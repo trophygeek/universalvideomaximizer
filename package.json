@@ -40,7 +40,7 @@
   },
   "scripts": {
     "eslint": "eslint --fix 'src/**/*.{js,ts,jsx,tsx}'",
-    "test": "uvu -r esbuild-register tests",
+    "test-common": "uvu -r esbuild-register tests",
     "update": "git checkout -- yarn.lock && yarn install && yarn upgrade-interactive --lastest",
     "zip-package": "zip -r videomax-ext-v.zip src/ -x '**/.*' -x '**/__MACOSX'"
   },

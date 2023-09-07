@@ -31,27 +31,29 @@ body::-webkit-scrollbar {
   visibility: visible !important;
   display: block !important;
   transform: revert !important;
-  /* added 17April22 */
+  /* added April22 */
   overflow: visible !important;
-  /* added 13May23 - cavas closed captions on crunchroll are after video */
+  /* added May23 - cavas closed captions on crunchroll are after video */
   position: fixed !important;
-  /* added 20Jun23 iframes not aligning */
+  /* added Jun23 iframes not aligning */
   align-content: center !important;
-  /* added 18Jun23 */
+  /* added Jun23 */
   opacity: 1.0 !important;
   border: 0 black !important;
   border-image-width: 0 !important;
+  /* added Sept23 */
+  object-position: revert !important;
 }
 
 .videomax-ext-hide,
-  /* nbc line 31July23*/
+  /* nbc line July23*/
 .videomax-ext-max:before,
 .videomax-ext-max:after,
 .videomax-ext-hide .videomax-ext-hide,
 .videomax-ext-max .videomax-ext-hide {
   display: none !important;
   visibility: hidden !important;
-  /* added 30May22 try to stop pop ups blocking video */
+  /* added May22 try to stop pop ups blocking video */
   position: absolute !important;
   left: -5000em !important;
   top: -5000em !important;
@@ -139,8 +141,9 @@ body.livejasmin .mc_bonus_animation.js_bonus_animation.mc_bonus_animation--with_
   visibility: hidden !important;
 }
 
-/** this body.domain approach is new, need to convert some of the other site specific fixes **/
-/** crackle.com specific fixes **/
+/** this body.videomax-ext-domain approach is new, need to convert some of the other site specific fixes
+    It limits the scope of changes to specific domains **/
+
 body.videomax-ext-crackle #player-controls.videomax-ext-overlap {
   top: auto !important;
   height: calc(100vw) !important;
@@ -151,5 +154,5 @@ body.videomax-ext-redd div.mx-auto.videomax-ext-overlap {
 }
 
 body.videomax-ext-pornhub div.mgp_adRollContainer.videomax-ext-overlap {
-  visibility: reset !important;
+  visibility: unset !important;
 }
