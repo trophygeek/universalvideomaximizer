@@ -188,6 +188,13 @@ try { // scope and prevent errors from leaking out to page.
   const SCALESTRING_HEIGHT = "100%"; // "calc(100vh)";
   const SCALESTRING = "100%";
 
+  /** we don't hide ads but we don't make them the primary zoomed "video" (iframe) */
+  const DO_NOT_MATCH_IFRAME_SRC = [
+    /\.facebook\.com/i,
+    /javascript:/i,
+    /platform\.tumblr\.com/i,
+    /imasdk\.googleapis\.com/i,];
+
   // per doc globals (e.g. inside iframes from background inject gets it's own)
   let videomaxGlobals = {
     /** @type {ElemMatcherClass | null} */
@@ -490,7 +497,7 @@ try { // scope and prevent errors from leaking out to page.
       let attrStr = "";
       [...elem.attributes].forEach((attr) => {
         const value = attr.value ? `="${attr.value.substring(0, 2048)}"` : "";
-        const name = attr.name;
+        const {name} = attr;
         attrStr = `${attrStr} ${name}${value}`;
       });
       return `<${elem.nodeName.toLowerCase()} ${attrStr} />`;
@@ -1913,6 +1920,7 @@ try { // scope and prevent errors from leaking out to page.
   const AdverRegex = /(?:^|\W|-)adver/ig;
   const AdRegex = /(?:^|\W|-)ad-|-ad$/ig;
   const BrandingRegex = /(?:^|\W|-)branding/ig;
+
   /**
    * Does NOT block ads.
    * Some specific rules where ads overlap videos and when we zoom them and
@@ -2316,17 +2324,13 @@ try { // scope and prevent errors from leaking out to page.
       // frame shaped like videos?
       if (isIFrameElem(elem)) {
         const src = elem.getAttribute("src") || "";
-        if (src.match(/\.facebook\.com/i)) {
-          trace(`demoting facebook plugin iframe. \tOld weight=${weight}\tNew Weight=0`);
-          return 0;
-        }
-        if (src.match(/javascript:/i)) {
-          trace(`demoting :javascript iframe. \tOld weight=${weight}\tNew Weight=0`);
-          return 0;
-        }
-        if (src.match(/platform\.tumblr\.com/i)) {
-          trace(`demoting platform.tumbr.com \tOld weight=${weight}\tNew Weight=0`);
-          return 0;
+
+        for (const eachMatch of DO_NOT_MATCH_IFRAME_SRC) {
+          if (eachMatch.test(src)) {
+            trace(`DO_NOT_MATCH_IFRAME_SRC true for "${src}"
+            Old weight=${weight}`, eachMatch);
+            return 0;
+          }
         }
       }
 

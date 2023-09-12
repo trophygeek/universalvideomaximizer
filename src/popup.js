@@ -2,10 +2,10 @@
 // useful reference for exports https://web.dev/es-modules-in-sw/
 import { DEFAULT_SETTINGS, DEFAULT_SPEED, getSettings, logerr, trace } from "./common.js";
 
-/** @type {Port} */
-let g_detectCloseListenerPort = null;
-
 try {
+  /** @type {Port} */
+  let g_detectCloseListenerPort = null;
+
   const UNZOOM_LABEL = "[]";
   const UNZOOM_ICON = "./icons/icon19undo.png";
 

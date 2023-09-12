@@ -177,6 +177,8 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
       if (!framedoc) {
         continue;
       }
+      // We WANT to await in a loop because we EXPECT to get errors thrown for cross-frame security
+      // eslint-disable-next-line no-await-in-loop
       await _injectSetSpeedForVideosFn(framedoc, speadNumber);
     } catch (err) {
       // in theory, we could try to record this url and add it to the request?

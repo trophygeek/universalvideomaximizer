@@ -131,36 +131,37 @@ video::-webkit-media-controls {
   /* intentionally empty */
 }
 
-/* livejasmin elements that block video and don't fade out.
-   fragile solution, but if it becomes an issue we can use elementsFromPoint() and
-   see if any matches do not have a transition on them. */
-body.livejasmin .mc_video_overlay.mc_js_video_overlay.videomax-ext-overlap,
-body.livejasmin .curtains.mc_js_curtains.curtains_hidden.videomax-ext-overlap,
-body.livejasmin .mc_video_background.videomax-ext-overlap,
-body.livejasmin .mc_bonus_animation.js_bonus_animation.mc_bonus_animation--with_sidebar.videomax-ext-overlap {
-  visibility: hidden !important;
-}
 
 /** this body.videomax-ext-domain approach is new, need to convert some of the other site specific fixes
-    It limits the scope of changes to specific domains **/
+    It limits the scope of changes to specific domains. Probably will break as pages change class names.
+    Most are one-offs, so whatever. Try to do our best to support all sites. **/
 
 body.videomax-ext-crackle #player-controls.videomax-ext-overlap {
   top: auto !important;
   height: calc(100vw) !important;
 }
 
-body.videomax-ext-redd div.mx-auto.videomax-ext-overlap {
+/** misc elements that the algorthm currently can't identify as disrupting the theater mode experience */
+body.videomax-ext-redd div.mx-auto.videomax-ext-overlap,
+body.videomax-ext-dailymail-co div.connatix-wrapper,
+body.videomax-ext-dailymail-co div.video-ads-placeholder,
+body.videomax-ext-dailymail-co div#chromelessPlayer,
+body.videomax-ext-chaturbate img.cbLogo,
+body.videomax-ext-livejasmin .mc_video_overlay.mc_js_video_overlay.videomax-ext-overlap,
+body.videomax-ext-livejasmin .curtains.mc_js_curtains.curtains_hidden.videomax-ext-overlap,
+body.videomax-ext-livejasmin .mc_video_background.videomax-ext-overlap,
+body.videomax-ext-livejasmin .mc_bonus_animation.js_bonus_animation.mc_bonus_animation--with_sidebar.videomax-ext-overlap
+{
   visibility: hidden !important;
+  display: none !important;
 }
 
 body.videomax-ext-pornhub div.mgp_adRollContainer.videomax-ext-overlap {
   visibility: unset !important;
 }
 
-body.videomax-ext-youtube div.ytp-chrome-bottom {
-  width: calc(98vw) !important;
-}
-
+/** fix youtube's non-theater-mode playback controls to fit **/
+body.videomax-ext-youtube div.ytp-chrome-bottom,
 body.videomax-ext-youtube div.ytp-chapter-hover-container {
   width: calc(98vw) !important;
 }
