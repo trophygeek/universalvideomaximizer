@@ -42,9 +42,9 @@ try { // scope and prevent errors from leaking out to page.
   const USE_NERF_SCORES_FIND_COMMON = true;
   const FIX_UP_BODY_CLASS_TO_SITE_SPECIFIC_CSS_MATCH = true;
   const OVERLAPS_REQUIRE_TRANSITION_EFFECTS = false;
-  const REMOVE_STYLE_FROM_ELEMS = false; // test to see it can be removed
-  const CHECK_PRESENTATION_ROLE = false; // removed to Youtube over-matching problem.
+  const REMOVE_STYLE_FROM_ELEMS = true;
   const OVERLAPS_REQUIRE_TRANSITION_EFFECTS_RECURSIVE = true;
+  const NO_SEARCHING_IGNORED_NODES_COMMON = true;
 
   const MIN_VIDEO_WIDTH = 320;
   const MIN_VIDEO_HEIGHT = 240;
@@ -100,6 +100,7 @@ try { // scope and prevent errors from leaking out to page.
   const STOP_NODES_COMMON_CONTAINER = [...IGNORE_CNTL_NODES, "main", "section", "article"];
   const IGNORE_COMMON_CONTAINER_COUNT_NODES = [...ALWAYS_HIDE_NODES,
                                                "head",
+                                               "header",
                                                "html",
                                                "iframe",
                                                "ul",
@@ -193,7 +194,9 @@ try { // scope and prevent errors from leaking out to page.
     /\.facebook\.com/i,
     /javascript:/i,
     /platform\.tumblr\.com/i,
-    /imasdk\.googleapis\.com/i,];
+    /imasdk\.googleapis\.com/i,
+    /\.afcdn\.net/i,
+    /\.adsninja\.ca/i];
 
   // per doc globals (e.g. inside iframes from background inject gets it's own)
   let videomaxGlobals = {
@@ -497,7 +500,7 @@ try { // scope and prevent errors from leaking out to page.
       let attrStr = "";
       [...elem.attributes].forEach((attr) => {
         const value = attr.value ? `="${attr.value.substring(0, 2048)}"` : "";
-        const {name} = attr;
+        const { name } = attr;
         attrStr = `${attrStr} ${name}${value}`;
       });
       return `<${elem.nodeName.toLowerCase()} ${attrStr} />`;
@@ -615,6 +618,29 @@ try { // scope and prevent errors from leaking out to page.
     return false;
   };
 
+  /**
+   * walk up parents and if any matches that are under invalid "paths"
+   * @param elem {HTMLElement}
+   * @param selector {string}
+   * @param filter {(HTMLElement) => boolean} false if not allowed
+   */
+  const querySelectorAllFiltered = (elem, selector, filter) => {
+    const matches = [...elem?.querySelectorAll(selector)];
+    /** @param checkElem {HTMLElement} @return {boolean} */
+    const filterPath = (checkElem) => {
+      let walkElem = checkElem;
+      while (walkElem && !walkElem.isSameNode(elem)) {
+        if (!filter(walkElem)) {
+          return false;
+        }
+        walkElem = walkElem.parentElement;
+      }
+      return true;
+    };
+
+    return matches.filter((e) => filterPath(e));
+  };
+
   /** @param childElem {HTMLElement}
    *  @return {boolean} */
   const isUnderCommonCntlParentPath = (childElem) => !!videomaxGlobals?.matchedCommonCntl?.contains(
@@ -657,7 +683,7 @@ try { // scope and prevent errors from leaking out to page.
     }
     const backupName = `${VIDEO_MAX_DATA_ATTRIB_UNDO_PREFIX}-${attrKey}`;
     if (getAttr(node, backupName) !== null) {
-      trace(`Attempting to resave attribute? ${PrintNode(node)}"`);
+      trace(`Attempting to resave attribute (not overwriting)? ${PrintNode(node)}"`);
     } else {
       setAttr(node, backupName, orgValue);
       setAttr(node, VIDEO_MAX_DATA_ATTRIB_UNDO_TAG, "1");
@@ -665,22 +691,68 @@ try { // scope and prevent errors from leaking out to page.
   };
 
   /**
+   * turns 'style' attribute into js object {}
+   * @param inStr {string}
+   * @return {object}
+   */
+  const smartParseStyles = (inStr) => {
+    let result = {};
+    let currentStart = 0;
+    let lastStart = 0;
+    try {
+      while (currentStart < inStr.length) {
+        // lame, but indexOf is probably faster than turning string into array of characters?
+        // we pretend indexOf() took a set of characters and matched first one.
+        const ii = Math.min(...[inStr.indexOf(`;`, currentStart),
+                                inStr.indexOf(`'`, currentStart),
+                                inStr.indexOf(`"`, currentStart)].filter(n => n >= 0));
+        if (ii === Infinity) {
+          // because of filter() above, Math.min(empty) => Infinity
+          break;
+        }
+        const ch = inStr.charAt(ii);
+        if (ch === `;`) {
+          // got a match. Find the first `:` and use that for split
+          const matched = inStr.substring(lastStart, ii);
+          const jj = matched.indexOf(`:`);
+          const key = matched.substring(0, jj)
+            .trim();
+          result[key] = matched.substring(jj + 1)
+            .trim();
+          // move to next.
+          lastStart = currentStart;
+          currentStart = ii + 1; // next match
+        } else if (ch === `'`) {
+          // we hit a quote, scan forward until we hit end (ignore any ;)
+          currentStart = inStr.indexOf(`'`, ii + 1) + 1;
+        } else if (ch === `"`) {
+          // we hit a dbl quote, scan forward until we hit end (ignore any ;)
+          currentStart = inStr.indexOf(`"`, ii + 1) + 1;
+        }
+      }
+    } catch (err) {
+      logerr(err);
+    }
+    return result;
+  };
+
+  /**
+   * merge a saved style string w/ the current style
    * @param styleStr {string}
    * @param mergeIntoObj {{[key: string]: string}}
    * @return {{[key: string]: string}}
    */
   const styleStrToObject = (styleStr, mergeIntoObj) => {
-    const result = mergeIntoObj;
-    const parts = styleStr.split(";");
-    for (const eachPart of parts) {
-      const pair = eachPart.split(":");
-      if (pair.length !== 2) {
-        continue;
-      }
-      const key = pair[0].trim();
-      result[key] = pair[1].trim();
+    // we use the json parser because it can handle `key: "value;'fooo'";`
+    try {
+      const stylesObj = smartParseStyles(styleStr);
+      // modern way to merge objects
+      return { ...mergeIntoObj, ...stylesObj };
+    } catch (err) {
+      logerr(`styleStrToObject err 
+      styleStr=${styleStr}`, err);
+      return mergeIntoObj;
     }
-    return result;
   };
 
   /**
@@ -841,11 +913,18 @@ try { // scope and prevent errors from leaking out to page.
     return IGNORE_NODES.includes(nodename);
   };
 
-  // when we're trying to find the common container, don't count these
+
+  /**
+   * when we're trying to find the common container, don't count these
+   * @param elem {Node || HTMLElement}
+   * @return {boolean}
+   */
   const isIgnoreCommonContainerNode = (elem) => {
     const nodename = /** @type HtmlElementType */ elem?.nodeName?.toLowerCase() || "";
     return IGNORE_COMMON_CONTAINER_COUNT_NODES.includes(nodename);
   };
+
+  const isNotIgnoreCommonContainerNode = (elem) => !isIgnoreCommonContainerNode(elem);
 
   /**
    *
@@ -859,6 +938,9 @@ try { // scope and prevent errors from leaking out to page.
     // adjust the body
     setTimeout(() => {
       try {
+        trace(
+          `forceRefresh: Generating 'resize' and 'visabilitychange" events to force refresh for ${PrintNode(
+            elem)}`);
         elem.dispatchEvent(new Event("resize"));
         elem.dispatchEvent(new Event("visabilitychange"));
       } catch (err) {
@@ -961,9 +1043,15 @@ try { // scope and prevent errors from leaking out to page.
 
     const countChildren = (e, recurseFirst = true, runningCount = 0) => {
       let count = runningCount;
+      if (NO_SEARCHING_IGNORED_NODES_COMMON && isIgnoreCommonContainerNode(e)) {
+        return runningCount;
+      }
       if (recurseFirst) {
         if (USE_BOOST_SCORES_FIND_COMMON) {
-          const boostMatches = [...e.querySelectorAll(`[role="slider"]`)];
+          const boostMatches = NO_SEARCHING_IGNORED_NODES_COMMON ?
+                               querySelectorAllFiltered(e, `[role="slider"]`,
+                                                        isNotIgnoreCommonContainerNode) :
+                               e.querySelectorAll(e, `[role="slider"]`);
           // ...e.querySelectorAll(`[role="presentation"]`)]; // player puts this on every preview
           // video on the page
           count += boostMatches.length * 2;  // 2x points if there's a slider under this element.
@@ -973,8 +1061,14 @@ try { // scope and prevent errors from leaking out to page.
         }
 
         if (USE_NERF_SCORES_FIND_COMMON) {
-          const nerfMatches = [...e.querySelectorAll(`[role="toolbar"]`),
-                               ...e.querySelectorAll(`[role="navigation"]`)];
+          const nerfMatches = NO_SEARCHING_IGNORED_NODES_COMMON ?
+                              [...querySelectorAllFiltered(e, `[role="toolbar"]`,
+                                                           isNotIgnoreCommonContainerNode),
+                               ...querySelectorAllFiltered(e, `[role="navigation"]`,
+                                                           isNotIgnoreCommonContainerNode)] :
+                              [...e.querySelectorAll(`[role="toolbar"]`),
+                               e.querySelectorAll(`[role="navigation"]`)];
+
           count -= nerfMatches.length * 2;  // -2x points if there's a navigation components under
                                             // this element.
           if (COMMON_PARENT_SCORES) {
@@ -988,9 +1082,11 @@ try { // scope and prevent errors from leaking out to page.
         // const volSgvCount   = [...e.querySelectorAll(`svg > title`)].filter(
         //   (e) => e?.innerHTML?.toLowerCase().includes("volume")).length;
       }
-      const checkChildren = [...e.children].filter(el => !isIgnoreCommonContainerNode(el));
+      const checkChildren = [...e.children].filter(el => isNotIgnoreCommonContainerNode(el));
       let index = 0; // used for debugging only.
       for (const eachChild of checkChildren) {
+        if (PrintNode(e)
+              .indexOf("R7hPrUjf") >= 0) { debugger; }
         try {
           index++;
           const compStyleElem = getElemComputedStyle(eachChild); // $$$
@@ -1031,7 +1127,8 @@ try { // scope and prevent errors from leaking out to page.
         }
       }
       if (COMMON_PARENT_SCORES && recurseFirst === false) {
-        trace(`${containDbgMsg}\nTotal:${count}`, e);
+        trace(`\tChild Common Score ${PrintNode(
+          e)}\n${containDbgMsg}\n\tTotals: before ${runningCount} \t after: ${count}`);
         containDbgMsg = "";
       }
       return count;
@@ -1056,7 +1153,7 @@ try { // scope and prevent errors from leaking out to page.
         trace(`findCommonContainerFromMatched ${weight > bestMatchWeight ?
                                                 "NEW BEST" :
                                                 ""} \n\t weight:${weight} \n\t ${PrintNode(
-          walker.currentNode)} \n\t`, walker.currentNode);
+          walker.currentNode)} \n\t`);
         if (weight > bestMatchWeight) {
           bestMatchWeight = weight;
           bestMatch = walker.currentNode; // we've already moved to parentNode()
@@ -1994,24 +2091,28 @@ try { // scope and prevent errors from leaking out to page.
     const topElem = commonContainerElem || window.document;
 
     try {
-      const matchesVolume = [...topElem.querySelectorAll(`input[type="range"]`)].filter(
-        (e) => !isSkippedNodeForCntl(e) && smellsLikeMatch(e, [/volume/i]) && !smellsLikeAdElem(e));
-      const matchesSlider = [...topElem.querySelectorAll(`[role="slider"]`)].filter(
-        (e) => !isSkippedNodeForCntl(e) && !smellsLikeAdElem(e));
-      const matchesPresentation = CHECK_PRESENTATION_ROLE ?
-                                  [...topElem.querySelectorAll(`[role="presentation"]`)].filter(
-                                    (e) => !isSkippedNodeForCntl(e) && !smellsLikeAdElem(e)) :
-                                  [];
+      const skipFilter = (el) => !isSkippedNodeForCntl(el) && !smellsLikeAdElem(el);
+
+      const matchesVolume = NO_SEARCHING_IGNORED_NODES_COMMON ?
+                            [...querySelectorAllFiltered(topElem, `input[type="range"]`,
+                                                         skipFilter)] :
+                            [...topElem.querySelectorAll(`input[type="range"]`)].filter(
+                              (e) => !isSkippedNodeForCntl(e) && smellsLikeMatch(e, [/volume/i]) &&
+                                     !smellsLikeAdElem(e));
+      const matchesSlider = NO_SEARCHING_IGNORED_NODES_COMMON ?
+                            [...querySelectorAllFiltered(topElem, `[role="slider"]`,
+                                                         skipFilter)] :
+                            [...topElem.querySelectorAll(`[role="slider"]`)].filter(
+                              (e) => !isSkippedNodeForCntl(e) && !smellsLikeAdElem(e));
+
       if (DEBUG_HIDENODE) {
         trace(`getAllElementsThatSmellsLikeControls for ${PrintNode(commonContainerElem)}
         matchesVolume: `, matchesVolume, `
-        matchesSlider: `, matchesSlider, `
-        matchesPresentation: `, matchesPresentation);
+        matchesSlider: `, matchesSlider);
       }
       return [
         ...matchesVolume,
-        ...matchesSlider,
-        ...matchesPresentation];
+        ...matchesSlider];
     } catch (err) {
       trace(err);
     }
@@ -3339,6 +3440,9 @@ try { // scope and prevent errors from leaking out to page.
           restoreAllSavedAttr(elem);
           //  try and make the element realizes it needs to redraw. Fixes
           // progress bar
+          trace(
+            `undoAttribChange: Generating 'resize' and 'visabilitychange" events to force refresh for ${PrintNode(
+              elem)}`);
           elem.dispatchEvent(new Event("resize"));
           elem.dispatchEvent(new Event("visabilitychange"));
         } catch (err) {
@@ -3380,9 +3484,14 @@ try { // scope and prevent errors from leaking out to page.
       // we now need to force the flash to reload by resizing... easy thing is to
       // adjust the body
       setTimeout(() => {
+        trace(
+          `unzoom:forceRefresh: Generating 'resize' and 'visabilitychange" events to force refresh for window`);
         window.dispatchEvent(new Event("resize"));
         window.dispatchEvent(new Event("visabilitychange"));
         if (optionalElem?.dispatchEvent) {
+          trace(
+            `unzoom:forceRefresh: Generating 'resize' and 'visabilitychange" events to force refresh for ${PrintNode(
+              optionalElem)}`);
           optionalElem.dispatchEvent(new Event("resize"));
           optionalElem.dispatchEvent(new Event("visabilitychange"));
         } else {
