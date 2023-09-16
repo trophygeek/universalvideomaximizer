@@ -3195,7 +3195,7 @@ try { // scope and prevent errors from leaking out to page.
                 trace(`OBSERVER: Detected new element added ${PrintNode(eachElem)}`);
               }
               const hidden = hideNode(eachElem, true);
-              if (hidden) {
+              if (hidden && eachElem) {
                 // we need to add to list of observers to make sure not changed.
                 videomaxGlobals?.mutationObserver?.observe(eachElem, OBSERVE_ATTRIB_OPTIONS);
                 if (DEBUG_MUTATION_OBSERVER) {

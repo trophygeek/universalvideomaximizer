@@ -141,7 +141,10 @@ body.videomax-ext-crackle #player-controls.videomax-ext-overlap {
   height: calc(100vw) !important;
 }
 
-/** misc elements that the algorthm currently can't identify as disrupting the theater mode experience */
+/** misc elements that the algorithm currently can't identify as disrupting the theater mode experience
+  todo: Some of these could be detected with a "post zoom" video overlap detection that checks if items are
+        NOT set to transition to invisible.
+*/
 body.videomax-ext-redd div.mx-auto.videomax-ext-overlap,
 body.videomax-ext-dailymail-co div.connatix-wrapper,
 body.videomax-ext-dailymail-co div.video-ads-placeholder,
@@ -150,7 +153,8 @@ body.videomax-ext-chaturbate img.cbLogo,
 body.videomax-ext-livejasmin .mc_video_overlay.mc_js_video_overlay.videomax-ext-overlap,
 body.videomax-ext-livejasmin .curtains.mc_js_curtains.curtains_hidden.videomax-ext-overlap,
 body.videomax-ext-livejasmin .mc_video_background.videomax-ext-overlap,
-body.videomax-ext-livejasmin .mc_bonus_animation.js_bonus_animation.mc_bonus_animation--with_sidebar.videomax-ext-overlap
+body.videomax-ext-livejasmin .mc_bonus_animation.js_bonus_animation.mc_bonus_animation--with_sidebar.videomax-ext-overlap,
+body.videomax-ext-mediaite .bxc.bx-base.bx-impress
 {
   visibility: hidden !important;
   display: none !important;
