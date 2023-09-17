@@ -802,7 +802,6 @@ try { // scope and prevent errors from leaking out to page.
         // then some sites have the main video hidden (cruchyroll).
         // special case to make sure the style doesn't have "opacity: 0;"
         // maybe need to extend to other types of "hidden" approaches?
-        debugger;
         mergedValue = mergedValue.replace(`opacity: 0;`, "");
         setAttr(elem, originalAttrName, mergedValue); // restore it.
       }
@@ -1090,8 +1089,6 @@ try { // scope and prevent errors from leaking out to page.
       const checkChildren = [...e.children].filter(el => isNotIgnoreCommonContainerNode(el));
       let index = 0; // used for debugging only.
       for (const eachChild of checkChildren) {
-        if (PrintNode(e)
-              .indexOf("R7hPrUjf") >= 0) { debugger; }
         try {
           index++;
           const compStyleElem = getElemComputedStyle(eachChild); // $$$
@@ -2000,9 +1997,11 @@ try { // scope and prevent errors from leaking out to page.
   };
 
 
-  const NEVERHIDEMATCHES = [/ytp-ad-module/i, // youtube skip add
-                            /mgp_ccContainer/i, // pornhub cc
-                            /web-player-icon-resize/i, // tubi's non-508 playback
+  const NEVERHIDEMATCHES = [
+    /ytp-ad-module/i, // youtube "skip ad"
+    /caption/i, // youtube cc
+    /ccContainer/i, // pornhub cc
+    /web-player-icon-resize/i, // tubi's non-508 playback
   ];
   /**
    * @param elem {Node}
