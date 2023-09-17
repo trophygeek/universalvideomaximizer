@@ -233,7 +233,7 @@ export const injectVideoSkip = (skipSecondsStr) => {
       }
       if (!eachVideo?.seekable?.length > 0) {
         // eslint-disable-next-line no-console
-        //console.log(`VideoMaxExt: injectVideoSkip not seekable, skipping`, eachVideo?.seekable);
+        // console.log(`VideoMaxExt: injectVideoSkip not seekable, skipping`, eachVideo?.seekable);
         continue;
       }
       // restore playback speed after we skip

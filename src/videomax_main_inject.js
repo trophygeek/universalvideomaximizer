@@ -623,9 +623,14 @@ try { // scope and prevent errors from leaking out to page.
    * @param elem {HTMLElement}
    * @param selector {string}
    * @param filter {(HTMLElement) => boolean} false if not allowed
+   * @return {HTMLElement[]}
    */
   const querySelectorAllFiltered = (elem, selector, filter) => {
-    const matches = [...elem?.querySelectorAll(selector)];
+    if (elem) {
+      return [];
+    }
+    /** @type {HTMLElement[]} */
+    const matches = [...elem.querySelectorAll(selector)];
     /** @param checkElem {HTMLElement} @return {boolean} */
     const filterPath = (checkElem) => {
       let walkElem = checkElem;
@@ -696,7 +701,7 @@ try { // scope and prevent errors from leaking out to page.
    * @return {object}
    */
   const smartParseStyles = (inStr) => {
-    let result = {};
+    const result = {};
     let currentStart = 0;
     let lastStart = 0;
     try {
