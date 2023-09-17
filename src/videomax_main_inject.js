@@ -80,7 +80,10 @@ try { // scope and prevent errors from leaking out to page.
                                    // main videos
 
   /** @type {HtmlElementTypes} */
-  const ALWAYS_HIDE_NODES = ["footer", "header", "nav"];  // aside needed for
+  const ALWAYS_HIDE_NODES = [
+    "footer",
+    "header",
+    "nav"];  // "aside"?
 
   /** @type {HtmlElementTypes} */
   const IGNORE_NODES = ["noscript",
@@ -124,7 +127,7 @@ try { // scope and prevent errors from leaking out to page.
                               "img",
                               "meta",
                               "head",
-                              "header",
+                              // "header", // some sites put videos in the header, wtf?
                               "footer",
     // "figure", // secsports puts it under a <figure> seriously?
                               "caption",
