@@ -792,12 +792,17 @@ try { // scope and prevent errors from leaking out to page.
         let mergedValue = Object.keys(currentStyleParts)
           .map(key => `${key}: ${currentStyleParts[key]}`)
           .join("; ");
+        if (mergedValue.length > 0 && !mergedValue.endsWith(";")) {
+          // we want a trailing ; for our opacity check below
+          mergedValue = `${mergedValue};`;
+        }
 
 
         // if you zoom during starting pre-video commercials,
         // then some sites have the main video hidden (cruchyroll).
         // special case to make sure the style doesn't have "opacity: 0;"
         // maybe need to extend to other types of "hidden" approaches?
+        debugger;
         mergedValue = mergedValue.replace(`opacity: 0;`, "");
         setAttr(elem, originalAttrName, mergedValue); // restore it.
       }

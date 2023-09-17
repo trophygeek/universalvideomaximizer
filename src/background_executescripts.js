@@ -228,12 +228,12 @@ export const injectVideoSkip = (skipSecondsStr) => {
                                        checkVisibilityCSS: true,
                                      })) {
         // eslint-disable-next-line no-console
-        console.log(`VideoMaxExt: injectVideoSkip checkVisibility=false, skipping`, eachVideo);
+        // console.log(`VideoMaxExt: injectVideoSkip checkVisibility=false, skipping`, eachVideo);
         continue;
       }
       if (!eachVideo?.seekable?.length > 0) {
         // eslint-disable-next-line no-console
-        console.log(`VideoMaxExt: injectVideoSkip not seekable, skipping`, eachVideo?.seekable);
+        //console.log(`VideoMaxExt: injectVideoSkip not seekable, skipping`, eachVideo?.seekable);
         continue;
       }
       // restore playback speed after we skip
@@ -325,7 +325,7 @@ export const injectIsCssHeaderIsBlocked = (cssHRef) => {
   }
   if (isBlocked) {
     // eslint-disable-next-line no-console
-    console.log("VideoMaxExt: css include file blocked.");
+    console.log("VideoMaxExt: css include file blocked?");
   }
   return isBlocked;
 };

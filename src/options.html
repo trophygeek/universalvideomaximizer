@@ -20,8 +20,10 @@
         <label for="useAdvancedFeatures">
           Enable <span class="emphasis">ADVANCED</span> features (Experimental)
         </label>
-        <p>Some sites lose their playback controls when zoomed. Advanced features allow you to skip and change playback speed.</p>
-        <p>See the <a href="help.html" rel="noopener" target="vidomaxhelp">Help ↗</a> page for more details about how to use advanced features.</p>
+        <p>Some sites lose their playback controls when zoomed. Advanced features allow you to skip and change playback
+          speed.</p>
+        <p>See the <a href="help.html" rel="noopener" target="vidomaxhelp">Help ↗</a> page for more details about how to
+          use advanced features.</p>
         <p><img alt="screen shot" class="illustration" src="img/new_speed_control_bar.png"></p>
       </div>
     </fieldset>
@@ -37,7 +39,8 @@
       <div class="container">
         <div class="row col is-italic">
           <p><span class="emphasis">USER FEEDBACK WANTED</span></p>
-          <p>Is this setting useful for anyone? I'm considering removing it if ends up being more confusing than helpful.</p>
+          <p>Is this setting useful for anyone? I'm considering removing it if ends up being more confusing than
+            helpful.</p>
           <p>Changes permissions prompt from:<br>
             <samp> &nbsp; "Read and change your data on www.example.com"</samp><br>
             to:<br>
@@ -68,7 +71,8 @@
           This access should not be required, but is a fix-all. Once granted and accepted, it silences all further
           permissions prompting.<br/><br/>
           Find a site that still doesn't work? <a
-              href="https://github.com/trophygeek/universalvideomaximizer/issues" rel="noopener" target="_blank">Open a GitHub
+              href="https://github.com/trophygeek/universalvideomaximizer/issues" rel="noopener" target="_blank">Open a
+            GitHub
             issue ↗</a>.
         </div>
       </div>
@@ -114,10 +118,6 @@
                pattern="[0-9]*"
                type="number"><span class="label"> (when Shift key is used)</span>
       </div>
-      <div class="container padding-1">
-        If you want to have a hotkey to trigger VideoMaximizer, it's built into Chrome. <br/>See this
-        <a href="https://www.youtube.com/watch?v=s3SQVhbmj4c" rel="noopener" target="_blank">Youtube demo ↗</a>.
-      </div>
       <!--        <div class="row col label">-->
       <!--          <input checked id="preportionalSkipTimes" name="preportionalSkipTimes" type="checkbox">-->
       <!--          <label for="preportionalSkipTimes"></label>-->
@@ -125,11 +125,21 @@
     </fieldset>
 
     <fieldset class="diableForSimpleFeatures">
+      <legend>Activation Hotkey</legend>
+      <div class="container padding-1">
+        To have a hotkey activate VideoMaximizer on page, simply use the built-in Chrome feature. <br/>
+        Go to Extensions in Chrome and select "Keyboard shortcuts" from the left.<br/> Or navigate directly to <code>chrome://extensions/shortcuts</code>
+      </div>
+    </fieldset>
+
+    <fieldset class="diableForSimpleFeatures">
       <legend>Speed controls only sites</legend>
       <div class="row col label">
         <!-- this is a non-standard use for label to do javascript-less (css only) section expansion -->
-        <label class="padding-1" for="nozoomlist">Some sites that are already fullscreened in theater mode, so VideoMax won't try to zoom
-          them again. But speed controls could still be nice. Just use main domain part. So for "www.example.com" or "example.uk.co", just supply
+        <label class="padding-1" for="nozoomlist">Some sites that are already fullscreened in theater mode, so VideoMax
+          won't try to zoom
+          them again. But speed controls could still be nice. Just use main domain part. So for "www.example.com" or
+          "example.uk.co", just supply
           "example"</label>
         <div class="list-group">
           <ul class="list" id="nozoomlist">

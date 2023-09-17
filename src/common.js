@@ -38,7 +38,7 @@ export const trace = (...args) => {
 export const SETTINGS_STORAGE_KEY = "settingsJson";
 
 // bumping this will cause the notification to show again. keep it pinned unless some major feature
-export const BETA_UPDATE_NOTIFICATION_VERISON = "85"; // will get out of sync. bump to show
+export const UPDATE_NOTIFICATION_VERISON = "85"; // will get out of sync. bump to show
                                                       // notification
 
 
@@ -232,10 +232,10 @@ export const domainToSiteWildcard = (domain, wholeDomainAccess) => {
  */
 export const getManifestJson = async () => {
   try {
-    const cssFilePath = chrome?.runtime?.getURL("manifest.json");
-    if (cssFilePath !== "") {
+    const extManifestFileUri = chrome?.runtime?.getURL("manifest.json");
+    if (extManifestFileUri !== "") {
       // this fetch is to load a file internal to the chrome extension (our manifest) as data
-      const response = await fetch(cssFilePath);
+      const response = await fetch(extManifestFileUri);
       const json = await response.json();
       return json || {};
     }

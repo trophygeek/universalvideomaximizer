@@ -12,7 +12,7 @@
 
  */
 import {
-  BETA_UPDATE_NOTIFICATION_VERISON,
+  UPDATE_NOTIFICATION_VERISON,
   CSS_FILE,
   CSS_STYLE_HEADER_ID,
   DEAULT_SPEED,
@@ -762,13 +762,13 @@ const getSettingUseAdvFeatures = async () => {
 /**
  * @returns {Promise<boolean>}
  */
-const getSettingBetaIntroAlreadyShown = async () => {
+const getSettingIntroAlreadyShown = async () => {
   try {
     const settings = await getSettings();
-    const result = (BETA_UPDATE_NOTIFICATION_VERISON === settings.lastBetaVersion);
+    const result = (UPDATE_NOTIFICATION_VERISON === settings.lastBetaVersion);
 
     // now update it to expected version
-    settings.lastBetaVersion = BETA_UPDATE_NOTIFICATION_VERISON;
+    settings.lastBetaVersion = UPDATE_NOTIFICATION_VERISON;
     await saveSettings(settings);
     return result;
   } catch (err) {
@@ -783,7 +783,7 @@ async function showUpgradePageIfNeeded() {
   try {
     trace("chrome.runtime.onInstalled");
     // checked saved state and see if we've opened the page about v3 update.
-    const shown = await getSettingBetaIntroAlreadyShown();
+    const shown = await getSettingIntroAlreadyShown();
     if (shown) {
       return;
     }
