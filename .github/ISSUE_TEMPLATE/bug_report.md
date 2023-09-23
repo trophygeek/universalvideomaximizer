@@ -18,7 +18,7 @@ Steps to reproduce the behavior:
 4. See error
 
 INCLUDE SITE DETAILS:
-- Which spcific page is having the issue?
+- Which specific page is having the issue?
 - Does site require signup or paid subscription?
 - Is it region restricted (some sports sites won't work from the US where author is from)?
 
