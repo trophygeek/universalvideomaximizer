@@ -264,13 +264,15 @@ try {
    */
   const HandleKeydown = (evt) => {
     trace("document.addEventListener keydown", evt);
+    const domain = globals.domain;
+    const tabId = globals.tabId;
     switch (evt.code) {
       case "Escape":
         chrome.runtime.sendMessage({
                                      message: {
-                                       cmd:    "POPUP_CLOSING",
-                                       domain: globals.domain,
-                                       tabId:  globals.tabId,
+                                       cmd: "POPUP_CLOSING",
+                                       domain,
+                                       tabId,
                                      },
                                    });
         window.close();
@@ -286,10 +288,10 @@ try {
                                  -1;
         chrome.runtime.sendMessage({
                                      message: {
-                                       cmd:    "SKIP_PLAYBACK_CMD",
-                                       domain: globals.domain,
-                                       speed:  String(relativeTimeBack),
-                                       tabId:  globals.tabId,
+                                       cmd:   "SKIP_PLAYBACK_CMD",
+                                       domain,
+                                       tabId,
+                                       speed: String(relativeTimeBack),
                                      },
                                    });
         evt.stopImmediatePropagation();
@@ -305,10 +307,10 @@ try {
         const relativeTimeFwd = skipSecFwd * (Math.max(parseFloat(globals.currentSpeed), 0.25));
         chrome.runtime.sendMessage({
                                      message: {
-                                       cmd:    "SKIP_PLAYBACK_CMD",
-                                       domain: globals.domain,
-                                       speed:  String(relativeTimeFwd),
-                                       tabId:  globals.tabId,
+                                       cmd:   "SKIP_PLAYBACK_CMD",
+                                       domain,
+                                       tabId,
+                                       speed: String(relativeTimeFwd),
                                      },
                                    });
         evt.stopImmediatePropagation();
@@ -331,6 +333,26 @@ try {
         evt.stopImmediatePropagation();
         break;
 
+      case "KeyZ":
+        trace("KeyZ");
+        chrome.runtime.sendMessage({
+                                     message: {
+                                       cmd: "UNZOOM_CMD",
+                                       domain,
+                                       tabId,
+                                     },
+                                   },
+                                   (_response) => {
+                                     chrome.runtime.sendMessage({
+                                                                  message: {
+                                                                    cmd: "POPUP_CLOSING",
+                                                                    domain,
+                                                                    tabId,
+                                                                  },
+                                                                });
+                                     window.close();
+                                   });
+        break;
       default:
         RefreshSpeed();
     }
@@ -371,8 +393,8 @@ try {
         HandleKeydown(evt);
       });
 
-      // to know when the popup has closed, we have to open a socket and watch for it to be closed.
-      // Seriously?!? WTF!
+      // to know when the popup has closed, we have to open a socket and watch for it to be
+      // closed. Seriously?!? WTF!
       g_detectCloseListenerPort = chrome.runtime.connect();
     } catch (err) {
       logerr(err);

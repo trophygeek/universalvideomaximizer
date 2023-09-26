@@ -164,8 +164,3 @@ body.videomax-ext-pornhub div.mgp_adRollContainer.videomax-ext-overlap {
   visibility: unset !important;
 }
 
-/** fix youtube's non-theater-mode playback controls to fit **/
-body.videomax-ext-youtube div.ytp-chrome-bottom,
-body.videomax-ext-youtube div.ytp-chapter-hover-container {
-  width: calc(98vw) !important;
-}
