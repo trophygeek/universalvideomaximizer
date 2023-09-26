@@ -1088,9 +1088,7 @@ chrome.runtime.onConnect.addListener((externalPort) => {
           ",")}]`);
     }
   }
-  // externalPort.onMessage((message, port) => {
-  //   // todo: while popup is open, allow it to query the playback speed (and if the video is
-  // paused)? }); called when disconnected.
+
   externalPort.onDisconnect.addListener((portDisconnectEvent) => {
     // we can get the tab by looking at the url.
     const popupUrl = portDisconnectEvent.sender.url;

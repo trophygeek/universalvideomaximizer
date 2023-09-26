@@ -2,10 +2,10 @@
 // useful reference for exports https://web.dev/es-modules-in-sw/
 import { DEFAULT_SETTINGS, DEFAULT_SPEED, getSettings, logerr, trace } from "./common.js";
 
-try {
-  /** @type {Port} */
-  let g_detectCloseListenerPort = null;
+/** @type {Port} */
+let g_detectCloseListenerPort = null;
 
+try {
   const UNZOOM_LABEL = "[]";
   const UNZOOM_ICON = "./icons/icon19undo.png";
 
@@ -264,8 +264,7 @@ try {
    */
   const HandleKeydown = (evt) => {
     trace("document.addEventListener keydown", evt);
-    const domain = globals.domain;
-    const tabId = globals.tabId;
+    const {domain, tabId} = globals;
     switch (evt.code) {
       case "Escape":
         chrome.runtime.sendMessage({

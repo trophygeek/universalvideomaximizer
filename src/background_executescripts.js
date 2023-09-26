@@ -27,6 +27,7 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
       // skip videos that aren't loaded. mlb.com will play ads and video in the background
       // overlapping!
       if (!eachVid?.src?.length || eachVid.readyState < HTMLVideoElement.HAVE_CURRENT_DATA) {
+        // eslint-disable-next-line no-console
         console.log(`
     VideoMaxExt injectVideoSpeedAdjust: 
       Video(${count} of ${allVids.length})
@@ -168,7 +169,7 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
       const {
         centerX,
         centerY,
-      } = _getCenterCoordsFnFn(doc);
+      } = _getCenterCoordsFnFn();
 
       if (centerX < 50 || centerY < 50) {
         return undefined;
