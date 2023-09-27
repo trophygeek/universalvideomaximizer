@@ -14,9 +14,63 @@
  * @return {string[]}
  */
 export const injectVideoSpeedAdjust = async (newspeed) => {
-  const DEBUG_INJECT = false;
+  const FULL_DEBUG = false;
   /** @type {Set<string>} */
   const resultCrossDomainErrs = new Set(); // use Set to dedup
+
+  if (FULL_DEBUG) {
+    /** @type {NodeListOf<HTMLVideoElement>} */
+    const allVids = document.querySelectorAll("video");
+    let count = 0;
+    for (const eachVid of allVids) {
+      count++;
+      // skip videos that aren't loaded. mlb.com will play ads and video in the background
+      // overlapping!
+      if (!eachVid?.src?.length || eachVid.readyState < HTMLVideoElement.HAVE_CURRENT_DATA) {
+        // eslint-disable-next-line no-console
+        console.log(`
+    VideoMaxExt injectVideoSpeedAdjust: 
+      Video(${count} of ${allVids.length})
+        src: "${eachVid.src}"
+        readyState: ${eachVid.readyState} 
+      Skipping
+      `);
+        continue;
+      }
+    //   console.log(`
+    // VideoMaxExt injectVideoSpeedAdjust:
+    //   Video(${count} of ${allVids.length})
+    //     src: "${eachVid.src}"
+    //     currentSrc: "${eachVid.currentSrc}"
+    //     readyState: ${eachVid.readyState}
+    //       (0=HAVE_NOTHING,1=HAVE_METADATA,2=HAVE_CURRENT_DATA,3=HAVE_FUTURE_DATA,4=HAVE_ENOUGH_DATA)
+    //     playsInline: ${eachVid.playsInline}
+    //     playbackRate: ${eachVid.playbackRate}
+    //     defaultPlaybackRate: ${eachVid.defaultPlaybackRate}
+    //     paused: ${eachVid.paused}
+    //     played.length: ${eachVid.played.length} (TimeRange)
+    //     preservesPitch: ${eachVid.preservesPitch}
+    //     muted: ${eachVid.muted}
+    //     defaultMuted: ${eachVid.defaultMuted}
+    //     volumne: ${eachVid.volume}
+    //     crossOrigin: ${eachVid.crossOrigin}
+    //     controls: ${eachVid.controls}
+    //     currentTime: ${eachVid.currentTime}
+    //     preload: ${eachVid.preload}
+    //     duration: ${eachVid.duration}
+    //     ended: ${eachVid.ended}
+    //     error: ${eachVid.error}
+    //     loop: ${eachVid.loop}
+    //     mediaKeys: ${eachVid.mediaKeys}
+    //     networkState: ${eachVid.networkState}
+    //       (NETWORK_EMPTY, NETWORK_IDLE, NETWORK_LOADING, NETWORK_NO_SOURCE)
+    //     seekable.lenth: ${eachVid.seekable.length}
+    //     seeking: ${eachVid.seeking}
+    //     srcObject: ${eachVid.srcObject} (null?)
+    //     textTracks: ${eachVid.textTracks}
+    //   `, eachVid);
+    }
+  }
 
   if (document?.body) {
     try {
@@ -39,20 +93,31 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
       // check to see if we're still injected into page.
       const runningAttr = document?.body?.getAttribute("data-videomax-running") || "";
       if (runningAttr.length <= 0) {
-        if (DEBUG_INJECT) {
+        if (FULL_DEBUG) {
           // eslint-disable-next-line no-console
           console.log(`VideoMaxExt: loadStart injectVideoSpeedAdjust No longer injected, bailing`);
         }
         return;
       }
-
       const video_elem = event?.target;
+
+      if (!!video_elem?.src?.length || video_elem.readyState < HTMLVideoElement.HAVE_CURRENT_DATA) {
+        if (FULL_DEBUG) {
+          // eslint-disable-next-line no-console
+          console.log(`VideoMaxExt: loadStart injectVideoSpeedAdjust not running since video not in correct state. 
+          src:"${video_elem?.src}"
+          readyState:${video_elem.readyState}`);
+        }
+        return;
+      }
+
+
       const isVis = video_elem?.checkVisibility({
                                                   checkOpacity:       true,
                                                   checkVisibilityCSS: true,
                                                 }) || false;
       const speedNumber = Math.abs(parseFloat(newspeed));
-      if (DEBUG_INJECT) {
+      if (FULL_DEBUG) {
         // eslint-disable-next-line no-console
         console.log(
           `VideoMaxExt: loadStart injectVideoSpeedAdjust
@@ -104,7 +169,7 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
       const {
         centerX,
         centerY,
-      } = _getCenterCoordsFnFn(doc);
+      } = _getCenterCoordsFnFn();
 
       if (centerX < 50 || centerY < 50) {
         return undefined;
@@ -116,16 +181,16 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
         if (eachLayer?.nodeName.toLowerCase() === "video") {
           return _isVisibleFnFn(eachLayer);
         }
-          return false;
-
+        return false;
       });
-      if (DEBUG_INJECT) {
+
+      if (FULL_DEBUG) {
         // eslint-disable-next-line no-console
         console.log(`VideoMaxExt: _injectSetSpeedForVideosFn 
         centerX:${centerX}
         centerY:${centerY}
-        layedElems: ${layedElems.length}
-        matches: ${matches.length}
+        layedElems.length: ${layedElems.length}
+        matches.length: ${matches.length}
         layedElems:
         `, layedElems);
       }
@@ -134,19 +199,23 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
       }
       // can happen when page NOT tagonly like amazon.
       const matchedVideo = doc.querySelectorAll(`[data-videomax-target]`);
-      if (DEBUG_INJECT) {
+      if (FULL_DEBUG) {
         // eslint-disable-next-line no-console
         console.log(`VideoMaxExt: _injectSetSpeedForVideosFn
         elementsFromPoint failed to find video. directly searching
         matchedVideo: ${matchedVideo.length}
-        `, matchedVideo);
+        `, matchedVideo[0] || "undefined");
       }
       return matchedVideo[0] || undefined;
     };
 
     // Always remove possible loadstart listeners since ads may be on top of older videos
-    /** @type {NodeListOf<HTMLVideoElement>} */
-    const videos = doc.querySelectorAll("video");
+    // v108 filter out any videos that don't have a src or data to play. mba.com
+    /** @type {HTMLVideoElement[]} */
+    const videos = [...doc.querySelectorAll("video")]
+      .filter((eachVid) => !eachVid?.src?.length && eachVid.readyState >=
+                           HTMLVideoElement.HAVE_CURRENT_DATA);
+
     for (const eachVideo of videos) {
       eachVideo.removeEventListener("loadstart", _loadStartFn);
     }

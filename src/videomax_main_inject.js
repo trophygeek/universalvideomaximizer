@@ -131,7 +131,7 @@ try { // scope and prevent errors from leaking out to page.
     // "header", // some sites put videos in the header, wtf?
                               "footer",
     // "figure", // secsports puts it under a <figure> seriously?
-                              "caption",
+                              // "caption",
                               "area",
                               "br",
                               "button",
@@ -2027,6 +2027,7 @@ try { // scope and prevent errors from leaking out to page.
   const NEVERHIDEMATCHES = [
     /ytp-ad-module/i, // youtube "skip ad"
     /caption/i, // youtube cc
+    /subtitles/i, // nbc cc
     /ccContainer/i, // pornhub cc
     /web-player-icon-resize/i, // tubi's non-508 playback
   ];

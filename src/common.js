@@ -136,15 +136,15 @@ export const rangeInt = (num, lower, upper) => Math.max(lower, Math.min(upper, n
 
 /**
  *
- * @param fullUrl {string}
- * @return {string}
+ * @param fullUrl {string || undefined}
+ * @return {string || undefined} Undefined required for permissions call
  */
 export const getDomain = (fullUrl) => {
   try {
-    let url = fullUrl;
-    if (!url.length) {
-      return url; // undefined and ""
+    if (!fullUrl?.length) {
+      return fullUrl;
     }
+    let url = fullUrl;
     if (url.startsWith(`blob:https://`)) {
       // seen blob:https://example.com for iframe
       url = url.substring("blob:".length);
@@ -154,6 +154,7 @@ export const getDomain = (fullUrl) => {
     }
     return (new URL(url)).host.toLowerCase();
   } catch (err) {
+    logerr(`getDomain err for "${fullUrl}"`, err);
     return fullUrl;
   }
 };
