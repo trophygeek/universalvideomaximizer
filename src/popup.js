@@ -3,7 +3,7 @@
 import { DEFAULT_SETTINGS, DEFAULT_SPEED, getSettings, logerr, trace } from "./common.js";
 
 /** @type {Port} */
-let g_detectCloseListenerPort = null;
+let _detectCloseListenerPort = null; // we assign to keep it open, but never use
 
 try {
   const UNZOOM_LABEL = "[]";
@@ -394,7 +394,7 @@ try {
 
       // to know when the popup has closed, we have to open a socket and watch for it to be
       // closed. Seriously?!? WTF!
-      g_detectCloseListenerPort = chrome.runtime.connect();
+      _detectCloseListenerPort = chrome.runtime.connect();
     } catch (err) {
       logerr(err);
     }

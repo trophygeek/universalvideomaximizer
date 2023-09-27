@@ -5,3 +5,4 @@ node_modules
 /test/screenshots/*.png
 /test/testvidmax/*
 /test/yarn.lock
+/build/*
