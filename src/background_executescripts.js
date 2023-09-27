@@ -14,11 +14,11 @@
  * @return {string[]}
  */
 export const injectVideoSpeedAdjust = async (newspeed) => {
-  const DEBUG_INJECT = false;
+  const FULL_DEBUG = false;
   /** @type {Set<string>} */
   const resultCrossDomainErrs = new Set(); // use Set to dedup
 
-  if (DEBUG_INJECT) {
+  if (FULL_DEBUG) {
     /** @type {NodeListOf<HTMLVideoElement>} */
     const allVids = document.querySelectorAll("video");
     let count = 0;
@@ -93,7 +93,7 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
       // check to see if we're still injected into page.
       const runningAttr = document?.body?.getAttribute("data-videomax-running") || "";
       if (runningAttr.length <= 0) {
-        if (DEBUG_INJECT) {
+        if (FULL_DEBUG) {
           // eslint-disable-next-line no-console
           console.log(`VideoMaxExt: loadStart injectVideoSpeedAdjust No longer injected, bailing`);
         }
@@ -102,7 +102,7 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
       const video_elem = event?.target;
 
       if (!!video_elem?.src?.length || video_elem.readyState < HTMLVideoElement.HAVE_CURRENT_DATA) {
-        if (DEBUG_INJECT) {
+        if (FULL_DEBUG) {
           // eslint-disable-next-line no-console
           console.log(`VideoMaxExt: loadStart injectVideoSpeedAdjust not running since video not in correct state. 
           src:"${video_elem?.src}"
@@ -117,7 +117,7 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
                                                   checkVisibilityCSS: true,
                                                 }) || false;
       const speedNumber = Math.abs(parseFloat(newspeed));
-      if (DEBUG_INJECT) {
+      if (FULL_DEBUG) {
         // eslint-disable-next-line no-console
         console.log(
           `VideoMaxExt: loadStart injectVideoSpeedAdjust
@@ -184,7 +184,7 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
         return false;
       });
 
-      if (DEBUG_INJECT) {
+      if (FULL_DEBUG) {
         // eslint-disable-next-line no-console
         console.log(`VideoMaxExt: _injectSetSpeedForVideosFn 
         centerX:${centerX}
@@ -199,7 +199,7 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
       }
       // can happen when page NOT tagonly like amazon.
       const matchedVideo = doc.querySelectorAll(`[data-videomax-target]`);
-      if (DEBUG_INJECT) {
+      if (FULL_DEBUG) {
         // eslint-disable-next-line no-console
         console.log(`VideoMaxExt: _injectSetSpeedForVideosFn
         elementsFromPoint failed to find video. directly searching
