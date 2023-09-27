@@ -205,58 +205,57 @@ function setSubframeData(tabId, domain, subFrameStr) {
   };
 }
 
-/**
- * This will get GC deleted often, but if the background knows it, it saves
- * an async call into the page to re-get the last playback speed.
- * @type {KeyValuePair} */
-const g_SpeedByTabData = {};
 
 /**
  * @param tabId {number}
  * @param domain {string}
  * @param speed {string}
- * @return {boolean}
+ * @return {Promise<boolean>}
  */
-function setSpeedGlobalData(tabId, domain, speed) {
-  const wasSet = g_SpeedByTabData[`${tabId}-${domain}`] !== undefined;
-  g_SpeedByTabData[`${tabId}-${domain}`] = speed;
-  return wasSet;
+async function setSpeedGlobalData(tabId, domain, speed) {
+  const key = `speed.${tabId}.${domain}`;
+  const orgValue = await chrome.storage.session.get(key);
+  await chrome.storage.session.set({[`${key}`]: `${speed}`}); // key syntax is silly but seems required?
+  return !!orgValue[key]?.length;
 }
 
 /**
  * @param tabId {number}
  * @param domain {string}
- * @return {string}
+ @return {Promise<string>}
  */
-function getGlobalSpeedData(tabId, domain) {
-  return g_SpeedByTabData[`${tabId}-${domain}`] || DEAULT_SPEED;
+async function getGlobalSpeedData(tabId, domain) {
+  const key = `speed.${tabId}.${domain}`;
+  const orgValue = await chrome.storage.session.get(key);
+  return orgValue[key] || DEAULT_SPEED;
 }
 
-/** @type {number[]} */
-let g_PopupOpenedForTabs = [];
-
 /**
- * Some sites (hampster) will trigger an
- * @type {KeyValuePair} */
-const g_LastUrlFromOnUpdated = {};
+ * List of tabIds for actively opened popups. OK to be in memory because we
+ * shouldn't be unloaded while the socket is open
+ * @type {number[]} */
+let g_PopupOpenedForTabs = [];
 
 /**
  * @param tabId {number}
  * @param url {string}
- * @return {boolean}
+ * @return {Promise<boolean>}
  */
-function setLastUrlFromOnUpdated(tabId, url) {
-  const wasSet = g_LastUrlFromOnUpdated[`${tabId}`] !== undefined;
-  g_LastUrlFromOnUpdated[`${tabId}`] = url;
-  return wasSet;
+async function setLastUrlFromOnUpdated(tabId, url) {
+  const key = `lasturl.${tabId}`;
+  const orgValue = await chrome.storage.session.get(key);
+  await chrome.storage.session.set({[`${key}`]: `${url}`}); // key syntax is silly but seems required?
+  return !!orgValue[key]?.length;
 }
 
 /**
  * @param tabId {number}
- * @return {string}
+ * @return {Promise<string>}
  */
-function getLastUrlFromOnUpdated(tabId) {
-  return g_LastUrlFromOnUpdated[`${tabId}`] || "";
+async function getLastUrlFromOnUpdated(tabId) {
+  const key = `lasturl.${tabId}`;
+  const result = await chrome.storage.session.get(key);
+  return result[key] || "";
 }
 
 /**
@@ -380,7 +379,6 @@ async function getCurrentTabState(tabId) {
 function isActiveState(state) {
   return STATE_DATA[state]?.zoomed || false;
 }
-
 
 /**
  * Injection returns an array of results, this aggregates them into a single result.
@@ -652,7 +650,7 @@ async function setSpeed(tabId, domain, speedStr = DEAULT_SPEED) {
       logerr(`setSpeed: Speed NOT valid number '${speedStr}'`);
       return false;
     }
-    const wasSet = setSpeedGlobalData(tabId, domain, speedStr);
+    const wasSet = await setSpeedGlobalData(tabId, domain, speedStr);
 
     if (!wasSet && speedStr === DEAULT_SPEED) {
       trace(
@@ -687,7 +685,7 @@ async function setSpeed(tabId, domain, speedStr = DEAULT_SPEED) {
  */
 async function getSpeed(tabId, domain, defaultSpeed = DEFAULT_SPEED) {
   try {
-    const speed = getGlobalSpeedData(tabId, domain);
+    const speed = await getGlobalSpeedData(tabId, domain);
     if (speed) {
       // sweet, background service not purged yet
       return speed;
@@ -922,7 +920,7 @@ chrome.action.onClicked.addListener((tab) => {
         // domain will be empty for "file://"
         await toggleZoomState(tabId, getDomain(tab.url));
         // used to detect SPA nav. Clip anchor
-        setLastUrlFromOnUpdated(tabId, tab.url.split("#")[0]);
+        await setLastUrlFromOnUpdated(tabId, tab.url.split("#")[0]);
       });
     });
   } catch (err) {
@@ -1052,14 +1050,14 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
           // some sites (hampster) will set an anchor in url when progress clicked near end.
           const newUrl = (changeInfo?.url || "").split("#")[0].toLowerCase(); // trim off after
                                                                               // anchor?
-          const lastUrl = getLastUrlFromOnUpdated(tabId);
+          const lastUrl = await getLastUrlFromOnUpdated(tabId);
           // some SPA won't do a clean refetch, we need to uninstall.
           if (popupUIActive) {
             // popup is open, so keep zoomed
             trace("tabs.onUpdated: Popup UI Open so REzooming");
             await ReZoom(tabId, domain, DEFAULT_SPEED);
           } else if (!!newUrl?.length && newUrl !== lastUrl) {
-            setLastUrlFromOnUpdated(tabId, newUrl);
+            await setLastUrlFromOnUpdated(tabId, newUrl);
             trace(`tabs.onUpdated: Popup UI CLOSED so UNzooming. 
               newUrl: "${newUrl}"
               lastUrl: "${lastUrl}
@@ -1090,9 +1088,7 @@ chrome.runtime.onConnect.addListener((externalPort) => {
           ",")}]`);
     }
   }
-  // externalPort.onMessage((message, port) => {
-  //   // todo: while popup is open, allow it to query the playback speed (and if the video is
-  // paused)? }); called when disconnected.
+
   externalPort.onDisconnect.addListener((portDisconnectEvent) => {
     // we can get the tab by looking at the url.
     const popupUrl = portDisconnectEvent.sender.url;

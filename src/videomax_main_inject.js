@@ -7,6 +7,7 @@
  Creative Commons Share Alike 4.0
  To view a copy of this license, visit https://creativecommons.org/licenses/by-sa/4.0/
  */
+
 try { // scope and prevent errors from leaking out to page.
   const FULL_DEBUG = false;
   const DEBUG_ENABLED = FULL_DEBUG;
@@ -127,10 +128,10 @@ try { // scope and prevent errors from leaking out to page.
                               "img",
                               "meta",
                               "head",
-                              // "header", // some sites put videos in the header, wtf?
+    // "header", // some sites put videos in the header, wtf?
                               "footer",
     // "figure", // secsports puts it under a <figure> seriously?
-                              "caption",
+                              // "caption",
                               "area",
                               "br",
                               "button",
@@ -175,6 +176,7 @@ try { // scope and prevent errors from leaking out to page.
   // from background script on body
   const PLAYBACK_SPEED_ATTR = `${VIDEO_MAX_DATA_PREFIX}-playbackspeed`;
   const VIDEO_MAX_INSTALLED_ATTR = `${VIDEO_MAX_DATA_PREFIX}-running`; // data-videomax-running
+  const YOUTUBE_RESTORE_NON_THEATER_ATTR = `${VIDEO_MAX_DATA_PREFIX}-youtube-nontheater-restore`;
 
   const EMBEDED_SCORES = `${VIDEO_MAX_DATA_PREFIX}-scores`;
   const VIDEO_MAX_ATTRIB_FIND = `${VIDEO_MAX_DATA_PREFIX}-target`;
@@ -199,7 +201,15 @@ try { // scope and prevent errors from leaking out to page.
     /platform\.tumblr\.com/i,
     /imasdk\.googleapis\.com/i,
     /\.afcdn\.net/i,
-    /\.adsninja\.ca/i];
+    /\.adsninja\.ca/i,
+    /\.extremereach\.io/i,
+    /\.gvt1\.com/i];
+
+  /** these are "normalized" so country doesn't matter */
+  const YOUTUBE_TLD_NAMES = [
+    /\.youtube\./i,
+    /\.youtu\.be/i,
+  ];
 
   // per doc globals (e.g. inside iframes from background inject gets it's own)
   let videomaxGlobals = {
@@ -237,7 +247,7 @@ try { // scope and prevent errors from leaking out to page.
   };
 
   /** @type {TreeWalker | null} */
-  let walker = null;
+  let g_walker = null;
 
   const isRunningInIFrame = () => window !== window?.parent;
 
@@ -337,7 +347,7 @@ try { // scope and prevent errors from leaking out to page.
     let domainName = url.hostname;
 
     // normalizing the tld is next to impossible w/out some cookie setting hack
-    // so we just remove any prefix like www or web
+    // so we just remove any common prefix like www or web
     const prefixesToRemove = ["www", "web", "static", "video", "tv"];
     for (const prefix of prefixesToRemove) {
       if (domainName.startsWith(`${prefix}.`)) {
@@ -490,7 +500,7 @@ try { // scope and prevent errors from leaking out to page.
 
   /**
    *
-   * @param elem {HTMLElement | Node}
+   * @param elem {HTMLElement | Node | string}
    * @return {string}
    * @constructor
    */
@@ -498,6 +508,9 @@ try { // scope and prevent errors from leaking out to page.
     try {
       if (!elem) {
         return "undefined";
+      }
+      if (typeof (elem) === "string") {
+        return elem;
       }
 
       let attrStr = "";
@@ -570,7 +583,12 @@ try { // scope and prevent errors from leaking out to page.
    */
   const getAttr = (elem, attr) => {
     try {
-      return elem?.getAttribute(attr) || null;
+      // changed in 3.0.108, was not correctly detecting empty string matches. watch for bugs
+      if (typeof (elem?.getAttribute) !== "function") {
+        trace("elem parame doesn't have getAttribute() function, return null");
+        return null;
+      }
+      return elem.getAttribute(attr);
     } catch (err) {
       return null;
     }
@@ -804,7 +822,6 @@ try { // scope and prevent errors from leaking out to page.
           // we want a trailing ; for our opacity check below
           mergedValue = `${mergedValue};`;
         }
-
 
         // if you zoom during starting pre-video commercials,
         // then some sites have the main video hidden (cruchyroll).
@@ -1144,29 +1161,29 @@ try { // scope and prevent errors from leaking out to page.
       return count;
     };
 
-    const savedWalkerCurrentNode = walker.currentNode; // restore at end
-    walker.currentNode = videoElem;
+    const savedWalkerCurrentNode = g_walker.currentNode; // restore at end
+    g_walker.currentNode = videoElem;
     let bestMatch = videoElem;
     let bestMatchWeight = 1;
 
     let checkParents = CHECK_PARENTS_LEVELS_UP_MAX;
-    while (walker.parentNode() && checkParents > 0) {
+    while (g_walker.parentNode() && checkParents > 0) {
       try {
         // these could be part of while condition, but we may want to debug/trace on them.
         checkParents--; // counting down to zero.
-        if (isStopNodeForCommonContainer(walker.currentNode)) {
+        if (isStopNodeForCommonContainer(g_walker.currentNode)) {
           trace(`  findCommonContainerFromElem stopped because hit stopping node`,
-                walker.currentNode);
+                g_walker.currentNode);
           break;
         }
-        const weight = countChildren(walker.currentNode);
+        const weight = countChildren(g_walker.currentNode);
         trace(`findCommonContainerFromMatched ${weight > bestMatchWeight ?
                                                 "NEW BEST" :
                                                 ""} \n\t weight:${weight} \n\t ${PrintNode(
-          walker.currentNode)} \n\t`);
+          g_walker.currentNode)} \n\t`);
         if (weight > bestMatchWeight) {
           bestMatchWeight = weight;
-          bestMatch = walker.currentNode; // we've already moved to parentNode()
+          bestMatch = g_walker.currentNode; // we've already moved to parentNode()
         }
       } catch (err) {
         logerr(err);
@@ -1174,7 +1191,7 @@ try { // scope and prevent errors from leaking out to page.
     }
 
     // done, restore
-    walker.currentNode = savedWalkerCurrentNode;
+    g_walker.currentNode = savedWalkerCurrentNode;
 
     // tubi is an exception since they use non-508 friendly playback controls.
     if (document.location?.host?.includes("tubitv.")) {
@@ -1317,32 +1334,32 @@ try { // scope and prevent errors from leaking out to page.
    * @constructor
    */
   const ReApplyUpFromElem = (elem, className, optStopElem = null) => {
-    const saveWalker = walker.currentNode;
-    walker.currentNode = elem;
+    const saveWalker = g_walker.currentNode;
+    g_walker.currentNode = elem;
     do {
       try {
-        if (hasAnyVideoMaxClass(walker?.currentNode)) {
+        if (hasAnyVideoMaxClass(g_walker?.currentNode)) {
           continue;
         }
         if (IF_PATH_INVISIBLE_DO_NOT_MAXIMIZE && className === MAX_CSS_CLASS &&
-            !isVisible(walker?.currentNode)) {
+            !isVisible(g_walker?.currentNode)) {
           if (DEBUG_HIDENODE) {
             trace(
               "ReApplyUpFromElem IF_PATH_INVISIBLE_DO_NOT_MAXIMIZE. Elem is not visible, so don't maximize, just set to no_hide");
           }
-          walker?.currentNode?.classList?.add(NO_HIDE_CLASS);
+          g_walker?.currentNode?.classList?.add(NO_HIDE_CLASS);
         } else {
-          walker?.currentNode?.classList?.add(className);
+          g_walker?.currentNode?.classList?.add(className);
         }
         if (ALWAYS_BACK_UP_STYLES) {
-          backupAttr(walker.currentNode, "style");
+          backupAttr(g_walker.currentNode, "style");
         }
       } catch (err) {
-        logerr(`walker error for ${PrintNode(walker.currentNode)}`, err);
+        logerr(`walker error for ${PrintNode(g_walker.currentNode)}`, err);
       }
-    } while (walker.parentNode() &&
-             (optStopElem ? !optStopElem.isSameNode(walker.currentNode) : true));
-    walker.currentNode = saveWalker;
+    } while (g_walker.parentNode() &&
+             (optStopElem ? !optStopElem.isSameNode(g_walker.currentNode) : true));
+    g_walker.currentNode = saveWalker;
   };
 
   /**
@@ -1725,7 +1742,9 @@ try { // scope and prevent errors from leaking out to page.
         }
         return !skipFunction(c);
       });
-      trace(`getSiblings`, result);
+      if (DEBUG_HIDENODE) {
+        trace(`getSiblings`, result);
+      }
       return result;
     } catch (err) {
       logerr(err);
@@ -1790,7 +1809,7 @@ try { // scope and prevent errors from leaking out to page.
     this.startTimer = (func) => {
       this.func = func;
       this.retryFunc.bind(this);
-      this.retryFunc();
+      setTimeout(() => this.retryFunc(), 0);
     };
 
     this.retryFunc = () => {
@@ -2008,6 +2027,7 @@ try { // scope and prevent errors from leaking out to page.
   const NEVERHIDEMATCHES = [
     /ytp-ad-module/i, // youtube "skip ad"
     /caption/i, // youtube cc
+    /subtitles/i, // nbc cc
     /ccContainer/i, // pornhub cc
     /web-player-icon-resize/i, // tubi's non-508 playback
   ];
@@ -2930,10 +2950,56 @@ try { // scope and prevent errors from leaking out to page.
     return true;
   }
 
+  const isYoutubeInTheaterMode = () => {
+    if (isRunningInIFrame()) {
+      return false;
+    }
+    const masthead = document.getElementById("masthead");
+    if (!masthead) {
+      return false;
+    }
+    if (getAttr(masthead, "theater") === null) {
+      return false;
+    }
+    return true;
+  };
+
   /**
+   * Fixing youtube's progress indicator when it's in small mode is next to impossible to make
+   * large-screen friendly. The thumb position is set via javascript that sets a style directly
+   * (not very CSP friendly) A more reliable solution is to put page in theater mode and then
+   * restore it when we unzoom.
+   * @param theaterMode {boolean}
+   */
+  const setYoutubeIntoTheaterMode = (theaterMode ) => {
+    // verify it smells like a youtube domain. But the element check below would probably be enough
+    if (!smellsLikeMatch(getPageUrl(), YOUTUBE_TLD_NAMES)) {
+      return;
+    }
+    // check if we're in theater mode we want
+    if (isYoutubeInTheaterMode() === theaterMode) {
+      trace(`youtube already in ${theaterMode ? "theater" : "non-theater"} mode, doing nothing`);
+      return;
+    }
+
+    if (theaterMode) {
+      // if we're putting it into theater mode, we should restore it.
+      setAttr(document.body, YOUTUBE_RESTORE_NON_THEATER_ATTR, '1');
+    } else {
+      removeAttr(document.body, YOUTUBE_RESTORE_NON_THEATER_ATTR);
+    }
+
+    const theaterButton = document.getElementsByClassName("ytp-size-button")?.[0];
+    theaterButton?.click?.();
+  };
+
+  /**
+   * Called multiple time until it succeeds. Required because some pages just deferred js
+   * to load videos.
+   *
    * @return {boolean} Returning True stops retry
    */
-  function doZoomPage() {
+  function doZoomPageRetries() {
     if (document.videmax_cmd === "unzoom") {
       trace("UNZOOMING! - skipping doZoomPage");
       return true;
@@ -3045,6 +3111,7 @@ try { // scope and prevent errors from leaking out to page.
   }
 
   function mainZoom(tagonly = false) {
+    // This is only called ONCE, but the doZoomPage is called multiple times.
     videomaxGlobals.unzooming = false; // clear if we start zooming again. needed or retry timers
     if (hasInjectedAlready()) {
       trace("detected already injected. something is off?");
@@ -3058,11 +3125,16 @@ try { // scope and prevent errors from leaking out to page.
       return;
     }
 
-    walker = document.createTreeWalker(document.body,
-                                       NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_DOCUMENT,
-                                       isVisibleWalkerElem);
+    if (!g_walker) {
+      g_walker = document.createTreeWalker(document.body,
+                                           NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_DOCUMENT,
+                                           isVisibleWalkerElem);
+    }
+    if (!videomaxGlobals.elementMatcher) {
+      videomaxGlobals.elementMatcher = new ElemMatcherClass();
+    }
 
-    videomaxGlobals.elementMatcher = new ElemMatcherClass();
+    setYoutubeIntoTheaterMode(true);
 
     if (!tagonly) {
       videomaxGlobals.hideEverythingTimer = new RetryTimeoutClass("hideEverythingTimer", 250,
@@ -3072,7 +3144,7 @@ try { // scope and prevent errors from leaking out to page.
 
     videomaxGlobals.tagonly = tagonly;
     videomaxGlobals.findVideoRetryTimer = new RetryTimeoutClass("doZoomPage", 500, retries);
-    videomaxGlobals.findVideoRetryTimer.startTimer(doZoomPage);
+    videomaxGlobals.findVideoRetryTimer.startTimer(doZoomPageRetries);
   }
 
   const removeClassObserver = () => {
@@ -3534,6 +3606,11 @@ try { // scope and prevent errors from leaking out to page.
         }
         UndoZoom.recurseIFrameUndoAll(document);
         UndoZoom.recurseIFrameUndoAll(window.document);
+
+        if (!isRunningInIFrame() && getAttr(document.body, YOUTUBE_RESTORE_NON_THEATER_ATTR) !== null) {
+          trace("Detected we put youtube in theater mode, undoing it");
+          setYoutubeIntoTheaterMode(false);
+        }
 
         // remove the video "data-videomax-" attributes
         const ALL_DOCS = [document, window.document];
