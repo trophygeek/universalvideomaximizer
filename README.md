@@ -1,22 +1,19 @@
 # universalvideomaximizer
 Chrome extension that finds and enlarges the main video filling browser window.
 
-## Branches
-Because Chrome is going through a major API update (which has some compatiblity issues), there are TWO major branches.
+Google is requiring all chrome extensions be upgraded to v3. This breaks some of the mechanisms the old Universal Video Maximizer uses and required a rewrite. To be fair, the original code dates back to 2012, so it lasted a long time.
 
-The `main` branch is an older snapshot of the classic extentions. 
+## How to use this old version with Chrome.
 
-## v2 
-The `v2` branch is fixes to this classic version and
-is currently what's published publically in the Chrome store.
+If you still want to use this old version with chrome, it's pretty easy to do.
 
-## v3 BETA
-The `v3` branch uses the new chrome API v3. 
-It's fully functional and can be found in the chrome store here:
-https://chrome.google.com/webstore/detail/implccjhhblakjgebfhbafehkjjhklai?authuser=0&hl=en
+1. Download this source and save somewhere locally. Unzip it and rename it something like `VideoMaxExt2`
+![image](https://github.com/trophygeek/universalvideomaximizer/assets/522197/48d35694-6847-4f56-8784-bcabb760fba4)
+2. Follow these instructions from Google on how to load a local Chrome Extension.
+(Loading an unpacked extension)[https://developer.chrome.com/docs/extensions/mv3/getstarted/development-basics/#load-unpacked]
+3. You need to use **Load unpacked** directory by selecting the `src` inside the `VideoMaxExt2` directory.
 
-It is currently "unlisted" while it's in beta testing. I keep finding/reporting Chrome bugs with the v3 manifest, so it's taking longer to release.
-
+You will likely get an error warning it's a version 2 extension but that's it.
 
 ## Firefox support
 The `v2` branch that is verified to work with Firefox.
