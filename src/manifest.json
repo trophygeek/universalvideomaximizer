@@ -2,7 +2,7 @@
   "name": "Video Maximizer",
   "version": "3.0.108",
   "manifest_version": 3,
-  "description": "Remove visual clutter and maximize videos for easy viewing - full-page theater mode supported on most sites.",
+  "description": "Remove visual clutter and maximizes videos for easy viewing, including full-page theater mode on most sites.",
   "homepage_url": "https://github.com/trophygeek/universalvideomaximizer",
   "icons": {
     "48": "icons/icon48.png",
