@@ -33,8 +33,6 @@ try { // scope and prevent errors from leaking out to page.
   const LAST_DITCH_HIDE = true;
   const REAPPLY_PLAYBACKSPEED = true;
   const MUTATION_OBSERVER_WATCH_ALL_MAX = true;
-  // stops popup ads, but also "skip ads" buttons. Needs more work before release
-  const MUTATION_OBSERVER_HIDE_NEW_ELEMS_ADDED = false;
   const USE_OLD_FAST_IS_VISIBLE_CHECK_IN_WALKER = false; // new code => false
   const FIND_CONTROLS_ON_MAIN_THREAD_FOR_IFRAME_MATCH = true;
   const USE_WHOLE_WINDOW_TO_SEARCH_FOR_CONTROLS = true;
@@ -241,8 +239,6 @@ try { // scope and prevent errors from leaking out to page.
 
     /** @var {MutationObserver} */
     mutationObserver: null,
-
-    lastUserAction: 0,
 
     /** @type {RetryTimeoutClass | null} */
     findVideoRetryTimer: null,
@@ -2357,10 +2353,9 @@ try { // scope and prevent errors from leaking out to page.
      */
     const diceCoefficient = (str1, str2) => {
       let intersection = 0;
-
-      for (let i = 0; i < str1.length; i++) {
-        for (let j = 0; j < str2.length; j++) {
-          if (str1[i] === str2[j]) {
+      for (let ch1 of str1) {
+        for (let ch2 of str2) {
+          if (ch1 === ch2) {
             intersection++;
           }
         }
@@ -2940,7 +2935,6 @@ try { // scope and prevent errors from leaking out to page.
     /** @param event {KeyboardEvent} */
     const _onPress = (event) => {
       try {
-        videomaxGlobals.lastUserAction = Date.now();
         if (event.keyCode === 27) { // esc key
           trace("esc key press detected, unzooming");
           // unzoom here!
@@ -2966,14 +2960,6 @@ try { // scope and prevent errors from leaking out to page.
       }
     };
     /** @param event {Event} */
-    const _onEvent = (event) => {
-      // used like a the original popup blocker
-      // Fun fact: I was the original author of the first intelligent popup blocker
-      if (DEBUG_ENABLED) {
-        trace(`event:"${event.type}" Date.now():${Date.now()}`);
-      }
-      videomaxGlobals.lastUserAction = Date.now();
-    };
 
     try {
       // this will allow "escape key" undo the zoom.
@@ -2984,20 +2970,6 @@ try { // scope and prevent errors from leaking out to page.
       if (!removeOnly) {
         doc?.addEventListener("keydown", _onPress);
         window?.document?.addEventListener("keydown", _onPress);
-      }
-
-
-      // these track user action timing to allow new video elements that are menus, etc,
-      if (MUTATION_OBSERVER_HIDE_NEW_ELEMS_ADDED) {
-        const TRACK_EVENTS = ["keydown", "keyup", "mousedown", "mouseup", "touchstart", "touchend"];
-        for (const eachEvent of TRACK_EVENTS) {
-          doc?.removeEventListener(eachEvent, _onEvent);
-        }
-        if (!removeOnly) {
-          for (const eachEvent of TRACK_EVENTS) {
-            doc?.addEventListener(eachEvent, _onEvent);
-          }
-        }
       }
     } catch (err) {
       logerr(err);
@@ -3013,10 +2985,7 @@ try { // scope and prevent errors from leaking out to page.
     if (!masthead) {
       return false;
     }
-    if (getAttr(masthead, "theater") === null) {
-      return false;
-    }
-    return true;
+    return getAttr(masthead, "theater") !== null;
   };
 
   /**
@@ -3289,89 +3258,36 @@ try { // scope and prevent errors from leaking out to page.
         trace("UNZOOMING INTERRUPT! - skipping MutationObserver");
         return;
       }
-      // check to see if things are in the process of going away. They might be.
-      const timestamp = Date.now(); // having in var is handy for debugging
-      let allowNewElements = videomaxGlobals.lastUserAction ?
-                             Math.abs(videomaxGlobals.lastUserAction - timestamp) < 1000 :
-                             false;
-      // we will allow new elements if this is an ad playing or we're paused.
-      if (!allowNewElements) {
-        allowNewElements = videomaxGlobals?.matchedVideo?.paused || true;
-        if (DEBUG_MUTATION_OBSERVER) {
-          trace(`mutationObserver event: ${allowNewElements ?
-                                           "main video NOT playing, ALLOWING new elements" :
-                                           "main video playing, BLOCKING new elements"}
-                                           videomaxGlobals.matchedVideo.paused = ${videomaxGlobals?.matchedVideo?.paused ||
-                                                                                   "unknown"}`);
-        }
-      }
-
-      if (allowNewElements) {
-        if (DEBUG_MUTATION_OBSERVER) {
-          trace(`mutationObserver event: detected user action, allowing new elements`);
-        }
-        // clear this after we "consume" the event
-        videomaxGlobals.lastUserAction = 0;
-      }
-
       if (videomaxGlobals.mutationObserver && videomaxGlobals.isMaximized) {
         for (const eachMutation of mutations) {
-          if (eachMutation.type === "attributes") {
-            // is one of our classnames on the old value?
-            if (eachMutation?.oldValue?.length &&
-                eachMutation?.oldValue?.indexOf(PREFIX_CSS_CLASS) < 0) {
-              // not found
-              continue;
-            }
-
-            // our classname was there, but it's removed?
-            if (hasAnyVideoMaxClass(eachMutation.target)) {
-              continue;
-            }
-
-            // if we reach here then our classname was removed
-            const oldClassNames = eachMutation.oldValue.split(" ");
-            // figure out what classnames were removed and re-add it.
-            for (const eachClassname of oldClassNames) {
-              if (eachClassname.startsWith(PREFIX_CSS_CLASS)) {
-                eachMutation.target?.classList?.add(eachClassname);
-              }
-            }
-            if (oldClassNames.length > 0 && DEBUG_MUTATION_OBSERVER) {
-              const newClassName = getAttr(eachMutation.target, "class");
-              trace(
-                `OBSERVER: detected classname changes\n\t before:"${eachMutation?.oldValue}"\n\t new:"${newClassName}"\n\t fixed:"${getAttr(
-                  eachMutation.target, "class")}"`);
-            }
+          if (eachMutation.type !== "attributes") {
+            continue;
+          }
+          // is one of our classnames on the old value?
+          if (eachMutation?.oldValue?.length &&
+              eachMutation?.oldValue?.indexOf(PREFIX_CSS_CLASS) < 0) {
+            // not found
+            continue;
           }
 
-          // if we're within a certain time of a user action event, then we allow elements to be
-          // shown.
+          // our classname was there, but it's removed?
+          if (hasAnyVideoMaxClass(eachMutation.target)) {
+            continue;
+          }
 
-          if (MUTATION_OBSERVER_HIDE_NEW_ELEMS_ADDED && eachMutation.type === "childList") {
-            for (const eachElem of eachMutation.addedNodes) {
-              if (eachElem.nodeName.toLowerCase() === "video") {
-                continue;
-              }
-              if (DEBUG_MUTATION_OBSERVER) {
-                trace(`OBSERVER: Detected new element added ${PrintNode(eachElem)}`);
-              }
-              if (allowNewElements) {
-                trace(`OBSERVER: event: Setting noHideNode for ${PrintNode(eachElem)}`);
-                noHideNode(eachElem);
-                continue;
-              }
-              const hidden = hideNode(eachElem, true);
-              if (hidden && eachElem) {
-                // we need to add to list of observers to make sure not changed.
-                videomaxGlobals?.mutationObserver?.observe(eachElem, OBSERVE_ATTRIB_OPTIONS);
-                if (DEBUG_MUTATION_OBSERVER) {
-                  trace("OBSERVER: Hide new element, added to observer list");
-                }
-              } else if (DEBUG_MUTATION_OBSERVER) {
-                trace("OBSERVER: Show new element");
-              }
+          // if we reach here then our classname was removed
+          const oldClassNames = eachMutation.oldValue.split(" ");
+          // figure out what classnames were removed and re-add it.
+          for (const eachClassname of oldClassNames) {
+            if (eachClassname.startsWith(PREFIX_CSS_CLASS)) {
+              eachMutation.target?.classList?.add(eachClassname);
             }
+          }
+          if (oldClassNames.length > 0 && DEBUG_MUTATION_OBSERVER) {
+            const newClassName = getAttr(eachMutation.target, "class");
+            trace(
+              `OBSERVER: detected classname changes\n\t before:"${eachMutation?.oldValue}"\n\t new:"${newClassName}"\n\t fixed:"${getAttr(
+                eachMutation.target, "class")}"`);
           }
         }
       }
@@ -3395,10 +3311,6 @@ try { // scope and prevent errors from leaking out to page.
    * @return {boolean}
    */
   const isTopVisibleVideoElem = (videoElem) => {
-    // if (!isVisible(videoElem)) { // done already in calling code
-    //   return false; // easy out.
-    // }
-
     if (isRunningInIFrame()) {
       // this could be tricky as hell... we likely to what's outside our frame
       if (FULL_DEBUG) {
