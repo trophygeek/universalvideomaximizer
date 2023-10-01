@@ -27,13 +27,12 @@ try { // scope and prevent errors from leaking out to page.
   const IFRAME_PARENT_NODE_WORKS = true;
   const USE_MUTATION_OBSERVER_ATTR = true;
   const INCLUDE_TRANSITION_WEIGHT_FOR_COMMON_SCORE = false;
-  const SAVE_STYLE_FOR_OVERLAPs = true;
+  const SAVE_STYLE_FOR_OVERLAPs = true; // now site specific
   const DO_HIDE_EXCEPTION_CHECK = true;
   const ALWAYS_BACK_UP_STYLES = true;
   const LAST_DITCH_HIDE = true;
   const REAPPLY_PLAYBACKSPEED = true;
   const MUTATION_OBSERVER_WATCH_ALL_MAX = true;
-  const MUTATION_OBSERVER_HIDE_NEW_ELEMS_ADDED = true;
   const USE_OLD_FAST_IS_VISIBLE_CHECK_IN_WALKER = false; // new code => false
   const FIND_CONTROLS_ON_MAIN_THREAD_FOR_IFRAME_MATCH = true;
   const USE_WHOLE_WINDOW_TO_SEARCH_FOR_CONTROLS = true;
@@ -83,7 +82,7 @@ try { // scope and prevent errors from leaking out to page.
   /** @type {HtmlElementTypes} */
   const ALWAYS_HIDE_NODES = [
     "footer",
-    "header",
+    "header",  // maybe remove?
     "nav"];  // "aside"?
 
   /** @type {HtmlElementTypes} */
@@ -131,7 +130,7 @@ try { // scope and prevent errors from leaking out to page.
     // "header", // some sites put videos in the header, wtf?
                               "footer",
     // "figure", // secsports puts it under a <figure> seriously?
-                              // "caption",
+    // "caption",
                               "area",
                               "br",
                               "button",
@@ -209,6 +208,13 @@ try { // scope and prevent errors from leaking out to page.
   const YOUTUBE_TLD_NAMES = [
     /\.youtube\./i,
     /\.youtu\.be/i,
+  ];
+
+  /** These are sites that NEED to have their styles restored or they don't undo
+   * This is not universal because some sites like youtube don't need this done.
+   * ***If an unzoom fails for a site, try adding the domain here first.*** */
+  const RESTORE_STYLE_SITES = [
+    /\.crunchyroll\./i,
   ];
 
   // per doc globals (e.g. inside iframes from background inject gets it's own)
@@ -514,14 +520,21 @@ try { // scope and prevent errors from leaking out to page.
       }
 
       let attrStr = "";
-      [...elem.attributes].forEach((attr) => {
+      const attribs = elem?.attributes?.length ? [...elem.attributes] : [];
+      for (const attr of attribs) {
         const value = attr.value ? `="${attr.value.substring(0, 2048)}"` : "";
         const { name } = attr;
         attrStr = `${attrStr} ${name}${value}`;
-      });
-      return `<${elem.nodeName.toLowerCase()} ${attrStr} />`;
+        if (attrStr.length > 2048) {
+          attrStr = `${attrStr}...`;
+          break;
+        }
+      }
+      const nodeName = elem?.nodeName?.toLowerCase()
+                         ?.replace("#", "") || "UNKNOWN";
+      return `<${nodeName}${attrStr} />`;
     } catch (err) {
-      return " - ";
+      return ` UNKNOWN [${err}]`;
     }
   };
 
@@ -714,6 +727,17 @@ try { // scope and prevent errors from leaking out to page.
       setAttr(node, backupName, orgValue);
       setAttr(node, VIDEO_MAX_DATA_ATTRIB_UNDO_TAG, "1");
     }
+  };
+
+  /** @type {null || boolean} */
+  let cachedSaveStyleOverlapsSiteResult = null;
+
+  /** @return {null||boolean} */
+  const isSaveStyleOverlapsSite = () => {
+    if (cachedSaveStyleOverlapsSiteResult === null) {
+      cachedSaveStyleOverlapsSiteResult = smellsLikeMatch(getPageUrl(), RESTORE_STYLE_SITES);
+    }
+    return cachedSaveStyleOverlapsSiteResult;
   };
 
   /**
@@ -1707,7 +1731,7 @@ try { // scope and prevent errors from leaking out to page.
       trace(`addOverlapCtrl: ${debugPrintNode}`);
     }
     elem?.classList?.add(OVERLAP_CSS_CLASS);
-    if (SAVE_STYLE_FOR_OVERLAPs) {
+    if (SAVE_STYLE_FOR_OVERLAPs && isSaveStyleOverlapsSite()) {
       // we don't want a local style to conflict with the class we're adding
       backupAttr(elem, "style");
     }
@@ -2001,7 +2025,7 @@ try { // scope and prevent errors from leaking out to page.
   };
 
   /**
-   * @param elem {HTMLElement|Node}
+   * @param elem {HTMLElement|Node|string}
    * @param matches {RegExp[]}
    * @return {boolean}
    */
@@ -2329,10 +2353,9 @@ try { // scope and prevent errors from leaking out to page.
      */
     const diceCoefficient = (str1, str2) => {
       let intersection = 0;
-
-      for (let i = 0; i < str1.length; i++) {
-        for (let j = 0; j < str2.length; j++) {
-          if (str1[i] === str2[j]) {
+      for (let ch1 of str1) {
+        for (let ch2 of str2) {
+          if (ch1 === ch2) {
             intersection++;
           }
         }
@@ -2909,6 +2932,7 @@ try { // scope and prevent errors from leaking out to page.
    * @param removeOnly {boolean}
    */
   function updateEventListeners(video_elem, removeOnly = false) {
+    /** @param event {KeyboardEvent} */
     const _onPress = (event) => {
       try {
         if (event.keyCode === 27) { // esc key
@@ -2935,14 +2959,17 @@ try { // scope and prevent errors from leaking out to page.
         logerr(err);
       }
     };
+    /** @param event {Event} */
 
     try {
       // this will allow "escape key" undo the zoom.
       trace("updateEventListeners");
-      const doc = window.document; // || video_elem?.ownerDocument;
+      const doc = video_elem?.ownerDocument;
       doc?.removeEventListener("keydown", _onPress);
+      window?.document?.removeEventListener("keydown", _onPress);
       if (!removeOnly) {
         doc?.addEventListener("keydown", _onPress);
+        window?.document?.addEventListener("keydown", _onPress);
       }
     } catch (err) {
       logerr(err);
@@ -2958,10 +2985,7 @@ try { // scope and prevent errors from leaking out to page.
     if (!masthead) {
       return false;
     }
-    if (getAttr(masthead, "theater") === null) {
-      return false;
-    }
-    return true;
+    return getAttr(masthead, "theater") !== null;
   };
 
   /**
@@ -2971,7 +2995,7 @@ try { // scope and prevent errors from leaking out to page.
    * restore it when we unzoom.
    * @param theaterMode {boolean}
    */
-  const setYoutubeIntoTheaterMode = (theaterMode ) => {
+  const setYoutubeIntoTheaterMode = (theaterMode) => {
     // verify it smells like a youtube domain. But the element check below would probably be enough
     if (!smellsLikeMatch(getPageUrl(), YOUTUBE_TLD_NAMES)) {
       return;
@@ -2984,7 +3008,7 @@ try { // scope and prevent errors from leaking out to page.
 
     if (theaterMode) {
       // if we're putting it into theater mode, we should restore it.
-      setAttr(document.body, YOUTUBE_RESTORE_NON_THEATER_ATTR, '1');
+      setAttr(document.body, YOUTUBE_RESTORE_NON_THEATER_ATTR, "1");
     } else {
       removeAttr(document.body, YOUTUBE_RESTORE_NON_THEATER_ATTR);
     }
@@ -3060,10 +3084,7 @@ try { // scope and prevent errors from leaking out to page.
     } else {
       trace("Final Best Matched Element: ", bestMatch.nodeName, bestMatch);
     }
-    if (!isRunningInIFrame() && bestMatchCount > 0) {
-      // only install from main page once. Because we inject for each iframe, this can
-      // get called multiple times. The listener is on window.document, so it only needs
-      // to be installed once for the main frame.
+    if (bestMatchCount > 0) {
       updateEventListeners(bestMatch);
     }
 
@@ -3237,58 +3258,36 @@ try { // scope and prevent errors from leaking out to page.
         trace("UNZOOMING INTERRUPT! - skipping MutationObserver");
         return;
       }
-      // check to see if things are in the process of going away. They might be.
       if (videomaxGlobals.mutationObserver && videomaxGlobals.isMaximized) {
         for (const eachMutation of mutations) {
-
-          if (eachMutation.type === "attributes") {
-            // is one of our classnames on the old value?
-            if (eachMutation?.oldValue?.length &&
-                eachMutation?.oldValue?.indexOf(PREFIX_CSS_CLASS) < 0) {
-              // not found
-              continue;
-            }
-
-            // our classname was there, but it's removed?
-            if (hasAnyVideoMaxClass(eachMutation.target)) {
-              continue;
-            }
-
-            // if we reach here then our classname was removed
-            const oldClassNames = eachMutation.oldValue.split(" ");
-            // figure out what classnames were removed and re-add it.
-            for (const eachClassname of oldClassNames) {
-              if (eachClassname.startsWith(PREFIX_CSS_CLASS)) {
-                eachMutation.target?.classList?.add(eachClassname);
-              }
-            }
-            if (oldClassNames.length > 0 && DEBUG_MUTATION_OBSERVER) {
-              const newClassName = getAttr(eachMutation.target, "class");
-              trace(
-                `OBSERVER: detected classname changes\n\t before:"${eachMutation?.oldValue}"\n\t new:"${newClassName}"\n\t fixed:"${getAttr(
-                  eachMutation.target, "class")}"`);
-            }
+          if (eachMutation.type !== "attributes") {
+            continue;
+          }
+          // is one of our classnames on the old value?
+          if (eachMutation?.oldValue?.length &&
+              eachMutation?.oldValue?.indexOf(PREFIX_CSS_CLASS) < 0) {
+            // not found
+            continue;
           }
 
-          if (MUTATION_OBSERVER_HIDE_NEW_ELEMS_ADDED && eachMutation.type === "childList") {
-            for (const eachElem of eachMutation.addedNodes) {
-              if (eachElem.nodeName.toLowerCase() === "video") {
-                continue;
-              }
-              if (DEBUG_MUTATION_OBSERVER) {
-                trace(`OBSERVER: Detected new element added ${PrintNode(eachElem)}`);
-              }
-              const hidden = hideNode(eachElem, true);
-              if (hidden && eachElem) {
-                // we need to add to list of observers to make sure not changed.
-                videomaxGlobals?.mutationObserver?.observe(eachElem, OBSERVE_ATTRIB_OPTIONS);
-                if (DEBUG_MUTATION_OBSERVER) {
-                  trace("OBSERVER: Hide new element, added to observer list");
-                }
-              } else if (DEBUG_MUTATION_OBSERVER) {
-                trace("OBSERVER: Show new element");
-              }
+          // our classname was there, but it's removed?
+          if (hasAnyVideoMaxClass(eachMutation.target)) {
+            continue;
+          }
+
+          // if we reach here then our classname was removed
+          const oldClassNames = eachMutation.oldValue.split(" ");
+          // figure out what classnames were removed and re-add it.
+          for (const eachClassname of oldClassNames) {
+            if (eachClassname.startsWith(PREFIX_CSS_CLASS)) {
+              eachMutation.target?.classList?.add(eachClassname);
             }
+          }
+          if (oldClassNames.length > 0 && DEBUG_MUTATION_OBSERVER) {
+            const newClassName = getAttr(eachMutation.target, "class");
+            trace(
+              `OBSERVER: detected classname changes\n\t before:"${eachMutation?.oldValue}"\n\t new:"${newClassName}"\n\t fixed:"${getAttr(
+                eachMutation.target, "class")}"`);
           }
         }
       }
@@ -3312,10 +3311,6 @@ try { // scope and prevent errors from leaking out to page.
    * @return {boolean}
    */
   const isTopVisibleVideoElem = (videoElem) => {
-    // if (!isVisible(videoElem)) { // done already in calling code
-    //   return false; // easy out.
-    // }
-
     if (isRunningInIFrame()) {
       // this could be tricky as hell... we likely to what's outside our frame
       if (FULL_DEBUG) {
@@ -3607,7 +3602,8 @@ try { // scope and prevent errors from leaking out to page.
         UndoZoom.recurseIFrameUndoAll(document);
         UndoZoom.recurseIFrameUndoAll(window.document);
 
-        if (!isRunningInIFrame() && getAttr(document.body, YOUTUBE_RESTORE_NON_THEATER_ATTR) !== null) {
+        if (!isRunningInIFrame() && getAttr(document.body, YOUTUBE_RESTORE_NON_THEATER_ATTR) !==
+            null) {
           trace("Detected we put youtube in theater mode, undoing it");
           setYoutubeIntoTheaterMode(false);
         }

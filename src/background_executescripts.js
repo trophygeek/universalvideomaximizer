@@ -35,7 +35,6 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
         readyState: ${eachVid.readyState} 
       Skipping
       `);
-        continue;
       }
     //   console.log(`
     // VideoMaxExt injectVideoSpeedAdjust:
