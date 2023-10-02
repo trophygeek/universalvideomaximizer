@@ -177,8 +177,9 @@ rl.question("What version? ", (vers) => {
 // now search/replace for VERSION_STR and BUILD_TYPE_STR in destination
 // zip it up.
     const buildDir = path.resolve(__dirname, `../build`);
+    const betaStr = isBeta ? "-BETA" : "";
     exec(
-      `zip -r "${buildDir}/videomax-ext-v${vers}.zip" "${buildTargetDir}/" -x '**/.*' -x '**/__MACOSX'`);
+      `zip -r "${buildDir}/videomax-ext-v${vers}${betaStr}.zip" "${buildTargetDir}/" -x '**/.*' -x '**/__MACOSX'`);
   });
 });
 
