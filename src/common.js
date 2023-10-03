@@ -5,6 +5,8 @@ const DEBUG_ENABLED = FULL_DEBUG;
 const TRACE_ENABLED = FULL_DEBUG;
 const ERR_BREAK_ENABLED = FULL_DEBUG;
 
+export const IS_BETA_CHANNEL = false;
+
 export const DEFAULT_SPEED = "1.0";
 
 export const CSS_FILE = "videomax_inject.css";
@@ -39,7 +41,7 @@ export const SETTINGS_STORAGE_KEY = "settingsJson";
 
 // bumping this will cause the notification to show again. keep it pinned unless some major feature
 export const UPDATE_NOTIFICATION_VERISON = "85"; // will get out of sync. bump to show
-                                                      // notification
+// notification
 
 
 /* these are sites that are already zoomed, but playback speed is kind of nice */
@@ -64,6 +66,7 @@ export const DEFAULT_SETTINGS = {
   firstUseShown:             false, // set to true once first_use picks a mode.
   firstUseOn2ndScreen:       false,
   zoomExclusionListStr:      DEFAULT_ZOOM_EXCLUSION_LIST,
+  beta3EndingShown:          false,
 };
 
 /**
