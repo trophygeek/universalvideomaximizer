@@ -1456,3 +1456,10 @@ li button.del-btn-sel {
   font-style: italic;
 }
 
+.line-height-15 {
+  line-height: 1.5;
+}
+
+.margin-15 {
+  margin: 1.5em;
+}

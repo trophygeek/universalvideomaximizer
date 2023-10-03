@@ -12,6 +12,7 @@
 
  */
 import {
+  IS_BETA_CHANNEL,
   UPDATE_NOTIFICATION_VERISON,
   CSS_FILE,
   CSS_STYLE_HEADER_ID,
@@ -997,6 +998,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         case "UNZOOM_CMD":
           await unZoom(tabId, domain);
+        if (IS_BETA_CHANNEL) {
+          const settings = await getSettings();
+          if (!settings.beta3EndingShown) {
+              await chrome.tabs.create({
+                                         url:    chrome?.runtime?.getURL("beta_ending.html"),
+                                         active: false,
+                                       });
+            settings.beta3EndingShown = true;
+            await saveSettings(settings);
+            }
+            
+          }
+
           break;
 
         case "SET_SPEED_CMD":

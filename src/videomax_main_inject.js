@@ -2353,8 +2353,8 @@ try { // scope and prevent errors from leaking out to page.
      */
     const diceCoefficient = (str1, str2) => {
       let intersection = 0;
-      for (let ch1 of str1) {
-        for (let ch2 of str2) {
+      for (const ch1 of str1) {
+        for (const ch2 of str2) {
           if (ch1 === ch2) {
             intersection++;
           }
