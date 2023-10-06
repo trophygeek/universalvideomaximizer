@@ -11,14 +11,14 @@ const exec = commands => {
     shell: true,
   });
 };
-const spawnProcess = commands => {
-  spawn(commands, {
-    stdio: "inherit",
-    shell: true,
-  });
-};
+// const spawnProcess = commands => {
+//   spawn(commands, {
+//     stdio: "inherit",
+//     shell: true,
+//   });
+// };
 const readline = require("readline");
-const { is } = require("uvu/assert");
+// const { is } = require("uvu/assert");
 
 const rl = readline.createInterface({
                                       input:  process.stdin,
@@ -115,6 +115,8 @@ const doEdits = (filePath, from, to) => {
   if (oldContent.localeCompare(newContent) !== 0) {
     fs.writeFileSync(fullFilePath, newContent, { encoding: "utf-8" });
     console.log(`Edited file: ${fullFilePath}`);
+  } else {
+    console.warn(`Edited file: ${fullFilePath} did NOT change '${to}'?!?`);
   }
 };
 
@@ -129,7 +131,7 @@ rl.question("What version? ", (vers) => {
   }
   // todo: verify type is number.
 
-  rl.question("Beta (Y)? ", (isbetaStr) => {
+  rl.question("Beta (y)? ", (isbetaStr) => {
     isBeta = (isbetaStr?.toLowerCase() === "y");
     rl.close();
 
@@ -159,8 +161,6 @@ rl.question("What version? ", (vers) => {
       force:     true,
     });
 
-    debugger;
-
 // copy over all files.
     const buildSrcDir = path.resolve(__dirname, `../src`);
     fs.cpSync(buildSrcDir, buildTargetDir, { recursive: true });
@@ -172,14 +172,18 @@ rl.question("What version? ", (vers) => {
       doEdits(`../build/videomaximizer/manifest.json`,
               /"name": "Video Maximizer"/gi,
               `"name": "Video Maximizer BETA"`);
+      doEdits(`../build/videomaximizer/common.js`,
+              "export const IS_BETA_CHANNEL = false;",
+              "export const IS_BETA_CHANNEL = true;");
     }
-
-// now search/replace for VERSION_STR and BUILD_TYPE_STR in destination
-// zip it up.
     const buildDir = path.resolve(__dirname, `../build`);
     const betaStr = isBeta ? "-BETA" : "";
-    exec(
-      `zip -r "${buildDir}/videomax-ext-v${vers}${betaStr}.zip" "${buildTargetDir}/" -x '**/.*' -x '**/__MACOSX'`);
+    // zip it up. use relative paths to prevent the zip file from containing full paths from the root.
+    // params r=recursive q=quiet 0=compression level
+    exec(`cd "${buildDir}" && zip -rq9 "./videomax-ext-v${vers}${betaStr}.zip" "./videomaximizer/" -x '**/.*' -x '**/__MACOSX'`);
+    console.log(`Compressed file: videomax-ext-v${vers}${betaStr}.zip
+    use 'unzip -vl ./build/videomax-ext-v${vers}${betaStr}.zip' to examine/verify contents. 
+    `);
   });
 });
 
