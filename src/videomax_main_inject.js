@@ -45,6 +45,7 @@ try { // scope and prevent errors from leaking out to page.
   const REMOVE_STYLE_FROM_ELEMS = true;
   const OVERLAPS_REQUIRE_TRANSITION_EFFECTS_RECURSIVE = true;
   const NO_SEARCHING_IGNORED_NODES_COMMON = true;
+  const USE_BOOST_SCORES_REGEX_FIND_COMMON = true;
 
   const MIN_VIDEO_WIDTH = 320;
   const MIN_VIDEO_HEIGHT = 240;
@@ -505,7 +506,7 @@ try { // scope and prevent errors from leaking out to page.
   };
 
   /**
-   *
+   * Converts element into a string like "<div class='Foo bar' />"
    * @param elem {HTMLElement | Node | string}
    * @return {string}
    * @constructor
@@ -1097,6 +1098,9 @@ try { // scope and prevent errors from leaking out to page.
     const countChildren = (e, recurseFirst = true, runningCount = 0) => {
       let count = runningCount;
       if (NO_SEARCHING_IGNORED_NODES_COMMON && isIgnoreCommonContainerNode(e)) {
+        if (COMMON_PARENT_SCORES) {
+          containDbgMsg += `\n     -> isIgnoreCommonContainerNode ${PrintNode(e)}`;
+        }
         return runningCount;
       }
       if (recurseFirst) {
@@ -1110,6 +1114,14 @@ try { // scope and prevent errors from leaking out to page.
           count += boostMatches.length * 2;  // 2x points if there's a slider under this element.
           if (COMMON_PARENT_SCORES) {
             containDbgMsg += `\n Slider count: BOOST +${boostMatches.length}*2 result:${count}`;
+          }
+
+          if (USE_BOOST_SCORES_REGEX_FIND_COMMON &&
+            smellsLikeMatch(e, [/control/i])) {
+            count++;
+            if (COMMON_PARENT_SCORES) {
+              containDbgMsg += `\n Slider count: BOOST REGEX +1 result:${count}`;
+            }
           }
         }
 
@@ -1178,7 +1190,7 @@ try { // scope and prevent errors from leaking out to page.
         }
       }
       if (COMMON_PARENT_SCORES && recurseFirst === false) {
-        trace(`\tChild Common Score ${PrintNode(
+        trace(`\tChild Common Score \n\t${PrintNode(
           e)}\n${containDbgMsg}\n\tTotals: before ${runningCount} \t after: ${count}`);
         containDbgMsg = "";
       }
