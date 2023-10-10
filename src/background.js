@@ -758,18 +758,19 @@ const getSettingUseAdvFeatures = async () => {
   }
 };
 
-/**
- * @returns {Promise<boolean>}
- */
+/** @returns {Promise<boolean>} */
 const getSettingIntroAlreadyShown = async () => {
   try {
     const settings = await getSettings();
-    const result = (UPDATE_NOTIFICATION_VERISON === settings.lastBetaVersion);
+    const wasAlreadyShown = (UPDATE_NOTIFICATION_VERISON === settings.lastBetaVersion);
+    if (wasAlreadyShown) {
+      return true;
+    }
 
     // now update it to expected version
     settings.lastBetaVersion = UPDATE_NOTIFICATION_VERISON;
     await saveSettings(settings);
-    return result;
+    return wasAlreadyShown;
   } catch (err) {
     logerr(err);
     return true;
@@ -783,7 +784,7 @@ async function showUpgradePageIfNeeded() {
     trace("chrome.runtime.onInstalled");
     // checked saved state and see if we've opened the page about v3 update.
     const shown = await getSettingIntroAlreadyShown();
-    if (shown) {
+    if (shown || !IS_BETA_CHANNEL) {
       return;
     }
 
@@ -1008,7 +1009,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             settings.beta3EndingShown = true;
             await saveSettings(settings);
             }
-            
+
           }
 
           break;
