@@ -154,7 +154,9 @@ body.videomax-ext-livejasmin .mc_video_overlay.mc_js_video_overlay.videomax-ext-
 body.videomax-ext-livejasmin .curtains.mc_js_curtains.curtains_hidden.videomax-ext-overlap,
 body.videomax-ext-livejasmin .mc_video_background.videomax-ext-overlap,
 body.videomax-ext-livejasmin .mc_bonus_animation.js_bonus_animation.mc_bonus_animation--with_sidebar.videomax-ext-overlap,
-body.videomax-ext-mediaite .bxc.bx-base.bx-impress
+body.videomax-ext-mediaite .bxc.bx-base.bx-impress,
+body.videomax-ext-twitch [data-test-selector="sad-overlay"],
+body.videomax-ext-twitch [data-test-selector="ad-banner-default-text"]
 {
   visibility: hidden !important;
   display: none !important;
