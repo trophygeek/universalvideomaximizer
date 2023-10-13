@@ -352,8 +352,10 @@ try {
                                      window.close();
                                    });
         break;
+
       default:
-        RefreshSpeed();
+        // can trigger paused videos to start playing.
+        // RefreshSpeed();
     }
   };
 
