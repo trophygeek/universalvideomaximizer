@@ -55,7 +55,7 @@ export const DEFAULT_ZOOM_EXCLUSION_LIST = "amazon," + "hbomax," + "play.max," +
 export const DEFAULT_SETTINGS = {
   lastBetaVersion: "0", // number as string used to show initial "help" (also for major
                         // releases)
-  useAdvancedFeatures:       false,
+  useAdvancedFeatures:       true,
   spacebarTogglesPlayback:   true,
   regSkipSeconds:            5,
   longSkipSeconds:           20,
@@ -63,8 +63,6 @@ export const DEFAULT_SETTINGS = {
   wholeDomainAccess:         true, // "all example.com sites" vs "on www.example.com"
   allSitesAccess:            false,
   allSitesAccessNeedsRevoke: false,
-  firstUseShown:             false, // set to true once first_use picks a mode.
-  firstUseOn2ndScreen:       false,
   zoomExclusionListStr:      DEFAULT_ZOOM_EXCLUSION_LIST,
   beta3EndingShown:          false,
 };

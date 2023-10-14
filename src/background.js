@@ -309,15 +309,9 @@ async function setCurrentTabState(tabId, startingState, domain = "", speed = DEA
 
     // we need to pass in the tab id because the popup js can't get it and the
     // the message sent to background is missing it.
-    let popup = showpopup ?
+    const popup = showpopup ?
                 `popup.html#tabId=${tabId}&speed=${speed}&domain=${domain}&badge=${badge}` :
                 "";
-
-    const settings = await getSettings();
-    if (settings.firstUseShown === false) {
-      trace("showing first_use.html");
-      popup = `first_use.html#tabId=${tabId}&speed=${speed}&domain=${domain}&badge=${badge}`;
-    }
 
     trace(`popup url "${popup}"`);
     // don't think the order matters, just set them all and wait for them to complete.
@@ -1025,11 +1019,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         case "SKIP_PLAYBACK_CMD":
           await skipPlayback(tabId, speed, domain);
-          break;
-
-        case "FIRST_USE_REFRESH_POPUP_URL_CMD":
-          // this is from first_use
-          await setCurrentTabState(tabId, "", domain);
           break;
 
         case "POPUP_CLOSING":
