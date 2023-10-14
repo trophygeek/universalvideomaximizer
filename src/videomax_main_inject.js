@@ -46,6 +46,9 @@ try { // scope and prevent errors from leaking out to page.
   const OVERLAPS_REQUIRE_TRANSITION_EFFECTS_RECURSIVE = true;
   const NO_SEARCHING_IGNORED_NODES_COMMON = true;
   const USE_BOOST_SCORES_REGEX_FIND_COMMON = true;
+  const SCROLL_INTO_VIEW = true; // scroll on match - needed for doomscrollers that mess with dom
+  const CANCEL_SCROLL_EVENTS = true; // scrolls while we're resizing cause some pages to re-layout
+  const RESTORE_SCROLL_POS = true; // if video is in scrolling list then it can get annoying
 
   const MIN_VIDEO_WIDTH = 320;
   const MIN_VIDEO_HEIGHT = 240;
@@ -53,32 +56,36 @@ try { // scope and prevent errors from leaking out to page.
   const MIN_IFRAME_WIDTH = MIN_VIDEO_WIDTH;
   const MIN_IFRAME_HEIGHT = MIN_VIDEO_HEIGHT;
 
-
   // when walking dom how many levels up to check when looking for controls?
   // too low and we miss some playback position controls (vimeo)
   // too high an we find non-controls like ads
   const CHECK_PARENTS_LEVELS_UP_MAX = 8; // was 6
 
   const START_WEIGHT = 1000;
-  const RATIO_WEIGHT = 0.50;
-  const SIZE_WEIGHT = 5.0;
-  const ORDER_WEIGHT = -5.0; // was -10
-  const TAB_INDEX_WEIGHT = -6.0;
+  const RATIO_WEIGHT = 0.01; // these are now used by IN_VIEW_WEIGHT, so reduce
+  const SIZE_WEIGHT = 0.01;
+  const ORDER_WEIGHT = -0.5; // was -10
+  const TAB_INDEX_WEIGHT = 0; // was -6.0
   const HIDDEN_VIDEO_WEIGHT = -10; // downgrades
   const ZINDEX_WEIGHT = 0.5;
   const VIDEO_OVER_IFRAME_WEIGHT = 0; // video gets VIDEO_PLAYING_WEIGHT, VIDEO_DURATION_WEIGHT,
                                       // VIDEO_LOOPS_WEIGHT, etc
   const MAIN_FRAME_WEIGHT = 5.0;
-  const VIDEO_PLAYING_WEIGHT = 10.0;
-  const VIDEO_DURATION_WEIGHT = 2; // was 0.5
+  const VIDEO_PLAYING_WEIGHT = 100.0; // * 100
+  const VIDEO_DURATION_WEIGHT = 1.0; // was 0.5
   const MAX_DURATION_SECS = 60 * 60 * 2; // 2hrs max - live videos skew results
   const VIDEO_LOOPS_WEIGHT = -10.0;
-  const VIDEO_HAS_SOUND_WEIGHT = 10.0;
+  const VIDEO_HAS_SOUND_WEIGHT = 15.0;
   const URL_OVERLAP_WEIGHT = 100.0;
   const TITLE_OVERLAP_WEIGHT = 100;
-  const ALLOW_FULLSCREEN_WEIGHT = 10.0;
-  const ADVERTISE_WEIGHT = -100.0; // de don't hide ads, but we dont' want to match them as
-                                   // main videos
+  const IN_VIEW_WEIGHT = .25;
+  const ALLOW_FULLSCREEN_WEIGHT = 20.0;
+  const ADVERTISE_WEIGHT = -100.0; // don't hide ads, but  dont' want them as main videos
+  const DOOMSCROLL_PLAYING_BOOST_FACTOR = 50.0;
+  const DOOMSCROLL_UNMUTED_BOOST_FACTOR = 25.0;
+
+  const ALLOW_SMALL_VIDEOS_DOMAINS = ["tiktok"];
+  const DOOMSCROLL_BOOST_DOMAINS = ["tiktok", "facebook", "imgur", "twitter"];
 
   /** @type {HtmlElementTypes} */
   const ALWAYS_HIDE_NODES = [
@@ -177,6 +184,8 @@ try { // scope and prevent errors from leaking out to page.
   const PLAYBACK_SPEED_ATTR = `${VIDEO_MAX_DATA_PREFIX}-playbackspeed`;
   const VIDEO_MAX_INSTALLED_ATTR = `${VIDEO_MAX_DATA_PREFIX}-running`; // data-videomax-running
   const YOUTUBE_RESTORE_NON_THEATER_ATTR = `${VIDEO_MAX_DATA_PREFIX}-youtube-nontheater-restore`;
+  const SAVED_SCROLL_TOP_ATTR = `${VIDEO_MAX_DATA_PREFIX}-scrolltop`;
+  const SAVED_SCROLL_LEFT_ATTR = `${VIDEO_MAX_DATA_PREFIX}-scrollleft`;
 
   const EMBEDED_SCORES = `${VIDEO_MAX_DATA_PREFIX}-scores`;
   const VIDEO_MAX_ATTRIB_FIND = `${VIDEO_MAX_DATA_PREFIX}-target`;
@@ -229,6 +238,8 @@ try { // scope and prevent errors from leaking out to page.
     matchVideoRect: null,
     /** @type {boolean} */
     matchedIsHtml5Video: false,
+    /** @type {string} */
+    matchedVideoSrc: "",
     /** @type {boolean} */
     processInFrame: false,
     /** @type {HTMLElement | Node} */
@@ -281,6 +292,12 @@ try { // scope and prevent errors from leaking out to page.
     // blue color , no break
     // eslint-disable-next-line no-console
     console.log(`%c VideoMax ${iframe}`, color, ...args);
+  };
+
+  const SANITY_CHECK_MATCH_NOT_DELETED = () => {
+    if (DEBUG_ENABLED && !document.contains(videomaxGlobals.matchedVideo)) {
+      logerr("THE MATCHED VIDEO IS NO LONGER IN THE DOCUMENT");
+    }
   };
 
   if (!isRunningInIFrame()) {
@@ -338,37 +355,87 @@ try { // scope and prevent errors from leaking out to page.
     return Number.isNaN(result) ? 0 : result;
   }
 
+  const isMaximized = () => {
+    if (!videomaxGlobals) {
+      return false;
+    }
+    if (document.videmax_cmd === "unzoom" || videomaxGlobals.unzooming === true) {
+      return false;
+    }
+    return videomaxGlobals.isMaximized && videomaxGlobals.matchedVideo &&
+           document.contains(videomaxGlobals.matchedVideo);
+  };
+
   /**
    * @return {string}
    */
-  const getPageUrl = () => isRunningInIFrame() ?
-                           document.referrer :
-                           document.location.href;
+  const getPageUrl = () => {
+    try {
+      return isRunningInIFrame() ?
+             document.referrer :
+             document.location.href;
+    } catch (err) {
+      logerr(err);
+      return "";
+    }
+  };
 
+  let g_cachedDomainName = "";
   /**
    * Needs unit tests. ATTEMPT to turn "www.foo.com" and "web.foo.net" into just "foo".
    * @return {string}
    */
   const getPageDomainNormalized = () => {
-    const url = new URL(getPageUrl());
-    let domainName = url.hostname;
+    if (g_cachedDomainName?.length > 0) {
+      return g_cachedDomainName;
+    }
+    try {
+      const urlStr = getPageUrl();
+      if (!urlStr.length) {
+        return "BLOCKEDURL";
+      }
+      const url = new URL(urlStr);
+      let domainName = url.hostname;
 
-    // normalizing the tld is next to impossible w/out some cookie setting hack
-    // so we just remove any common prefix like www or web
-    const prefixesToRemove = ["www", "web", "static", "video", "tv"];
-    for (const prefix of prefixesToRemove) {
-      if (domainName.startsWith(`${prefix}.`)) {
-        domainName = domainName.substring(prefix.length + 1);
-        break; // we found one, stop
+      // normalizing the tld is next to impossible w/out some cookie setting hack
+      // so we just remove any prefix like www or web
+      const prefixesToRemove = ["www", "web", "static", "video", "tv"];
+      for (const prefix of prefixesToRemove) {
+        if (domainName.startsWith(`${prefix}.`)) {
+          domainName = domainName.substring(prefix.length + 1);
+          break; // we found one, stop
+        }
+      }
+      // now we trim off the tld ".com" or ".whatever", it won't work for some
+      // countries like 'co.uk", but it's probably good enough for our matching needs.
+      // we only use it to match css classes, not security related
+      const lastDotOffset = domainName.lastIndexOf(".");
+      g_cachedDomainName = domainName.substring(0, lastDotOffset > 0 ?
+                                                   lastDotOffset :
+                                                   domainName.length);
+      return g_cachedDomainName;
+    } catch (err) {
+      logerr(err);
+      return "";
+    }
+  };
+
+  /** @param domainMatches {string[]}
+   * @return {boolean}
+   */
+  const isDomainMatch = (domainMatches) => {
+    const domainStr = getPageDomainNormalized();
+    for (const eachDomain of domainMatches) {
+      if (domainStr.includes(eachDomain)) {
+        return true;
       }
     }
-    // now we trim off the tld ".com" or ".whatever", it won't work for some
-    // countries like 'co.uk", but it's probably good enough for our matching needs.
-    // we only use it to match css classes, not security related
-    const lastDotOffset = domainName.lastIndexOf(".");
-    domainName = domainName.substring(0, lastDotOffset > 0 ? lastDotOffset : domainName.length);
-    return domainName;
+    return false;
   };
+
+  const isDoomScrollingSite = () => isDomainMatch(DOOMSCROLL_BOOST_DOMAINS);
+
+  const isAllowSmallVideosSite = () => isDomainMatch(ALLOW_SMALL_VIDEOS_DOMAINS);
 
   /**
    * @param urlformat {string}
@@ -436,7 +503,6 @@ try { // scope and prevent errors from leaking out to page.
   };
 
   /**
-   *
    * @param elem {Node || Document}
    * @return {boolean}
    */
@@ -471,9 +537,7 @@ try { // scope and prevent errors from leaking out to page.
       // multiple iframes
       if (IFRAME_PARENT_NODE_WORKS && isRunningInIFrame()) {
         result = getFrameForDocument(elem);
-        if (result) {
-          trace("Walking up out of iframe");
-        }
+        trace(`parentNode: walk up out of iframe ${result ? "SUCCESS" : "FAILED"}`);
       }
     } catch (err) {
       // can throw CSP error if crosses an iframe boundry.
@@ -743,13 +807,15 @@ try { // scope and prevent errors from leaking out to page.
 
   /**
    * turns 'style' attribute into js object {}
-   * @param inStr {string}
+   * @param inStrParam {string}
    * @return {object}
    */
-  const smartParseStyles = (inStr) => {
+  const smartParseStyles = (inStrParam) => {
     const result = {};
     let currentStart = 0;
-    let lastStart = 0;
+    let inStr = inStrParam.trim();
+    // if it doesn't end with a ; delim add it.
+    inStr = inStr.endsWith(";") ? inStr : `${inStr};`;
     try {
       while (currentStart < inStr.length) {
         // lame, but indexOf is probably faster than turning string into array of characters?
@@ -764,14 +830,12 @@ try { // scope and prevent errors from leaking out to page.
         const ch = inStr.charAt(ii);
         if (ch === `;`) {
           // got a match. Find the first `:` and use that for split
-          const matched = inStr.substring(lastStart, ii);
+          const matched = inStr.substring(currentStart, ii);
           const jj = matched.indexOf(`:`);
           const key = matched.substring(0, jj)
             .trim();
           result[key] = matched.substring(jj + 1)
             .trim();
-          // move to next.
-          lastStart = currentStart;
           currentStart = ii + 1; // next match
         } else if (ch === `'`) {
           // we hit a quote, scan forward until we hit end (ignore any ;)
@@ -929,6 +993,31 @@ try { // scope and prevent errors from leaking out to page.
   };
 
   /**
+   * @param videoElem {HTMLVideoElement}
+   * @return {string}
+   */
+  const getVideoSource = (videoElem) => {
+    // see if we can get this video's source.
+    if (videoElem?.src?.length) {
+      return videoElem.src;
+    }
+    const isVideo = (videoElem.nodeName.toLowerCase() === "video");
+    if (isVideo) {
+      // sometimes there's a <video><source src=""></video> approach.
+      // this is used when there might be different data formatting available for
+      // the same video (e.g. one for video/mp4 and another for video/webm).
+      // if a site is going through this much work, it's probably NOT an ad.
+      const matchedSources = videoElem.getElementsByTagName("source");
+      if (matchedSources.length > 0) {
+        // there may be multiple, but they are likely very simailar, probably just different codex's
+        return matchedSources[0]?.src || matchedSources[0]?.currentSrc || "";
+      }
+    }
+    trace(`getVideoSource for ${PrintNode(videoElem)} failed to find source url`);
+    return ""; // failed
+  };
+
+  /**
    *
    * @param node {Node || HTMLElement}
    * @return {Window}
@@ -985,6 +1074,11 @@ try { // scope and prevent errors from leaking out to page.
    * @param elem {Node || HTMLElement || Window}
    */
   function forceRefresh(elem) {
+    if (isDoomScrollingSite()) {
+      // triggering a resize will likely cause DOM to rerender and mess up our matched video.
+      trace("NOT trigging refresh events for doomscroller sites");
+      return;
+    }
     if (typeof (elem?.dispatchEvent) !== "function") {
       return;
     }
@@ -1117,7 +1211,7 @@ try { // scope and prevent errors from leaking out to page.
           }
 
           if (USE_BOOST_SCORES_REGEX_FIND_COMMON &&
-            smellsLikeMatch(e, [/control/i])) {
+              smellsLikeMatch(e, [/control/i])) {
             count++;
             if (COMMON_PARENT_SCORES) {
               containDbgMsg += `\n Slider count: BOOST REGEX +1 result:${count}`;
@@ -1398,6 +1492,7 @@ try { // scope and prevent errors from leaking out to page.
     g_walker.currentNode = saveWalker;
   };
 
+
   /**
    * Adds the maximized class to all elements from matched video up.
    * It often gets cleared after ads play because classLists are reset after they play
@@ -1423,6 +1518,7 @@ try { // scope and prevent errors from leaking out to page.
     videomaxGlobals.matchedVideo = elem;
     videomaxGlobals.matchVideoRect = getCoords(elem);
     videomaxGlobals.matchedIsHtml5Video = elem.nodeName.toLowerCase() === "video";
+    videomaxGlobals.matchedVideoSrc = getVideoSource(elem);
     videomaxGlobals.processInFrame = isRunningInIFrame(); // for debugging
     // set the data-videomax-id = "zoomed" so undo can find it.
     setAttr(elem, `${VIDEO_MAX_ATTRIB_FIND}`, VIDEO_MAX_ATTRIB_ID);
@@ -1910,6 +2006,67 @@ try { // scope and prevent errors from leaking out to page.
   });
 
   /**
+   * Gets the window.visualViewport as our DomRect
+   * @return {DomRect}
+   */
+  const getViewportRect = () => {
+    const vp = window.visualViewport; // readability
+    const top = Math.round(vp.pageTop + vp.offsetTop);
+    const left = Math.round(vp.pageLeft + vp.offsetLeft);
+    const width = Math.round(vp.width);
+    const height = Math.round(vp.height);
+    const bottom = top + height;
+    const right = left + width;
+
+    return {
+      top,
+      left,
+      bottom,
+      right,
+      width,
+      height,
+    };
+  };
+
+  /**
+   * If the innerDomRect exactly matches the outerDomRect then the result is
+   * {outerPercent: 1.0, innerPercent 1.0}
+   * If the inner is completely contained by the outer but only fills up half then
+   * {outerPercent: 0.5, innerPercent 1.0}
+   * If theres some overlap (e.g. where the inner is bleeding outside the outer by half) then
+   * {outerPercent: 0.5, innerPercent 5.0}
+   * @param outerDomRect {DomRect}
+   * @param innerDomRect {DomRect}
+   * @return {{outerPercent: number, innerPercent: number}}
+   */
+  const getOverlapPercent = (outerDomRect, innerDomRect) => {
+    const overlapWidth = Math.max(outerDomRect.right, innerDomRect.right) -
+                         Math.min(outerDomRect.left, innerDomRect.left);
+    const overlapHeight = Math.max(outerDomRect.bottom, innerDomRect.bottom) -
+                          Math.min(outerDomRect.top, innerDomRect.top);
+
+    if (overlapWidth <= 0 || overlapHeight <= 0) {
+      return {
+        outerPercent: 0,
+        innerPercent: 0,
+      };
+    }
+
+    // Calculate the area of each rectangle.
+    const areaOverlap = overlapWidth * overlapHeight;
+    const areaOuter = outerDomRect.width * outerDomRect.height;
+    const areaInner = innerDomRect.width * innerDomRect.height;
+
+    const outerPercent = areaOuter * 100 / areaOverlap;
+    const innerPercent = areaInner * 100 / areaOverlap;
+
+    return {
+      outerPercent,
+      innerPercent,
+    };
+  };
+
+  /**
    *
    * @param outer {DomRect}
    * @param inner {DomRect}
@@ -1931,7 +2088,7 @@ try { // scope and prevent errors from leaking out to page.
    * @param node {Node || HTMLElement || HTMLFrameElement}
    * @return {DomRect}
    */
-  const getOuterBoundingRect = (node) => {
+  function getOuterBoundingRect(node) {
     try {
       return wholeClientRect(node.getBoundingClientRect());
     } catch (_err) {
@@ -1944,7 +2101,7 @@ try { // scope and prevent errors from leaking out to page.
         height: 0,
       };
     }
-  };
+  }
 
   /**
    * This includes margin and padding.
@@ -2194,6 +2351,8 @@ try { // scope and prevent errors from leaking out to page.
     if (!videomaxGlobals.matchedVideo) {
       return;
     }
+    SANITY_CHECK_MATCH_NOT_DELETED();
+
     trace("maximizeVideoDom");
     maximizeUpFromVideo();
     const commonContainerElem = findCommonContainerFromMatched();
@@ -2423,10 +2582,12 @@ try { // scope and prevent errors from leaking out to page.
       const doc = getElemsDocumentView(elem);
 
       if ((width < MIN_VIDEO_WIDTH || height < MIN_VIDEO_HEIGHT) && // too small
-          doc.outerWidth > MIN_VIDEO_WIDTH && doc.outerHeight > MIN_VIDEO_HEIGHT) {  // but not a small window.
+          doc.outerWidth > MIN_VIDEO_WIDTH && // but not a small window.
+          doc.outerHeight > MIN_VIDEO_HEIGHT &&
+          !isAllowSmallVideosSite()) { /// / we allow really small on some sites.
         trace(`\tWidth or height too small, skipping other checks
-        width: ${width} < ${MIN_VIDEO_HEIGHT} (MIN_VIDEO_HEIGHT)
-        width: ${height} < ${MIN_VIDEO_WIDTH} (MIN_VIDEO_WIDTH)`, elem);
+        width: ${width} < ${MIN_VIDEO_WIDTH} (MIN_VIDEO_HEIGHT)
+        width: ${height} < ${MIN_VIDEO_HEIGHT} (MIN_VIDEO_WIDTH)`, elem);
         return 0;
       }
 
@@ -2476,6 +2637,31 @@ try { // scope and prevent errors from leaking out to page.
             START_WEIGHT * inverseDist * RATIO_WEIGHT)} \t Weight:${RATIO_WEIGHT}`);
           traceweights.push(`  dimensions: SIZE_WEIGHT: ${fmtInt.format(
             START_WEIGHT * videoSize * SIZE_WEIGHT)} \t Weight:  ${SIZE_WEIGHT}`);
+        }
+
+        // this also uses the ratio.
+        if (IN_VIEW_WEIGHT !== 0) {
+          const visualViewport = getViewportRect();
+          const elemBounds = cumulativePositionRect(elem);
+          const {
+            outerPercent,
+            innerPercent,
+          } = getOverlapPercent(visualViewport, elemBounds);
+
+          if (outerPercent > 0.0) {
+            if (EMBED_SCORES) {
+              traceweights.push(
+                `\tIN_VIEW_WEIGHT: ` +
+                `${fmtInt.format(
+                  START_WEIGHT * IN_VIEW_WEIGHT * (outerPercent + 100) *
+                  innerPercent)} * (inverseDist * RATIO_WEIGHT) * (videoSize * SIZE_WEIGHT) ` +
+                `\t outerPercent: ${fmtFlt.format(outerPercent + 100)} ` +
+                `\t innerPercent:${fmtFlt.format(innerPercent)}` +
+                `\t in ${isRunningInIFrame() ? "iFrame (may be 1.0 for iframe)" : "Main"}`);
+            }
+            weight += (START_WEIGHT * IN_VIEW_WEIGHT * (outerPercent + 100) * innerPercent *
+                       (inverseDist * RATIO_WEIGHT * .1) * (videoSize * SIZE_WEIGHT * .1));
+          }
         }
       }
 
@@ -2531,7 +2717,7 @@ try { // scope and prevent errors from leaking out to page.
       }
 
       const tabindex = getAttr(elem, "tabindex");
-      if (tabindex !== null) {
+      if (TAB_INDEX_WEIGHT !== 0.0 && tabindex !== null) {
         // this is a newer thing for accessibility, it's a good indicator
         if (EMBED_SCORES) {
           traceweights.push(`  TAB_INDEX_WEIGHT: ${fmtInt.format(
@@ -2574,12 +2760,16 @@ try { // scope and prevent errors from leaking out to page.
 
         // if a video, lets see if it's actively playing
         if (videoElem.paused === false && videoElem?.ended === false) {
+          let playingWeight = VIDEO_PLAYING_WEIGHT;
+          if (DOOMSCROLL_PLAYING_BOOST_FACTOR > 1.0 && isDoomScrollingSite()) {
+            playingWeight = VIDEO_PLAYING_WEIGHT * DOOMSCROLL_PLAYING_BOOST_FACTOR;
+          }
           if (EMBED_SCORES) {
             traceweights.push(
               `  VIDEO_PLAYING: Weight:${fmtInt.format(START_WEIGHT *
-                                                       VIDEO_PLAYING_WEIGHT)} \t weight: ${VIDEO_PLAYING_WEIGHT} \t Paused:${videoElem.paused} \t Ended: ${videoElem.ended}`);
+                                                       playingWeight)} \t weight: ${playingWeight} \t Paused:${videoElem.paused} \t Ended: ${videoElem.ended}`);
           }
-          weight += (START_WEIGHT * VIDEO_PLAYING_WEIGHT);
+          weight += (START_WEIGHT * playingWeight);
         }
 
         // video length, cap at 2hrs
@@ -2605,13 +2795,18 @@ try { // scope and prevent errors from leaking out to page.
 
         // has audio
         if (videoElem.muted === false) {
+          let hasSoundWeight = VIDEO_HAS_SOUND_WEIGHT;
+          if (DOOMSCROLL_UNMUTED_BOOST_FACTOR > 1.0 && isDoomScrollingSite()) {
+            hasSoundWeight = VIDEO_HAS_SOUND_WEIGHT * DOOMSCROLL_UNMUTED_BOOST_FACTOR;
+          }
+
           if (EMBED_SCORES) {
             traceweights.push(
               `  VIDEO_HAS_SOUND_WEIGHT:${fmtInt.format(
                 START_WEIGHT *
-                VIDEO_HAS_SOUND_WEIGHT)} \t weight: ${VIDEO_HAS_SOUND_WEIGHT} \t muted:${videoElem.muted}  `);
+                hasSoundWeight)} \t weight: ${hasSoundWeight} \t muted:${videoElem.muted}  `);
           }
-          weight += (START_WEIGHT * VIDEO_HAS_SOUND_WEIGHT);
+          weight += (START_WEIGHT * hasSoundWeight);
         }
       }
 
@@ -2699,7 +2894,6 @@ try { // scope and prevent errors from leaking out to page.
         logerr(err);
       }
 
-
       weight = Math.round(weight);
       if (DEBUG_ENABLED) {
         if (Number.isNaN(weight)) {
@@ -2748,6 +2942,62 @@ try { // scope and prevent errors from leaking out to page.
     }
   };
 
+  const saveAllScrollPositions = () => {
+    const savedWalkerNode = g_walker.currentNode;
+    g_walker.currentNode = document;
+    let countTop = 0;
+    let countLeft = 0;
+    try {
+      do {
+        try {
+          if (g_walker.currentNode?.scrollTop) {
+            setAttr(g_walker.currentNode, SAVED_SCROLL_TOP_ATTR, g_walker.currentNode?.scrollTop);
+            countTop++;
+          }
+          if (g_walker.currentNode?.scrollLeft) {
+            setAttr(g_walker.currentNode, SAVED_SCROLL_LEFT_ATTR, g_walker.currentNode?.scrollLeft);
+            countLeft++;
+          }
+        } catch (err) {
+          // keep going
+          logerr("saveAllScrollPositions: inner error:", err);
+        }
+      } while (g_walker.nextNode());
+      trace(`saveAllScrollPositions: saved counts top:${countTop} left:${countLeft}`);
+    } catch (err) {
+      logerr("saveAllScrollPositions: function error", err);
+    }
+    g_walker.currentNode = savedWalkerNode;
+  };
+
+  const restoreAllSrollPositions = () => {
+    // on scroll events should be stopped
+    // need to make this more generic and remove dup code `{top}` vs `{left}` makes tricky
+    {
+      const topScrolledElems = [...document.querySelectorAll(
+        `[${SAVED_SCROLL_TOP_ATTR}]`)].reverse();
+      for (const eachElem of topScrolledElems) {
+        const top = getAttr(eachElem, SAVED_SCROLL_TOP_ATTR);
+        removeAttr(eachElem, SAVED_SCROLL_TOP_ATTR);
+        if (eachElem?.scrollTo) {
+          eachElem.scrollTo({ top });
+          trace(`restoreAllSrollPositions top: ${top} for elem ${PrintNode(eachElem)}`);
+        }
+      }
+    }
+    {
+      const leftScrolledElems = [...document.querySelectorAll(
+        `[${SAVED_SCROLL_LEFT_ATTR}]`)].reverse();
+      for (const eachElem of leftScrolledElems) {
+        const left = getAttr(eachElem, SAVED_SCROLL_LEFT_ATTR);
+        removeAttr(eachElem, SAVED_SCROLL_LEFT_ATTR);
+        if (eachElem?.scrollTo) {
+          eachElem.scrollTo({ left });
+          trace(`restoreAllSrollPositions left: ${left} for elem ${PrintNode(eachElem)}`);
+        }
+      }
+    }
+  };
 
   /**
    * The LAST step of zooming is ot flip all the "videomax-ext-prep-*" to videomax-ext-*"
@@ -2759,6 +3009,7 @@ try { // scope and prevent errors from leaking out to page.
   const flipCssRemovePrep = (doc = document) => {
     if (typeof (doc?.querySelectorAll) !== "function") {
       // security can block
+      trace(`flipCssRemovePrep: doc?.querySelectorAll) !== "function"`);
       return 0;
     }
     const allElementsToFix = doc.querySelectorAll(`[class*="${PREFIX_CSS_CLASS_PREP}"]`);
@@ -2893,6 +3144,7 @@ try { // scope and prevent errors from leaking out to page.
   };
 
   const postFixUpPageZoom = () => {
+    let useObserver = true;
     // some sites (mba) position a full sized overlay that needs to be centered.
     if (// !isRunningInIFrame() && // NBCNews iframe styles constantly getting updated
       !videomaxGlobals.matchedIsHtml5Video) {
@@ -2900,7 +3152,7 @@ try { // scope and prevent errors from leaking out to page.
         trace(`OBSERVER: NOT INSTALLING observer because 
         videomaxGlobals.matchedIsHtml5Video: ${videomaxGlobals.matchedIsHtml5Video}`);
       }
-      return;
+      useObserver = false;
     }
     if (MUTATION_OBSERVER_WATCH_ALL_MAX === false && !videomaxGlobals.matchedCommonCntl) {
       if (DEBUG_MUTATION_OBSERVER) {
@@ -2908,12 +3160,14 @@ try { // scope and prevent errors from leaking out to page.
         MUTATION_OBSERVER_WATCH_ALL_MAX = ${MUTATION_OBSERVER_WATCH_ALL_MAX}
         videomaxGlobals.matchedCommonCntl = ${videomaxGlobals.matchedCommonCntl}`);
       }
-      return;
+      useObserver = false;
     }
 
     rehideUpFromVideo(); // one more time before adding observers to keep from triggering a bunch
                          // of events (NBC Banner ad)
-    addClassMutationObserver();
+    if (useObserver) {
+      addClassMutationObserver();
+    }
     videoCanPlayBufferingInit();
     if (FIX_UP_BODY_CLASS_TO_SITE_SPECIFIC_CSS_MATCH) {
       try {
@@ -3051,7 +3305,7 @@ try { // scope and prevent errors from leaking out to page.
       return false;
     }
 
-    if (videomaxGlobals.isMaximized) {
+    if (isMaximized()) {
       trace(`doZoomPage videomaxGlobals.isMaximized=true, NOT running.`);
       return true;
     }
@@ -3059,8 +3313,8 @@ try { // scope and prevent errors from leaking out to page.
     const reinstall = hasInjectedAlready();
     trace(`doZoomPage readystate = ${document.readyState}  reinstall=${reinstall}`);
 
-    if (DEBUG_ENABLED && videomaxGlobals.isMaximized === false && reinstall) {
-      trace("Something's weird. isMaximized=false but hasInjectedAlready()=true");
+    if (DEBUG_ENABLED && isMaximized() === false && reinstall) {
+      trace("Something's weird. isMaximized()=false but hasInjectedAlready()=true");
     }
 
     videomaxGlobals.match_counter = 0;
@@ -3076,12 +3330,6 @@ try { // scope and prevent errors from leaking out to page.
 
     const bestMatch = videomaxGlobals.elementMatcher.getBestMatch();
     trace("video found", bestMatch);
-
-    bestMatch?.scrollIntoView({
-                                block:  "center",
-                                inline: "center",
-                              });
-
 
     // mark it with a class.
     tagElementAsMatchedVideo(bestMatch);
@@ -3108,6 +3356,18 @@ try { // scope and prevent errors from leaking out to page.
       appendUnitTestResultInfo("==========DONE==========\n\n");
     }
 
+    if (RESTORE_SCROLL_POS) {
+      // walk through dom and find all the elements that have a scrolling offset
+      // and preserve them in a data-attribute, we'll restore the positions after unzooming.
+      saveAllScrollPositions();
+    }
+    if (SCROLL_INTO_VIEW) {
+      bestMatch?.scrollIntoView({
+                                  block:  "center",
+                                  inline: "center",
+                                });
+    }
+
     videomaxGlobals.isMaximized = true;
 
     // this timer will hide everything
@@ -3119,8 +3379,8 @@ try { // scope and prevent errors from leaking out to page.
     } else {
       document.body.setAttribute(VIDEO_MAX_INSTALLED_ATTR, "zoomed");
       videomaxGlobals.hideEverythingTimer?.startTimer(() => {
-        if (document.videmax_cmd === "unzoom") {
-          trace("UNZOOMING! - skipping hideEverythingTimer");
+        if (!isMaximized()) {
+          trace("hideEverythingTimer: isMaximized false");
           return true;
         }
         // BBC has some special css with lots of !importants
@@ -3131,6 +3391,8 @@ try { // scope and prevent errors from leaking out to page.
 
         postFixUpPageZoom();
 
+        // this refresh will cause the scroller js in the page to "update" it's visible
+        // list of videos and may remove our primary.
         forceRefresh(videomaxGlobals.matchedVideo);
         forceRefresh(window.body);
         forceRefresh(window);
@@ -3143,8 +3405,34 @@ try { // scope and prevent errors from leaking out to page.
     return true;
   }
 
+  /**
+   * Some doom scrolling sites rework the DOM on scroll and resize events.
+   * They do this to remove videos scrolled off top of page and add new ones to the bottom.
+   * This is required to keep memory pressure down from too many <video> elements.
+   * The PROBLEM is that it removes our found maximized video. So, we eat the scroll events
+   * while zoomed.
+   * @param evt {Event}
+   * @return {boolean}
+   */
+  const cancelScrollEvents = (evt) => {
+    try {
+      if (!videomaxGlobals?.isMaximized === true) {
+        return false;
+      }
+      trace("cancelScrollEvent");
+      evt.preventDefault();
+      evt.stopImmediatePropagation();
+    } catch (_err) {
+    }
+    return false;
+  };
+  // so add and remove stay in sync.
+  const CANCEL_EVT_OPTIONS = {
+    capture: true,
+    passive: false,
+  };
+
   function mainZoom(tagonly = false) {
-    // This is only called ONCE, but the doZoomPage is called multiple times.
     videomaxGlobals.unzooming = false; // clear if we start zooming again. needed or retry timers
     if (hasInjectedAlready()) {
       trace("detected already injected. something is off?");
@@ -3156,6 +3444,11 @@ try { // scope and prevent errors from leaking out to page.
 
     if (earyExitForSmallIFrame()) {
       return;
+    }
+
+    if (CANCEL_SCROLL_EVENTS && !isRunningInIFrame()) {
+      // this is to prevent doomscrollers from completely changing the dom on us
+      document.addEventListener("scroll", cancelScrollEvents, CANCEL_EVT_OPTIONS);
     }
 
     if (!g_walker) {
@@ -3185,9 +3478,6 @@ try { // scope and prevent errors from leaking out to page.
       videomaxGlobals.mutationObserver.disconnect();
       videomaxGlobals.mutationObserver = null;
     }
-    try {
-      videomaxGlobals.matchedVideo.removeEventListener("canplay", updateSpeedFromAttr);
-    } catch (_err) {}
   };
 
 
@@ -3262,15 +3552,25 @@ try { // scope and prevent errors from leaking out to page.
       return;
     }
 
+    SANITY_CHECK_MATCH_NOT_DELETED();
+
     videomaxGlobals.mutationObserver = new MutationObserver((mutations, _observer) => {
       // called when change happens. first disconnect to avoid recursions
       // observer.disconnect();
+      // SANITY_CHECK_MATCH_NOT_DELETED();
 
-      if (document.videmax_cmd === "unzoom") {
-        trace("UNZOOMING INTERRUPT! - skipping MutationObserver");
+      if (!isMaximized()) {
+        logerr("mutationObserver - !isMaximized() probably video element deleted");
+        removeClassObserver();
+//        UndoZoom.mainUnzoom();
+        // todo: warn about why it's failing.
+        // alert(
+        //   "VideoMaximzer Extension:\n\nStrange page deleted the video when trying to zoom.\nRestoring page");
         return;
       }
-      if (videomaxGlobals.mutationObserver && videomaxGlobals.isMaximized) {
+
+      // check to see if things are in the process of going away. They might be.
+      if (videomaxGlobals.mutationObserver) {
         for (const eachMutation of mutations) {
           if (eachMutation.type !== "attributes") {
             continue;
@@ -3312,10 +3612,11 @@ try { // scope and prevent errors from leaking out to page.
    * @param elem {HTMLElement}
    * @return {boolean}
    */
-  const isVisible = (elem) => elem?.checkVisibility({
+  const isVisible = (elem) => (elem?.checkVisibility &&
+                               elem.checkVisibility({
                                                       checkOpacity:       true,
                                                       checkVisibilityCSS: true,
-                                                    }) || false;
+                                                    })) || false;
 
   /**
    *
@@ -3399,6 +3700,10 @@ try { // scope and prevent errors from leaking out to page.
   };
 
   const videoCanPlayRemove = () => {
+    try {
+      videomaxGlobals.matchedVideo.removeEventListener("canplay", updateSpeedFromAttr);
+    } catch (_err) {}
+
     if (!REAPPLY_PLAYBACKSPEED) {
       return;
     }
@@ -3433,10 +3738,11 @@ try { // scope and prevent errors from leaking out to page.
 
 
 // <editor-fold defaultstate="collapsed" desc="UndoZoom">
+  /**
+   * Using a class for better namespacing. Should do the same for zooming logic
+   */
   class UndoZoom {
-    /**
-     * @param doc {Document}
-     */
+    /** @param doc {Document} */
     static recurseIFrameUndoAll(doc) {
       try {
         if (typeof (doc?.querySelectorAll) !== "function") {
@@ -3461,9 +3767,7 @@ try { // scope and prevent errors from leaking out to page.
       }
     }
 
-    /**
-     * @param doc {Document}
-     */
+    /** @param doc {Document} */
     static removeAllClassStyles(doc) {
       if (typeof (doc?.querySelectorAll) !== "function") {
         // security can block
@@ -3487,11 +3791,7 @@ try { // scope and prevent errors from leaking out to page.
       }
     }
 
-
-    /**
-     *
-     * @param doc {Document}
-     */
+    /** @param doc {Document} */
     static undoStyleSheetChanges(doc) {
       try {
         if (typeof (doc?.getElementsByTagName) !== "function") {
@@ -3515,10 +3815,7 @@ try { // scope and prevent errors from leaking out to page.
       }
     }
 
-    /**
-     *
-     * @param doc {Document}
-     */
+    /** @param doc {Document} */
     static undoAttribChange(doc) {
       if (typeof (doc?.querySelectorAll) !== "function") {
         // security can block
@@ -3540,6 +3837,8 @@ try { // scope and prevent errors from leaking out to page.
           logerr(err, elem);
         }
       }
+
+      restoreAllSrollPositions();
     }
 
     /**
@@ -3559,6 +3858,11 @@ try { // scope and prevent errors from leaking out to page.
         videomaxGlobals.findVideoRetryTimer = null;
       }
 
+      if (!isRunningInIFrame()) {
+        // this is to prevent doomscrollers from completely changing the dom on us
+        document.removeEventListener("scroll", cancelScrollEvents, CANCEL_EVT_OPTIONS);
+      }
+
       UndoZoom.undoStyleSheetChanges(doc);
       UndoZoom.removeAllClassStyles(doc);
       UndoZoom.undoAttribChange(doc);
@@ -3571,9 +3875,8 @@ try { // scope and prevent errors from leaking out to page.
       }, 1);
     }
 
-    static forceRefresh(optionalElem) {
-      // we now need to force the flash to reload by resizing... easy thing is to
-      // adjust the body
+    static unzoomForceRefresh(optionalElem) {
+      // we now need to force the flash to reload by resizing
       setTimeout(() => {
         trace(
           `unzoom:forceRefresh: Generating 'resize' and 'visabilitychange" events to force refresh for window`);
@@ -3672,8 +3975,8 @@ try { // scope and prevent errors from leaking out to page.
         } else if (document._VideoMaxExt) {
           document._VideoMaxExt = undefined;
         }
-        UndoZoom.forceRefresh(document);
-        UndoZoom.forceRefresh(savedVideo);
+        UndoZoom.unzoomForceRefresh(document);
+        UndoZoom.unzoomForceRefresh(savedVideo);
       } catch (ex) {
         logerr(ex);
       }
