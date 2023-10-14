@@ -224,11 +224,12 @@ export const injectVideoSpeedAdjust = async (newspeed) => {
       // this happens a lot when injected into a iframe that's not a video one
       return;
     }
+
     // if the speed is negative, then we pause
     if (newPlaybackRate <= 0) {
-      await topVisVideo.pause();
+      await topVisVideo?.pause();
     } else if (topVisVideo?.paused && !topVisVideo?.ended) {
-      await topVisVideo.play();
+      await topVisVideo?.play();
     }
     // topVisVideo.defaultPlaybackRate = speed;
     topVisVideo.playbackRate = Math.abs(newPlaybackRate);

@@ -62,8 +62,8 @@ try { // scope and prevent errors from leaking out to page.
   const CHECK_PARENTS_LEVELS_UP_MAX = 8; // was 6
 
   const START_WEIGHT = 1000;
-  const RATIO_WEIGHT = 0.50;
-  const SIZE_WEIGHT = 5.0;
+  const RATIO_WEIGHT = 0.01; // these are now used by IN_VIEW_WEIGHT, so reduce
+  const SIZE_WEIGHT = 0.01;
   const ORDER_WEIGHT = -0.5; // was -10
   const TAB_INDEX_WEIGHT = 0; // was -6.0
   const HIDDEN_VIDEO_WEIGHT = -10; // downgrades
@@ -71,14 +71,14 @@ try { // scope and prevent errors from leaking out to page.
   const VIDEO_OVER_IFRAME_WEIGHT = 0; // video gets VIDEO_PLAYING_WEIGHT, VIDEO_DURATION_WEIGHT,
                                       // VIDEO_LOOPS_WEIGHT, etc
   const MAIN_FRAME_WEIGHT = 5.0;
-  const VIDEO_PLAYING_WEIGHT = 25.0;
-  const VIDEO_DURATION_WEIGHT = 2; // was 0.5
+  const VIDEO_PLAYING_WEIGHT = 100.0; // * 100
+  const VIDEO_DURATION_WEIGHT = 1.0; // was 0.5
   const MAX_DURATION_SECS = 60 * 60 * 2; // 2hrs max - live videos skew results
   const VIDEO_LOOPS_WEIGHT = -10.0;
   const VIDEO_HAS_SOUND_WEIGHT = 15.0;
   const URL_OVERLAP_WEIGHT = 100.0;
   const TITLE_OVERLAP_WEIGHT = 100;
-  const IN_VIEW_WEIGHT = 1;
+  const IN_VIEW_WEIGHT = .25;
   const ALLOW_FULLSCREEN_WEIGHT = 20.0;
   const ADVERTISE_WEIGHT = -100.0; // don't hide ads, but  dont' want them as main videos
   const DOOMSCROLL_PLAYING_BOOST_FACTOR = 50.0;
@@ -1917,7 +1917,7 @@ try { // scope and prevent errors from leaking out to page.
     }
     trace(`rehideUpFromVideo hid: ${reHideCount} for ${isRunningInIFrame() ? "iFrame" : "Main"}`);
     return reHideCount;
-  };
+  }
 
   /**
    * @constructor
@@ -3009,6 +3009,7 @@ try { // scope and prevent errors from leaking out to page.
   const flipCssRemovePrep = (doc = document) => {
     if (typeof (doc?.querySelectorAll) !== "function") {
       // security can block
+      trace(`flipCssRemovePrep: doc?.querySelectorAll) !== "function"`);
       return 0;
     }
     const allElementsToFix = doc.querySelectorAll(`[class*="${PREFIX_CSS_CLASS_PREP}"]`);
@@ -3143,6 +3144,7 @@ try { // scope and prevent errors from leaking out to page.
   };
 
   const postFixUpPageZoom = () => {
+    let useObserver = true;
     // some sites (mba) position a full sized overlay that needs to be centered.
     if (// !isRunningInIFrame() && // NBCNews iframe styles constantly getting updated
       !videomaxGlobals.matchedIsHtml5Video) {
@@ -3150,7 +3152,7 @@ try { // scope and prevent errors from leaking out to page.
         trace(`OBSERVER: NOT INSTALLING observer because 
         videomaxGlobals.matchedIsHtml5Video: ${videomaxGlobals.matchedIsHtml5Video}`);
       }
-      return;
+      useObserver = false;
     }
     if (MUTATION_OBSERVER_WATCH_ALL_MAX === false && !videomaxGlobals.matchedCommonCntl) {
       if (DEBUG_MUTATION_OBSERVER) {
@@ -3158,12 +3160,14 @@ try { // scope and prevent errors from leaking out to page.
         MUTATION_OBSERVER_WATCH_ALL_MAX = ${MUTATION_OBSERVER_WATCH_ALL_MAX}
         videomaxGlobals.matchedCommonCntl = ${videomaxGlobals.matchedCommonCntl}`);
       }
-      return;
+      useObserver = false;
     }
 
     rehideUpFromVideo(); // one more time before adding observers to keep from triggering a bunch
                          // of events (NBC Banner ad)
-    addClassMutationObserver();
+    if (useObserver) {
+      addClassMutationObserver();
+    }
     videoCanPlayBufferingInit();
     if (FIX_UP_BODY_CLASS_TO_SITE_SPECIFIC_CSS_MATCH) {
       try {
