@@ -745,7 +745,7 @@ const getSettingUseAdvFeatures = async () => {
   try {
     const settings = await getSettings();
     trace("getFeatureShowZoomPopup settings:", JSON.stringify(settings, null, 2));
-    return (settings.useAdvancedFeatures || DEFAULT_SETTINGS.useAdvancedFeatures);
+    return (settings.useAdvancedFeatures);
   } catch (err) {
     logerr(err);
     return DEFAULT_SETTINGS.useAdvancedFeatures;
