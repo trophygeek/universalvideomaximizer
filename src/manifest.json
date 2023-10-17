@@ -33,7 +33,7 @@
     }
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self';",
+    "extension_pages": "script-src 'self'; object-src 'none';",
     "sandbox": "sandbox allow-scripts; script-src 'self'; child-src 'self';"
   }
 }
