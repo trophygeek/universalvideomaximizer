@@ -1,6 +1,6 @@
 {
   "name": "Video Maximizer",
-  "version": "3.0.112",
+  "version": "3.0.114",
   "manifest_version": 3,
   "description": "Remove visual clutter and maximizes videos for easy viewing, including full-page theater mode on most sites.",
   "homepage_url": "https://github.com/trophygeek/universalvideomaximizer",
@@ -33,7 +33,7 @@
     }
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'",
+    "extension_pages": "script-src 'self'; object-src 'self';",
     "sandbox": "sandbox allow-scripts; script-src 'self'; child-src 'self';"
   }
 }
