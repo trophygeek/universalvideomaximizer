@@ -40,6 +40,6 @@
     "clean": "rimraf build",
     "test": "npx jest",
     "update": "git checkout -- yarn.lock && yarn install && yarn upgrade-interactive --lastest",
-    "buildpackage:OLD": "build:prod && node ./scripts/buildpackage.js"
+    "buildpackage": "yarn clean && yarn build:prod && node ./scripts/bundlepackage.js"
   }
 }
