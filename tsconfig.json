@@ -7,7 +7,7 @@
         "esModuleInterop": true,
         "sourceMap": true,
         "rootDir": "src",
-        "outDir": "videomaximizer",
+        "outDir": "build/videomaximizer",
         "noEmitOnError": true,
 //        "jsx": "react",
         "typeRoots": [ "node_modules/@types" ],
