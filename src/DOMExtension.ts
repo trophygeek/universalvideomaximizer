@@ -273,8 +273,8 @@ Node.prototype.getComponentSelection = function (): Selection | null {
   while (parent && parent.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) {
     parent = parent.parentNode;
   }
-  // @ts-ignore
   return parent instanceof ShadowRoot
+    // @ts-ignore
     ? parent.getSelection()
     : this.window().getSelection();
 };
