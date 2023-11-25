@@ -10,23 +10,19 @@ import {
   numbericOnly,
   rangeInt,
   saveSettings,
-} from "./common.js";
-
-/**
- * @typedef {import("./common.js")}
- */
+} from "./common";
 
 // NOTE: debugging localStorage for extensions STILL isn't nativity supported,
 //  so use this 3rd party extension:
 //  https://chrome.google.com/webstore/detail/storage-area-explorer/ocfjjjjhkpapocigimmppepjgfdecjkb
 
-let g_settings = { ...DEFAULT_SETTINGS };
+let g_settings = {...DEFAULT_SETTINGS};
 
 /**
  *
  * @returns {Promise<String>}
  */
-const getManifestVersion = async () => {
+const getManifestVersion = async (): Promise<string> => {
   try {
     const manifest = await getManifestJson();
     return manifest?.version || "";
@@ -36,14 +32,8 @@ const getManifestVersion = async () => {
   return "";
 };
 
-
-/**
- *
- * @param elementId {SettingsKeyType}
- * @param isChecked {boolean}
- */
-const setChecked = (elementId, isChecked) => {
-  const htmlElement = /** @type {HTMLInputElement} */ document.getElementById(elementId);
+const setChecked = (elementId: SettingsKeyType, isChecked: boolean) => {
+  const htmlElement = document.getElementById(elementId) as HTMLInputElement;
   if (htmlElement?.type === "checkbox") {
     htmlElement.checked = isChecked;
   } else {
@@ -51,13 +41,8 @@ const setChecked = (elementId, isChecked) => {
   }
 };
 
-/**
- *
- * @param elementId {SettingsKeyType}
- * @returns {boolean}
- */
-const getChecked = (elementId) => {
-  const htmlElement = /** @type {HTMLInputElement} */ document.getElementById(elementId);
+const getChecked = (elementId: SettingsKeyType): boolean => {
+  const htmlElement = document.getElementById(elementId) as HTMLInputElement;
   if (htmlElement?.type === "checkbox") {
     return htmlElement?.checked || false;
   }
@@ -71,8 +56,8 @@ const getChecked = (elementId) => {
  * @param elementId {SettingsKeyType}
  * @param value {number}
  */
-const setTextNum = (elementId, value) => {
-  const htmlElement = /** @type {HTMLInputElement} */ document.getElementById(elementId);
+const setTextNum = (elementId: SettingsKeyType, value: number) => {
+  const htmlElement = document.getElementById(elementId) as HTMLInputElement;
   htmlElement.value = String(value);
 };
 
@@ -82,8 +67,8 @@ const setTextNum = (elementId, value) => {
  * @param elementId {SettingsKeyType}
  * @returns {number}
  */
-const getTextNum = (elementId) /** @type number */ => {
-  const htmlElement = /** @type {HTMLInputElement} */ document.getElementById(elementId);
+const getTextNum = (elementId: SettingsKeyType): number /** @type number */ => {
+  const htmlElement = document.getElementById(elementId) as HTMLInputElement;
   const valStr = numbericOnly(htmlElement.value) || "1";
   const valInt = Math.abs(parseInt(valStr, 10));
   return rangeInt(valInt, 1, 900);
@@ -92,7 +77,7 @@ const getTextNum = (elementId) /** @type number */ => {
 /**
  * @param settings {SettingsType}
  */
-const loadSettingsIntoFields = (settings) => {
+const loadSettingsIntoFields = (settings: SettingsType) => {
   // load settings into page
   setChecked("useAdvancedFeatures", settings.useAdvancedFeatures);
   setTextNum("regSkipSeconds", settings.regSkipSeconds);
@@ -113,19 +98,20 @@ const loadSettingsIntoFields = (settings) => {
     // noinspection UnnecessaryLocalVariableJS
     const list = LI_START2 + listarr.join(LI_END + LI_START2) + LI_END;
 
-    document.getElementById("nozoomlist").innerHTML = list;
+    const zoomlistElem = document.getElementById("nozoomlist") as HTMLLIElement;
+    if (zoomlistElem) {
+      zoomlistElem.innerHTML = list;
+    }
     setTimeout(() => {
       const buttons = document.getElementsByName("removeBtn");
       for (const eachButton of buttons) {
         eachButton.addEventListener("click", async (e) => {
-          const parentLi = e?.currentTarget?.closest("li");
-          const domain = parentLi?.querySelector(`div[class*="domain"]`)?.innerText || "";
-          parentLi.classList.add("fade-out");
+          const parentLi = (e?.currentTarget as HTMLElement)?.closest("li");
+          const domain = (parentLi?.querySelector(`div[class*="domain"]`) as HTMLElement)?.innerText || "";
+          parentLi?.classList.add("fade-out");
           // remove domain from list and save.
           const updateSettings = await getSettings();
-          updateSettings.zoomExclusionListStr = updateSettings?.zoomExclusionListStr.replace(
-            `,${domain}`,
-            "") || "";
+          updateSettings.zoomExclusionListStr = updateSettings?.zoomExclusionListStr.replace(`,${domain}`, "") || "";
           await saveSettings(updateSettings);
         });
       }
@@ -137,7 +123,7 @@ const loadSettingsIntoFields = (settings) => {
  * @param settingsIn {SettingsType}
  * @return {SettingsType}
  */
-const saveFieldsIntoSettings = (settingsIn) => {
+const saveFieldsIntoSettings = (settingsIn: SettingsType): SettingsType => {
   try {
     const settings = settingsIn;
     settings.useAdvancedFeatures = getChecked("useAdvancedFeatures");
@@ -183,9 +169,11 @@ const setupPageFromSettings = async () => {
     const settingStr = JSON.stringify(g_settings, null, 2);
     const manifestVersion = await getManifestVersion() || "[missing manifest version]";
     // noinspection JSUnresolvedReference
+    // @ts-ignore `userAgentData` is experimental but available on chrome
     const userAgent = JSON.stringify(navigator?.userAgentData, null, 2);
-
-    document.getElementById("version").innerHTML = `
+    const versElem = document.getElementById("version") as HTMLElement;
+    if (versElem) {
+      versElem.innerHTML = `
 <pre>
 Extension Version: v${manifestVersion}
 Extension Settings:
@@ -194,6 +182,7 @@ Browser Version:
 ${userAgent}
 
 </pre>`;
+    }
   } catch (err) {
     logerr(err);
   }
@@ -203,64 +192,60 @@ document.addEventListener("DOMContentLoaded", async () => {
   try {
     await setupPageFromSettings();
 
-    document.getElementById("mainForm")
-      .addEventListener("change", async (_e) => {
-        await save();
-      });
+    document.getElementById("mainForm")?.addEventListener("change", async (_e) => {
+              await save();
+            });
 
-    document.getElementById("useAdvancedFeatures")
-      .addEventListener("click", async (_e) => {
-        enableAdvanceFeaturesOptions();
-        setTimeout(() => {
-          if (!getChecked("useAdvancedFeatures")) {
-            // eslint-disable-next-line no-alert
-            alert(`
+    document.getElementById("useAdvancedFeatures")?.addEventListener("click", async (_e) => {
+              enableAdvanceFeaturesOptions();
+              setTimeout(() => {
+                if (!getChecked("useAdvancedFeatures")) {
+                  // eslint-disable-next-line no-alert
+                  alert(`
 This will remove the speed controls.
 
 To access this Option page in the future, RIGHT-CLICK on the extension's icon in toolbar and select "options"`);
-          }
-        }, 250);
-      });
+                }
+              }, 250);
+            });
 
-    document.getElementById("allSitesAccess")
-      .addEventListener("click", async (_e) => {
-        setTimeout(() => {
-          if (getChecked("allSitesAccess")) {
-            // eslint-disable-next-line no-alert
-            alert(`
+    document.getElementById("allSitesAccess")?.addEventListener("click", async (_e) => {
+      setTimeout(() => {
+        if (getChecked("allSitesAccess")) {
+          // eslint-disable-next-line no-alert
+          alert(`
 Enabling this feature will prompt you ONE last time to grant this extension FULL ACCESS.
 
 You may need to REFRESH the video page before it takes effect.`);
-          }
-        }, 250);
-      });
+        }
+      }, 250);
+    });
 
-    document.getElementById("addpathblacklist")
-      .addEventListener("click", async (e) => {
-        // eslint-disable-next-line no-alert
-        const newDomainStr = prompt("New domain name to exclude from zooming:");
-        if (newDomainStr?.length) {
-          const domain = getDomain(newDomainStr);
-          g_settings.zoomExclusionListStr = `${g_settings.zoomExclusionListStr},${domain}`;
-          await save();
-          // scroll to bottom
-          const objDiv = document.getElementById("nozoomlist");
+    document.getElementById("addpathblacklist")?.addEventListener("click", async (e) => {
+      // eslint-disable-next-line no-alert
+      const newDomainStr = prompt("New domain name to exclude from zooming:");
+      if (newDomainStr?.length) {
+        const domain = getDomain(newDomainStr);
+        g_settings.zoomExclusionListStr = `${g_settings.zoomExclusionListStr},${domain}`;
+        await save();
+        // scroll to bottom
+        const objDiv = document.getElementById("nozoomlist");
+        if (objDiv?.scrollTop && objDiv?.scrollHeight) {
           objDiv.scrollTop = objDiv.scrollHeight;
         }
-        e.stopPropagation();
-        return false;
-      });
+      }
+      e.stopPropagation();
+      return false;
+    });
 
-    document.getElementById("reset")
-      .addEventListener("click", async (_e) => {
-        await clearSettings();
-        loadSettingsIntoFields(DEFAULT_SETTINGS);
-      });
+    document.getElementById("reset")?.addEventListener("click", async (_e) => {
+      await clearSettings();
+      loadSettingsIntoFields(DEFAULT_SETTINGS);
+    });
 
-    document.getElementById("save")
-      .addEventListener("click", (_e) => {
-        window.close();
-      });
+    document.getElementById("save")?.addEventListener("click", (_e) => {
+      window.close();
+    });
 
     chrome.storage.onChanged.addListener(async (_changes, _namespace) => {
       await setupPageFromSettings();

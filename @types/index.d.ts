@@ -5,8 +5,10 @@
  * too transpile with javascript. Neat.
  */
 
+type KeyValuePair = { [key: string]: string };
+
 type SettingsType = {
-  lastBetaVersion: string,
+  lastBetaVersion?: string,
   useAdvancedFeatures: boolean,
   spacebarTogglesPlayback: boolean,
   regSkipSeconds: number,
@@ -15,9 +17,10 @@ type SettingsType = {
   wholeDomainAccess: boolean,
   allSitesAccess: boolean,
   allSitesAccessNeedsRevoke: boolean,
-  firstUseShown:             boolean,
-  firstUseOn2ndScreen: boolean,
   zoomExclusionListStr: string,
+  beta3EndingShown?: boolean,
+  firstUseShown?: boolean,
+  firstUseOn2ndScreen?: boolean,
 };
 
 type SettingsKeyType = keyof SettingsType;
@@ -33,51 +36,53 @@ type CmdType =
     | "TOGGLE_PLAYBACK_CMD"
     | "OPTIONS_CMD"
     | "FIRST_USE_REFRESH_POPUP_URL_CMD"
-| "POPUP_CLOSING";
+    | "POPUP_CLOSING";
 
 // Used by popup for buttons that aren't speed changes.
 type PopupMenuCmd = "UNZOOM_BTN_CMD" | "OPTIONS_BTN_CMD";
 
 type DomRect = {
-  top: number,
-  left: number,
-  bottom: number,
-  width: number,
-  right: number,
-  height: number
+  top: number, left: number, bottom: number, width: number, right: number, height: number
 }
 
-type BackgroundState =
-    | "UNZOOMED"
-    | "ZOOMING" // maps to ZOOMED_NOSPEED or ZOOMED_SPEED
+type BackgroundState = | "UNZOOMED" | "ZOOMING" // maps to ZOOMED_NOSPEED or ZOOMED_SPEED
     | "ZOOMING_SPEED_ONLY" // maps to SPEED_ONLY
-    | "ZOOMED_NOSPEED"
-    | "ZOOMED_SPEED"
-    | "SPEED_ONLY"
-    | "REFRESH"
-    | "ERR_PERMISSION"
-    | "ERR_URL";
+    | "ZOOMED_NOSPEED" | "ZOOMED_SPEED" | "SPEED_ONLY" | "REFRESH" | "ERR_PERMISSION" | "ERR_URL" | ""; // means
+                                                                                                        // preserve
+                                                                                                        // state
+
+type BackgroundStateValue = {
+  readonly badge: string,
+  readonly title: string,
+  readonly showpopup: boolean,
+  readonly zoomed: boolean,
+  readonly color: string,
+};
 
 type BackgroundStateMap = {
-  [key in BackgroundState]: {
-    readonly badge: string,
-    readonly title: string,
-    readonly showpopup: boolean,
-    readonly zoomed: boolean,
-    readonly color: string,
-  }
+  [key in BackgroundState]: BackgroundStateValue;
 }
 
 type SubFrameParamData = {
-  tabId: number;
-  domain: string;
-  subFrameStr: string;
+  tabId: number; domain: string; subFrameStr: string;
 };
 type SubFramePermMatching = { [tabId: number]: SubFrameParamData };
 
-type KeyValuePair = {[key:string]: string};
-
 type ActionFunction = (elem: Node) => boolean;
 
-type HtmlElementType = keyof Partial< HTMLElementTagNameMap>;
+type HtmlElementType = keyof Partial<HTMLElementTagNameMap>;
 type HtmlElementTypes = HtmlElementType[];
+
+type InjectExecScriptCmds = "CrossDomainFailedIFrames" | "VideoSpeedAdjust";
+
+type VideomaxGlobalsTypeBase = {
+  matchedVideo: HTMLVideoElement | HTMLIFrameElement | null;
+  matchVideoRect: DomRect;
+  matchedIsHtml5Video: boolean;
+  matchedVideoSrc: string;
+  matchedCommonCntl: Element | null;
+  processInFrame: boolean,
+  isMaximized: boolean,
+  tagonly: boolean,
+  unzooming: boolean,
+};

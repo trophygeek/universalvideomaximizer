@@ -148,10 +148,10 @@ body.videomax-ext-livejasmin .mc_bonus_animation.js_bonus_animation.mc_bonus_ani
 body.videomax-ext-mediaite .bxc.bx-base.bx-impress,
 body.videomax-ext-twitch [data-test-selector="sad-overlay"],
 body.videomax-ext-twitch [data-test-selector="ad-banner-default-text"],
-body.videomax-ext-youtube div.videomax-ext-overlap > .ytp-chrome-top-buttons,
-body.videomax-ext-youtube div.videomax-ext-overlap > .ytp-share-button,
-body.videomax-ext-youtube div.videomax-ext-overlap > .annotation-type-custom,
-body.videomax-ext-youtube div.videomax-ext-overlap > .ytp-fullscreen-button.ytp-button,
+body.videomax-ext-youtube .ytp-chrome-top-buttons,
+body.videomax-ext-youtube .ytp-share-button,
+body.videomax-ext-youtube .annotation-type-custom.iv-branding,
+body.videomax-ext-youtube .ytp-fullscreen-button.ytp-button,
 body.videomax-ext-haitu div.yzmplayer-logo.videomax-ext-overlap img
 {
   visibility: hidden !important;
@@ -162,3 +162,11 @@ body.videomax-ext-pornhub div.mgp_adRollContainer.videomax-ext-overlap {
   visibility: unset !important;
 }
 
+body.videomax-ext-nbcnews section.video-live.videomax-ext-max {
+  z-index: 1000;
+  height: calc(100vh) !important;
+}
+/* youtube.com/shorts controls aren't 100% wide*/
+body.videomax-ext-youtube div.player-controls.videomax-ext-overlap {
+  width: calc(100vw) !important;
+}

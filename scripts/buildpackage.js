@@ -11,40 +11,13 @@ const exec = commands => {
     shell: true,
   });
 };
-// const spawnProcess = commands => {
-//   spawn(commands, {
-//     stdio: "inherit",
-//     shell: true,
-//   });
-// };
+
 const readline = require("readline");
-// const { is } = require("uvu/assert");
 
 const rl = readline.createInterface({
                                       input:  process.stdin,
                                       output: process.stdout,
                                     });
-
-// const walk = (dir) => {
-//   try {
-//     let results = [];
-//     const list = fs.readdirSync(dir);
-//     list.forEach(file => {
-//       file = path.join(dir, file);
-//       const stat = fs.statSync(file);
-//       if (stat && stat.isDirectory()) {
-//         // Recurse into subdir
-//         results = [...results, ...walk(file)];
-//       } else {
-//         // Is a file
-//         results.push(file);
-//       }
-//     });
-//     return results;
-//   } catch (error) {
-//     console.error(`Error when walking dir ${dir}`, error);
-//   }
-// };
 
 // this is how the code should be for release, if not bail!
 // filename: string if not found bails.
