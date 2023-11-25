@@ -49,8 +49,14 @@ interface AnchorBox {
 declare global {
   interface Node {
     traverseNextTextNode(stayWithin: Node): Node | null;
-    enclosingNodeOrSelfWithClass(className: string, stayWithin: Node | null): Node | null;
-    enclosingNodeOrSelfWithClassList(classNames: string[], stayWithin: Node | null): Node | null;
+    enclosingNodeOrSelfWithClass(
+      className: string,
+      stayWithin: Node | null
+    ): Node | null;
+    enclosingNodeOrSelfWithClassList(
+      classNames: string[],
+      stayWithin: Node | null
+    ): Node | null;
     parentElementOrShadowHost(): HTMLElement | null;
     parentNodeOrShadowHost(): Node | null;
     getComponentSelection(): Selection | null;
@@ -63,16 +69,30 @@ declare global {
     isDescendant(descendant: Node | null): boolean;
     isSelfOrAncestor(node: Node | null): boolean;
     isSelfOrDescendant(node: Node | null): boolean;
-    traverseNextNode(stayWithin: Node | null, skipShadowRoot?: boolean): Node | null;
+    traverseNextNode(
+      stayWithin: Node | null,
+      skipShadowRoot?: boolean
+    ): Node | null;
     traversePreviousNode(stayWithin?: Node): Node | null;
-    setTextContentTruncatedIfNeeded(text: string | Node, placeholder?: string): boolean;
+    setTextContentTruncatedIfNeeded(
+      text: string | Node,
+      placeholder?: string
+    ): boolean;
     getComponentRoot(): Document | DocumentFragment | null;
   }
 
   interface HTMLElement {
-    positionAt(x: number | undefined, y: number | undefined, relativeTo?: HTMLElement): void;
+    positionAt(
+      x: number | undefined,
+      y: number | undefined,
+      relativeTo?: HTMLElement
+    ): void;
     removeChildren(): void;
-    createChild(elementName: string, className?: string, customElementType?: string): HTMLElement;
+    createChild(
+      elementName: string,
+      className?: string,
+      customElementType?: string
+    ): HTMLElement;
     boxInWindow(targetWindow?: Window | null): AnchorBox;
     hasFocus(): boolean;
 
@@ -87,11 +107,18 @@ declare global {
     createTextNode(data: string | number): Text;
     createDocumentFragment(): DocumentFragment;
     AnchorBox: AnchorBox;
-    onInvokeElement(element: HTMLElement, callback: (arg0: Event) => void): void;
+    onInvokeElement(
+      element: HTMLElement,
+      callback: (arg0: Event) => void
+    ): void;
   }
 
   interface DocumentFragment {
-    createChild(elementName: string, className?: string, customElementType?: string): HTMLElement;
+    createChild(
+      elementName: string,
+      className?: string,
+      customElementType?: string
+    ): HTMLElement;
   }
 
   interface Event {
@@ -113,61 +140,89 @@ const trimMiddle = (str: string, maxLength: number): string => {
   if (leftHalf > 0 && (str.codePointAt(leftHalf - 1) as number) >= 0x10000) {
     --leftHalf;
   }
-  return str.substr(0, leftHalf) + '…' + str.substr(str.length - rightHalf, rightHalf);
+  return (
+    str.substr(0, leftHalf) +
+    "…" +
+    str.substr(str.length - rightHalf, rightHalf)
+  );
 };
 
 // from Platform.KeyboardUtilities
 function isEnterOrSpaceKey(event: KeyboardEvent): boolean {
-  return event.key === 'Enter' || event.key === ' ';
+  return event.key === "Enter" || event.key === " ";
 }
-
 
 Node.prototype.traverseNextTextNode = function (stayWithin: Node): Node | null {
   let node = this.traverseNextNode(stayWithin);
   if (!node) {
     return null;
   }
-  const nonTextTags: { [key: string]: number } = {'STYLE': 1, 'SCRIPT': 1, '#document-fragment': 1};
-  while (node && (node.nodeType !== Node.TEXT_NODE || nonTextTags[node.parentNode ? node.parentNode.nodeName : ''])) {
+  const nonTextTags: { [key: string]: number } = {
+    STYLE: 1,
+    SCRIPT: 1,
+    "#document-fragment": 1,
+  };
+  while (
+    node &&
+    (node.nodeType !== Node.TEXT_NODE ||
+      nonTextTags[node.parentNode ? node.parentNode.nodeName : ""])
+  ) {
     node = node.traverseNextNode(stayWithin);
   }
 
   return node;
 };
 
-HTMLElement.prototype.positionAt = function (x: number | undefined, y: number | undefined, relativeTo?: HTMLElement): void {
-  let shift: AnchorBox | {
-    x: number, y: number,
-  } = {x: 0, y: 0};
+HTMLElement.prototype.positionAt = function (
+  x: number | undefined,
+  y: number | undefined,
+  relativeTo?: HTMLElement
+): void {
+  let shift:
+    | AnchorBox
+    | {
+        x: number;
+        y: number;
+      } = { x: 0, y: 0 };
   if (relativeTo) {
     shift = relativeTo.boxInWindow(this.ownerDocument.defaultView);
   }
 
-  if (typeof x === 'number') {
-    this.style.setProperty('left', (shift.x + x) + 'px');
+  if (typeof x === "number") {
+    this.style.setProperty("left", shift.x + x + "px");
   } else {
-    this.style.removeProperty('left');
+    this.style.removeProperty("left");
   }
 
-  if (typeof y === 'number') {
-    this.style.setProperty('top', (shift.y + y) + 'px');
+  if (typeof y === "number") {
+    this.style.setProperty("top", shift.y + y + "px");
   } else {
-    this.style.removeProperty('top');
+    this.style.removeProperty("top");
   }
 
-  if (typeof x === 'number' || typeof y === 'number') {
-    this.style.setProperty('position', 'absolute');
+  if (typeof x === "number" || typeof y === "number") {
+    this.style.setProperty("position", "absolute");
   } else {
-    this.style.removeProperty('position');
+    this.style.removeProperty("position");
   }
 };
 
-Node.prototype.enclosingNodeOrSelfWithClass = function (className: string, stayWithin: Node | null = null): Node | null {
+Node.prototype.enclosingNodeOrSelfWithClass = function (
+  className: string,
+  stayWithin: Node | null = null
+): Node | null {
   return this.enclosingNodeOrSelfWithClassList([className], stayWithin || null);
 };
 
-Node.prototype.enclosingNodeOrSelfWithClassList = function (classNames: string[], stayWithin: Node | null): Node | null {
-  for (let node: Node | null = this; node && node !== stayWithin && node !== this.ownerDocument; node = node.parentNodeOrShadowHost()) {
+Node.prototype.enclosingNodeOrSelfWithClassList = function (
+  classNames: string[],
+  stayWithin: Node | null
+): Node | null {
+  for (
+    let node: Node | null = this;
+    node && node !== stayWithin && node !== this.ownerDocument;
+    node = node.parentNodeOrShadowHost()
+  ) {
     if (node.nodeType !== Node.ELEMENT_NODE) {
       continue;
     }
@@ -214,30 +269,41 @@ Node.prototype.parentNodeOrShadowHost = function (): Node | null {
 };
 
 Node.prototype.getComponentSelection = function (): Selection | null {
-  let parent: ((Node & ParentNode) | null) = this.parentNode;
+  let parent: (Node & ParentNode) | null = this.parentNode;
   while (parent && parent.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) {
     parent = parent.parentNode;
   }
   // @ts-ignore
-  return parent instanceof ShadowRoot ? parent.getSelection() : this.window().getSelection();
+  return parent instanceof ShadowRoot
+    ? parent.getSelection()
+    : this.window().getSelection();
 };
 
 Node.prototype.hasSelection = function (): boolean {
   // TODO(luoe): use contains(node, {includeShadow: true}) when it is fixed for shadow dom.
   if (this instanceof HTMLElement) {
-    const slots = this.querySelectorAll('slot');
+    const slots = this.querySelectorAll("slot");
     for (const slot of slots) {
-      if (Array.prototype.some.call(slot.assignedNodes(), node => node.hasSelection())) {
+      if (
+        Array.prototype.some.call(slot.assignedNodes(), (node) =>
+          node.hasSelection()
+        )
+      ) {
         return true;
       }
     }
   }
 
   const selection = this.getComponentSelection();
-  if (!selection || selection?.type !== 'Range') {
+  if (!selection || selection?.type !== "Range") {
     return false;
   }
-  return selection.containsNode(this, true) || selection.anchorNode?.isSelfOrDescendant(this) || selection.focusNode?.isSelfOrDescendant(this) || false;
+  return (
+    selection.containsNode(this, true) ||
+    selection.anchorNode?.isSelfOrDescendant(this) ||
+    selection.focusNode?.isSelfOrDescendant(this) ||
+    false
+  );
 };
 
 Node.prototype.window = function (): Window {
@@ -246,7 +312,7 @@ Node.prototype.window = function (): Window {
 
 HTMLElement.prototype.removeChildren = function (): void {
   if (this.firstChild) {
-    this.textContent = '';
+    this.textContent = "";
   }
 };
 
@@ -262,8 +328,14 @@ Document.prototype.createDocumentFragment = function (): DocumentFragment {
   return document.createDocumentFragment();
 };
 
-HTMLElement.prototype.createChild = function (elementName: string, className?: string, customElementType?: string): HTMLElement {
-  const element = document.createElement(elementName, {is: customElementType});
+HTMLElement.prototype.createChild = function (
+  elementName: string,
+  className?: string,
+  customElementType?: string
+): HTMLElement {
+  const element = document.createElement(elementName, {
+    is: customElementType,
+  });
   if (className) {
     element.className = className;
   }
@@ -287,30 +359,51 @@ class ClassAnchorBox implements AnchorBox {
   }
 
   contains(x: number, y: number): boolean {
-    return x >= this.x && x <= this.x + this.width && y >= this.y && y <= this.y + this.height;
+    return (
+      x >= this.x &&
+      x <= this.x + this.width &&
+      y >= this.y &&
+      y <= this.y + this.height
+    );
   }
 
   relativeTo(box: AnchorBox): AnchorBox {
-    return new ClassAnchorBox(this.x - box.x, this.y - box.y, this.width, this.height);
+    return new ClassAnchorBox(
+      this.x - box.x,
+      this.y - box.y,
+      this.width,
+      this.height
+    );
   }
 
   relativeToElement(element: HTMLElement): AnchorBox {
-    return this.relativeTo(element.boxInWindow(element.ownerDocument.defaultView));
+    return this.relativeTo(
+      element.boxInWindow(element.ownerDocument.defaultView)
+    );
   }
 
   equals(anchorBox: AnchorBox | null): boolean {
-    return Boolean(anchorBox) && this.x === anchorBox?.x && this.y === anchorBox.y && this.width === anchorBox.width && this.height === anchorBox.height;
+    return (
+      Boolean(anchorBox) &&
+      this.x === anchorBox?.x &&
+      this.y === anchorBox.y &&
+      this.width === anchorBox.width &&
+      this.height === anchorBox.height
+    );
   }
 }
 
 // Document.prototype.AnchorBox = ClassAnchorBox;
 
-HTMLElement.prototype.boxInWindow = function (targetWindowIn?: Window | null): AnchorBox {
+HTMLElement.prototype.boxInWindow = function (
+  targetWindowIn?: Window | null
+): AnchorBox {
   const targetWindow = targetWindowIn || this.ownerDocument.defaultView;
 
   const anchorBox = new ClassAnchorBox();
   let curElement: HTMLElement | null = this;
-  let curWindow: Window | ((Window & typeof globalThis) | null) = this.ownerDocument.defaultView;
+  let curWindow: Window | ((Window & typeof globalThis) | null) =
+    this.ownerDocument.defaultView;
   while (curWindow && curElement) {
     anchorBox.x += curElement.getBoundingClientRect().left;
     anchorBox.y += curElement.getBoundingClientRect().top;
@@ -321,8 +414,12 @@ HTMLElement.prototype.boxInWindow = function (targetWindowIn?: Window | null): A
     curWindow = curWindow.parent;
   }
 
-  const widthDelta = targetWindow?.innerWidth ? targetWindow.innerWidth - anchorBox.x : 0;
-  const heightDelta = targetWindow?.innerHeight ? targetWindow.innerHeight - anchorBox.y : 0;
+  const widthDelta = targetWindow?.innerWidth
+    ? targetWindow.innerWidth - anchorBox.x
+    : 0;
+  const heightDelta = targetWindow?.innerHeight
+    ? targetWindow.innerHeight - anchorBox.y
+    : 0;
   anchorBox.width = Math.min(this.offsetWidth, widthDelta);
   anchorBox.height = Math.min(this.offsetHeight, heightDelta);
   return anchorBox;
@@ -338,18 +435,22 @@ Event.prototype.consume = function (preventDefault?: boolean): void {
 
 Node.prototype.deepTextContent = function (): string {
   return this.childTextNodes()
-             .map(function (node) {
-               return node.textContent;
-             })
-             .join('');
+    .map(function (node) {
+      return node.textContent;
+    })
+    .join("");
 };
 
 Node.prototype.childTextNodes = function (): Node[] {
   let node = this.traverseNextTextNode(this);
   const result = [];
-  const nonTextTags: { [key: string]: number } = {'STYLE': 1, 'SCRIPT': 1, '#document-fragment': 1};
+  const nonTextTags: { [key: string]: number } = {
+    STYLE: 1,
+    SCRIPT: 1,
+    "#document-fragment": 1,
+  };
   while (node) {
-    if (!nonTextTags[node.parentNode ? node.parentNode.nodeName : '']) {
+    if (!nonTextTags[node.parentNode ? node.parentNode.nodeName : ""]) {
       result.push(node);
     }
     node = node.traverseNextTextNode(this);
@@ -373,7 +474,7 @@ Node.prototype.isAncestor = function (node: Node | null): boolean {
 };
 
 Node.prototype.isDescendant = function (descendant: Node | null): boolean {
-  return Boolean(descendant) && descendant?.isAncestor(this) || false;
+  return (Boolean(descendant) && descendant?.isAncestor(this)) || false;
 };
 
 Node.prototype.isSelfOrAncestor = function (node: Node | null): boolean {
@@ -384,16 +485,24 @@ Node.prototype.isSelfOrDescendant = function (node: Node | null): boolean {
   return Boolean(node) && (node === this || this.isDescendant(node));
 };
 
-Node.prototype.traverseNextNode = function (stayWithin: Node | null = null, skipShadowRoot: boolean = false): Node | null {
+Node.prototype.traverseNextNode = function (
+  stayWithin: Node | null = null,
+  skipShadowRoot: boolean = false
+): Node | null {
   if (!stayWithin) {
     return null;
   }
 
-  if (!skipShadowRoot && (stayWithin instanceof Element) && stayWithin.shadowRoot) {
+  if (
+    !skipShadowRoot &&
+    stayWithin instanceof Element &&
+    stayWithin.shadowRoot
+  ) {
     return stayWithin.shadowRoot;
   }
 
-  const distributedNodes = this instanceof HTMLSlotElement ? this.assignedNodes() : [];
+  const distributedNodes =
+    this instanceof HTMLSlotElement ? this.assignedNodes() : [];
 
   if (distributedNodes.length) {
     return distributedNodes[0];
@@ -404,10 +513,12 @@ Node.prototype.traverseNextNode = function (stayWithin: Node | null = null, skip
   }
 
   function nextSibling(node: Node): Node | null {
-    if (!(node as Element).assignedSlot) {  // check instanceof Element?
+    if (!(node as Element).assignedSlot) {
+      // check instanceof Element?
       return node.nextSibling;
     }
-    const distributedNodes = (node as Element).assignedSlot?.assignedNodes() || [];
+    const distributedNodes =
+      (node as Element).assignedSlot?.assignedNodes() || [];
 
     const position = Array.prototype.indexOf.call(distributedNodes, node);
     if (position + 1 < distributedNodes.length) {
@@ -427,12 +538,17 @@ Node.prototype.traverseNextNode = function (stayWithin: Node | null = null, skip
       return sibling;
     }
 
-    node = ((node instanceof HTMLElement) ? (this as HTMLElement).assignedSlot : null) || node.parentNodeOrShadowHost();
+    node =
+      (node instanceof HTMLElement
+        ? (this as HTMLElement).assignedSlot
+        : null) || node.parentNodeOrShadowHost();
   }
   return null;
 };
 
-Node.prototype.traversePreviousNode = function (stayWithin?: Node): Node | null {
+Node.prototype.traversePreviousNode = function (
+  stayWithin?: Node
+): Node | null {
   if (stayWithin && this === stayWithin) {
     return null;
   }
@@ -446,14 +562,20 @@ Node.prototype.traversePreviousNode = function (stayWithin?: Node): Node | null 
   return this.parentNodeOrShadowHost();
 };
 
-Node.prototype.setTextContentTruncatedIfNeeded = function (text: string | Node, placeholder?: string): boolean {
+Node.prototype.setTextContentTruncatedIfNeeded = function (
+  text: string | Node,
+  placeholder?: string
+): boolean {
   // Huge texts in the UI reduce rendering performance drastically.
   // Moreover, Blink/WebKit uses <unsigned short> internally for storing text content
   // length, so texts longer than 65535 are inherently displayed incorrectly.
   const maxTextContentLength = 10000;
 
-  if (typeof text === 'string' && text.length > maxTextContentLength) {
-    this.textContent = typeof placeholder === 'string' ? placeholder : trimMiddle(text, maxTextContentLength);
+  if (typeof text === "string" && text.length > maxTextContentLength) {
+    this.textContent =
+      typeof placeholder === "string"
+        ? placeholder
+        : trimMiddle(text, maxTextContentLength);
     return true;
   }
 
@@ -462,24 +584,35 @@ Node.prototype.setTextContentTruncatedIfNeeded = function (text: string | Node, 
 };
 
 HTMLElement.prototype.hasFocus = function (): boolean {
-  const root: DocumentOrShadowRoot | null = this.getComponentRoot() as DocumentOrShadowRoot;
+  const root: DocumentOrShadowRoot | null =
+    this.getComponentRoot() as DocumentOrShadowRoot;
   return Boolean(root) && this.isSelfOrAncestor(root?.activeElement);
 };
-Node.prototype.getComponentRoot = function (): Document | DocumentFragment | null {
+Node.prototype.getComponentRoot = function ():
+  | Document
+  | DocumentFragment
+  | null {
   let node: ((Node & ParentNode) | null) | Node = this;
-  while (node && node.nodeType !== Node.DOCUMENT_FRAGMENT_NODE && node.nodeType !== Node.DOCUMENT_NODE) {
+  while (
+    node &&
+    node.nodeType !== Node.DOCUMENT_FRAGMENT_NODE &&
+    node.nodeType !== Node.DOCUMENT_NODE
+  ) {
     node = node.parentNode;
   }
   return node as Document | DocumentFragment | null;
 };
 
-Document.prototype.onInvokeElement = function (element: HTMLElement, callback: (arg0: Event) => void): void {
-  element.addEventListener('keydown', event => {
+Document.prototype.onInvokeElement = function (
+  element: HTMLElement,
+  callback: (arg0: Event) => void
+): void {
+  element.addEventListener("keydown", (event) => {
     if (isEnterOrSpaceKey(event)) {
       callback(event);
     }
   });
-  element.addEventListener('click', event => callback(event));
+  element.addEventListener("click", (event) => callback(event));
 };
 
 //

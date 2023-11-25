@@ -1,6 +1,6 @@
 // @ts-check
 
-export const FULL_DEBUG: boolean = true;
+export const FULL_DEBUG = true;
 export const DEBUG_ENABLED: boolean = FULL_DEBUG;
 export const TRACE_ENABLED: boolean = FULL_DEBUG;
 export const ERR_BREAK_ENABLED: boolean = FULL_DEBUG;
@@ -20,7 +20,11 @@ export const logerr = (...args: any[]) => {
     return;
   }
   // eslint-disable-next-line no-console
-  console.trace(`%c VideoMax ERROR`, `color: white; font-weight: bold; background-color: red`, ...args);
+  console.trace(
+    `%c VideoMax ERROR`,
+    `color: white; font-weight: bold; background-color: red`,
+    ...args
+  );
   if (ERR_BREAK_ENABLED) {
     // eslint-disable-next-line no-debugger
     debugger;
@@ -33,14 +37,22 @@ export const logwarn = (...args: any[]) => {
   }
   const inIFrame = isRunningInIFrame() ? "iframe" : "main";
   // eslint-disable-next-line no-console
-  console.warn(`%c VideoMax INJECT ${inIFrame} ERROR`, "color: white; font-weight: bold; background-color: orange", ...args);
+  console.warn(
+    `%c VideoMax INJECT ${inIFrame} ERROR`,
+    "color: white; font-weight: bold; background-color: orange",
+    ...args
+  );
 };
 
 export const trace = (...args: any[]) => {
   if (TRACE_ENABLED) {
     // blue color , no break
     // eslint-disable-next-line no-console
-    console.log(`%c VideoMax `, `color: white; font-weight: bold; background-color: blue`, ...args);
+    console.log(
+      `%c VideoMax `,
+      `color: white; font-weight: bold; background-color: blue`,
+      ...args
+    );
   }
 };
 
@@ -53,13 +65,24 @@ export const SETTINGS_STORAGE_KEY: SettingStorageKeyConstType = "settingsJson";
 export const UPDATE_NOTIFICATION_VERISON = "85"; // will get out of sync. bump to show
 // notification
 
-
 /* these are sites that are already zoomed, but playback speed is kind of nice */
-export const DEFAULT_ZOOM_EXCLUSION_LIST = "amazon," + "hbomax," + "play.max," + "disneyplus," + "hulu," + "netflix," + "tv.youtube," + "youku," + "bet," + "tv.apple," + "play.google," + "peacocktv,";
+export const DEFAULT_ZOOM_EXCLUSION_LIST =
+  "amazon," +
+  "hbomax," +
+  "play.max," +
+  "disneyplus," +
+  "hulu," +
+  "netflix," +
+  "tv.youtube," +
+  "youku," +
+  "bet," +
+  "tv.apple," +
+  "play.google," +
+  "peacocktv,";
 
 export const DEFAULT_SETTINGS: SettingsType = {
   lastBetaVersion: "0", // number as string used to show initial "help" (also for major
-                        // releases)
+  // releases)
   useAdvancedFeatures: true,
   spacebarTogglesPlayback: true,
   regSkipSeconds: 5,
@@ -72,26 +95,29 @@ export const DEFAULT_SETTINGS: SettingsType = {
   beta3EndingShown: false,
 };
 
-export const getKeys = <T extends object>(obj: T) => Object.keys(obj) as Array<keyof T>;
+export const getKeys = <T extends object>(obj: T) =>
+  Object.keys(obj) as Array<keyof T>;
 
 export const getSettings = async (): Promise<SettingsType> => {
   try {
     const result = await chrome?.storage?.local?.get();
     if (!result[SETTINGS_STORAGE_KEY]?.length) {
-      return {...DEFAULT_SETTINGS}; // make a copy
+      return { ...DEFAULT_SETTINGS }; // make a copy
     }
     /** @type SettingsType * */
     const savedSetting: SettingsType = JSON.parse(result[SETTINGS_STORAGE_KEY]);
-    return {...DEFAULT_SETTINGS, ...savedSetting};
+    return { ...DEFAULT_SETTINGS, ...savedSetting };
   } catch (err) {
     logerr(err);
-    return {...DEFAULT_SETTINGS}; // make a copy
+    return { ...DEFAULT_SETTINGS }; // make a copy
   }
 };
 
-export const saveSettings = async (newSettings: SettingsType): Promise<void> => {
+export const saveSettings = async (
+  newSettings: SettingsType
+): Promise<void> => {
   try {
-    const settings = {...DEFAULT_SETTINGS, ...newSettings};
+    const settings = { ...DEFAULT_SETTINGS, ...newSettings };
     // remove an settings that are default and don't save them.
     // if a user is using the "default" then the extension should be able to
     // change it in code in a future version.
@@ -106,7 +132,7 @@ export const saveSettings = async (newSettings: SettingsType): Promise<void> => 
       }
     }
     const jsonStr = JSON.stringify(settings);
-    await chrome?.storage?.local?.set({[SETTINGS_STORAGE_KEY]: jsonStr});
+    await chrome?.storage?.local?.set({ [SETTINGS_STORAGE_KEY]: jsonStr });
   } catch (err) {
     logerr(err);
   }
@@ -120,9 +146,11 @@ export const clearSettings = async () => {
   }
 };
 
-export const numbericOnly = (str: string): string => str.replace(/[^0-9]+/g, "");
+export const numbericOnly = (str: string): string =>
+  str.replace(/[^0-9]+/g, "");
 
-export const rangeInt = (num: number, lower: number, upper: number): number => Math.max(lower, Math.min(upper, num));
+export const rangeInt = (num: number, lower: number, upper: number): number =>
+  Math.max(lower, Math.min(upper, num));
 
 export const getDomain = (fullUrl: string | undefined | null): string => {
   try {
@@ -137,7 +165,7 @@ export const getDomain = (fullUrl: string | undefined | null): string => {
     if (!url.startsWith(`https://`)) {
       url = `https://${url}`;
     }
-    return (new URL(url)).host.toLowerCase();
+    return new URL(url).host.toLowerCase();
   } catch (err) {
     logerr(`getDomain err for "${fullUrl}"`, err);
     return fullUrl || "";
@@ -147,16 +175,19 @@ export const getDomain = (fullUrl: string | undefined | null): string => {
 /**
  * Turn a comma list into array of strings
  */
-export const listToArray = (listStr: string): string[] => (listStr?.split(",") || [])
-    .map(s => s.trim())
-    .filter(s => s.length > 0);
+export const listToArray = (listStr: string): string[] =>
+  (listStr?.split(",") || []).map((s) => s.trim()).filter((s) => s.length > 0);
 
 /**
  * Returns true if there are any overlaps between two arrays of strings.
  */
-export const intersection = (arrA: string[], arrB: string[]): boolean => arrA.filter(x => arrB.includes(x)).length > 0;
+export const intersection = (arrA: string[], arrB: string[]): boolean =>
+  arrA.filter((x) => arrB.includes(x)).length > 0;
 
-export const isPageExcluded = (domain: string, zoomExclusionListStr: string): boolean => {
+export const isPageExcluded = (
+  domain: string,
+  zoomExclusionListStr: string
+): boolean => {
   if (!domain?.length) {
     return false;
   }
@@ -164,7 +195,10 @@ export const isPageExcluded = (domain: string, zoomExclusionListStr: string): bo
   // tv.apple.com is the tricky part
   for (const eachExcludedDomain of excludedList) {
     // if it doesn't have a trailing . or .com then append a "."
-    const each = eachExcludedDomain.endsWith(".com") || eachExcludedDomain.endsWith(".") ? eachExcludedDomain : `${eachExcludedDomain}.`;
+    const each =
+      eachExcludedDomain.endsWith(".com") || eachExcludedDomain.endsWith(".")
+        ? eachExcludedDomain
+        : `${eachExcludedDomain}.`;
     if (domain.includes(each)) {
       return true;
     }
@@ -178,7 +212,10 @@ export const isPageExcluded = (domain: string, zoomExclusionListStr: string): bo
  * @param wholeDomainAccess {boolean}
  * @return {string}
  */
-export const domainToSiteWildcard = (domain: string, wholeDomainAccess: boolean): string => {
+export const domainToSiteWildcard = (
+  domain: string,
+  wholeDomainAccess: boolean
+): string => {
   let domainStr = domain;
   if (!domainStr?.length) {
     return "";
@@ -229,7 +266,6 @@ declare global {
     videmax_cmd: string;
   }
 }
-
 
 /** used by unit tests * */
 // const sleep = (ms) => new Promise(r => setTimeout(r, ms));
