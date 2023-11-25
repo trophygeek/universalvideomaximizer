@@ -39,5 +39,9 @@
     "test": "npx jest",
     "update": "git checkout -- yarn.lock && yarn install && yarn upgrade-interactive --lastest",
     "buildpackage": "yarn clean && yarn build:prod && node ./scripts/bundlepackage.js"
-  }
+  },
+  "sideEffects": [
+    "**/*.css",
+    "src/**/*.js"
+  ]
 }

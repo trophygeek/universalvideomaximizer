@@ -19,11 +19,11 @@ export const injectVideoSpeedAdjust = async (
   newspeed: string,
   allowPlaybackToggle = true
 ): Promise<string[]> => {
-  const FULL_DEBUG = true;
+  const DEV_MODE = false;
   const resultCrossDomainErrs: Set<string> = new Set(); // use Set to dedup
 
   const isRunningInIFrame = () => window !== window?.parent;
-  if (FULL_DEBUG) {
+  if (DEV_MODE) {
     console.log(`
     VideoMaxExt injectVideoSpeedAdjust (${
       isRunningInIFrame() ? "IFRAME" : "MAIN"
@@ -113,7 +113,7 @@ export const injectVideoSpeedAdjust = async (
       const runningAttr =
         document?.body?.getAttribute("data-videomax-running") || "";
       if (runningAttr.length <= 0) {
-        if (FULL_DEBUG) {
+        if (DEV_MODE) {
           // eslint-disable-next-line no-console
           console.log(
             `VideoMaxExt: loadStart injectVideoSpeedAdjust No longer injected, bailing`
@@ -127,7 +127,7 @@ export const injectVideoSpeedAdjust = async (
         !!video_elem?.src?.length ||
         video_elem.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
       ) {
-        if (FULL_DEBUG) {
+        if (DEV_MODE) {
           // eslint-disable-next-line no-console
           console.log(`VideoMaxExt: loadStart injectVideoSpeedAdjust not running since video not in correct state. 
           src:"${video_elem?.src}"
@@ -142,7 +142,7 @@ export const injectVideoSpeedAdjust = async (
           checkVisibilityCSS: true,
         }) || false;
       const speedNumber = Math.abs(parseFloat(newspeed));
-      if (FULL_DEBUG) {
+      if (DEV_MODE) {
         // eslint-disable-next-line no-console
         console.log(`VideoMaxExt: loadStart injectVideoSpeedAdjust
           isVis: ${isVis} (false means won't set speed) 
@@ -213,7 +213,7 @@ export const injectVideoSpeedAdjust = async (
         return false;
       }) as HTMLVideoElement[];
 
-      if (FULL_DEBUG) {
+      if (DEV_MODE) {
         // eslint-disable-next-line no-console
         console.log(
           `VVideoMaxExt injectVideoSpeedAdjust (${
@@ -235,7 +235,7 @@ export const injectVideoSpeedAdjust = async (
       const matchedVideo = [
         ...doc.querySelectorAll(`[data-videomax-target]`),
       ] as HTMLVideoElement[];
-      if (FULL_DEBUG) {
+      if (DEV_MODE) {
         // eslint-disable-next-line no-console
         console.log(
           `VideoMaxExt: _injectSetSpeedForVideosFn (${

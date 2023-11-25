@@ -8,23 +8,24 @@
  */
 
 import {
-  DEBUG_ENABLED,
   DEFAULT_SPEED,
-  ERR_BREAK_ENABLED,
-  FULL_DEBUG,
-  getKeys,
   TRACE_ENABLED,
+  ERR_BREAK_ENABLED,
+  getKeys,
 } from "./common";
 
+// this being separate is required for tree shaking in webpack to work.
+import * as DEV_MODE from "./common";
+
 try {
-  const BREAK_ON_BEST_MATCH: boolean = false;
+  const BREAK_ON_BEST_MATCH = DEV_MODE && false;
   // scope and prevent errors from leaking out to page.
   // These are noisy and can be enabled when debugging areas. FULL_DEBUG must
   // also be true
-  const EMBED_SCORES: boolean = true;
-  const COMMON_PARENT_SCORES: boolean = true;
-  const DEBUG_HIDENODE: boolean = false;
-  const DEBUG_MUTATION_OBSERVER: boolean = true;
+  const EMBED_SCORES = DEV_MODE && false;
+  const COMMON_PARENT_SCORES = DEV_MODE && false;
+  const DEBUG_HIDENODE = DEV_MODE && false;
+  const DEBUG_MUTATION_OBSERVER = DEV_MODE && false;
 
   // Recent changes - keep these flags to quickly regression check various
   // fixes across sites What fixes one site often breaks another. Eventually,
@@ -288,7 +289,7 @@ try {
   const isRunningInIFrame = () => window !== window?.parent;
 
   const logerr = (...args: any[]) => {
-    if (!DEBUG_ENABLED) {
+    if (!DEV_MODE) {
       return;
     }
     const inIFrame = isRunningInIFrame() ? "iframe" : "main";
@@ -305,7 +306,7 @@ try {
   };
 
   const logwarn = (...args: any[]) => {
-    if (!DEBUG_ENABLED) {
+    if (!DEV_MODE) {
       return;
     }
     const inIFrame = isRunningInIFrame() ? "iframe" : "main";
@@ -318,7 +319,7 @@ try {
   };
 
   const trace = (...args: any[]) => {
-    if (!TRACE_ENABLED) {
+    if (!(DEV_MODE && TRACE_ENABLED)) {
       return;
     }
     const iframe = isRunningInIFrame() ? "iFrame" : "Main";
@@ -332,7 +333,7 @@ try {
   };
 
   const SANITY_CHECK_MATCH_NOT_DELETED = () => {
-    if (!DEBUG_ENABLED || !videomaxGlobals.matchedVideo) {
+    if (!DEV_MODE || !videomaxGlobals.matchedVideo) {
       return;
     }
     const doc = getOwnerDoc(videomaxGlobals.matchedVideo);
@@ -1325,7 +1326,7 @@ try {
   const findCommonContainerFromMatched = (
     doc: Document = document
   ): Element | Node | null => {
-    if (DEBUG_ENABLED) {
+    if (DEV_MODE) {
       const matches = doc.querySelectorAll(`.${MARKER_COMMON_CONTAINER_CLASS}`);
       if (matches?.length) {
         // https://www.nbcnews.com/now  iframe that we can drill down into. it
@@ -2644,9 +2645,7 @@ try {
    * @param _elem {Node}
    * @return {boolean}
    */
-  const isSpecialCaseNeverOverlap = (
-    _elem: Node
-  ): boolean => false; // in theory more logic can go here.
+  const isSpecialCaseNeverOverlap = (_elem: Node): boolean => false; // in theory more logic can go here.
 
   /** optimization since the matches are called often */
   const AdverRegex = /(?:^|\W|-)adver/gi;
@@ -2727,7 +2726,7 @@ try {
   };
 
   /**
-   * @param commonContainerElem: pass in undefined to get whole doc
+   * commonContainerElem: pass in undefined to get whole doc
    */
   const getAllElementsThatSmellsLikeControls = (
     commonContainerElem: Element | Node | undefined | null
@@ -3171,7 +3170,7 @@ try {
       // try to figure out if iframe src looks like a video link.
       // frame shaped like videos?
       if (isIFrameElem(elem)) {
-        if (DEBUG_ENABLED && !isIFrameElemMeetsRequirements(elem)) {
+        if (DEV_MODE && !isIFrameElemMeetsRequirements(elem)) {
           logwarn(
             "isIFrameElemMeetsRequirements is false, should skip?",
             PrintNode(elem)
@@ -3453,7 +3452,7 @@ try {
       }
 
       weight = Math.round(weight);
-      if (DEBUG_ENABLED) {
+      if (DEV_MODE) {
         if (Number.isNaN(weight)) {
           logerr("======weight got corrupted======");
         }
@@ -3936,7 +3935,7 @@ try {
       `doZoomPage readystate = ${document.readyState}  reinstall=${reinstall}`
     );
 
-    if (DEBUG_ENABLED && isMaximized() === false && reinstall) {
+    if (DEV_MODE && isMaximized() === false && reinstall) {
       trace(
         "Something's weird. isMaximized()=false but hasInjectedAlready()=true"
       );
@@ -3966,7 +3965,7 @@ try {
 
     const matchCount = videomaxGlobals.elementMatcher.getMatchCount();
     if (matchCount > 1) {
-      if (DEBUG_ENABLED) {
+      if (DEV_MODE) {
         trace(`FOUND TOO MANY VIDEOS ON PAGE? #${matchCount}`);
         // eslint-disable-next-line no-debugger
         debugger;
@@ -4299,7 +4298,7 @@ try {
   const isTopVisibleVideoElem = (videoElem: HTMLVideoElement): boolean => {
     if (isRunningInIFrame()) {
       // this could be tricky as hell... we likely to what's outside our frame
-      if (FULL_DEBUG) {
+      if (DEV_MODE) {
         // eslint-disable-next-line no-debugger
         debugger;
       }
@@ -4660,7 +4659,7 @@ try {
           }
         }
 
-        if (DEBUG_ENABLED) {
+        if (DEV_MODE) {
           // fallback - find ALL elements that have a videomax class and
           // remove. PREFIX_CSS_CLASS matches prep, too
           const missedRemoved1 = document.querySelectorAll(
@@ -4683,7 +4682,7 @@ try {
               debugger;
             }
           }
-        } // DEBUG_ENABLED
+        } // DEV_MODE
 
         // clear if we have var saved in window/document
         if (!isRunningInIFrame() && document?._VideoMaxExt) {

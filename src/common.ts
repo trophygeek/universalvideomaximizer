@@ -1,11 +1,11 @@
 // @ts-check
 
-export const FULL_DEBUG = true;
-export const DEBUG_ENABLED: boolean = FULL_DEBUG;
-export const TRACE_ENABLED: boolean = FULL_DEBUG;
-export const ERR_BREAK_ENABLED: boolean = FULL_DEBUG;
+export const DEV_MODE = false;
+export const DEBUG_ENABLED = DEV_MODE && true;
+export const TRACE_ENABLED = DEV_MODE && false;
+export const ERR_BREAK_ENABLED = DEV_MODE && true;
 
-export const IS_BETA_CHANNEL: boolean = false;
+export const IS_BETA_CHANNEL = false;
 
 export const DEFAULT_SPEED = "1.0";
 

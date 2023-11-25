@@ -274,8 +274,8 @@ Node.prototype.getComponentSelection = function (): Selection | null {
     parent = parent.parentNode;
   }
   return parent instanceof ShadowRoot
-    // @ts-ignore
-    ? parent.getSelection()
+    ? // @ts-ignore
+      parent.getSelection()
     : this.window().getSelection();
 };
 
