@@ -298,7 +298,7 @@ try {
     const inIFrame = isRunningInIFrame() ? 'iframe' : 'main';
     // eslint-disable-next-line no-console
     console.warn(`%c VideoMax INJECT ${inIFrame} WARNING`,
-                 'color: white; font-weight: bold; background-color: orange', ...args);
+                 'color: white; font-weight: bold; background-color: coral', ...args);
   };
 
   const trace = (...args: any[]) => {
@@ -2168,7 +2168,16 @@ try {
 
   const hasInjectedAlready = (): boolean => {
     const attr = document.body.getAttribute(VIDEO_MAX_INSTALLED_ATTR) || '';
-    return attr?.length > 0;
+    const thinksInstalled = attr?.length > 0;
+    if (!thinksInstalled) {return false;}
+    const videoStillInDoc = isVideoStillInDoc();
+    if (!videoStillInDoc) {
+      // we are in a partial state, we may need to unzoom? This can happen on multiple-videos in instagram
+      logwarn("VIDEO_MAX_INSTALLED_ATTR on body but matched video missing. Atempting unzoom.");
+      UndoZoom.mainUnzoom();
+      return false;
+    }
+    return true;
   };
 
   /**
