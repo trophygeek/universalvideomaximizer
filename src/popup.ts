@@ -5,10 +5,11 @@ import {
   DEFAULT_SPEED,
   getSettings,
   logerr,
-  trace,
-} from "./common";
+  logtrace,
+} from "./common.js";
 import Port = chrome.runtime.Port;
 
+// @ts-ignore
 let _detectCloseListenerPort: Port; // we assign to keep it open, but never use
 
 try {
@@ -164,7 +165,7 @@ try {
     // could also iterate by item id
     for (const radioItem of parentElem.children) {
       radioItem.addEventListener("keydown", (evt: Event) => {
-        trace("document.addEventListener keydown", evt);
+        logtrace("document.addEventListener keydown", evt);
         if ((evt as KeyboardEvent).code === "Space") {
           if (globals.debounceTimerId) {
             clearTimeout(globals.debounceTimerId);
@@ -200,7 +201,7 @@ try {
 
           let value = target.dataset?.value as string;
 
-          trace(`click '${value}' currentspeed='${globals.currentSpeed}'`);
+          logtrace(`click '${value}' currentspeed='${globals.currentSpeed}'`);
 
           if (value === "OPTIONS_BTN_CMD") {
             chrome.runtime.sendMessage(
@@ -221,7 +222,7 @@ try {
           if (value === "PAUSE_CMD") {
             // we overload the speed. Neg means paused, the value it the "toggle back to value"
             value = toggleSpeedStr(globals.currentSpeed);
-            trace(`replacing PAUSE_CMD with negative speed: ${value}`);
+            logtrace(`replacing PAUSE_CMD with negative speed: ${value}`);
           }
 
           let speed = DEFAULT_SPEED;
@@ -281,7 +282,7 @@ try {
    * @constructor
    */
   const HandleKeydown = async (evt: KeyboardEvent) => {
-    trace("document.addEventListener keydown", evt);
+    logtrace("document.addEventListener keydown", evt);
     const { domain, tabId } = globals;
     switch (evt.code) {
       case "Escape":
@@ -298,7 +299,7 @@ try {
 
       case "ArrowLeft":
         {
-          trace("ArrowLeft");
+          logtrace("ArrowLeft");
           evt.stopImmediatePropagation();
           const skipSecBack = evt.shiftKey
             ? globals.settings.longSkipSeconds
@@ -319,7 +320,7 @@ try {
 
       case "ArrowRight":
         {
-          trace("ArrowRight");
+          logtrace("ArrowRight");
           evt.stopImmediatePropagation();
           const skipSecFwd = evt.shiftKey
             ? globals.settings.longSkipSeconds
@@ -339,7 +340,7 @@ try {
         break;
 
       case "ArrowUp":
-        trace("ArrowUp");
+        logtrace("ArrowUp");
         evt.stopImmediatePropagation();
         globals.currentSpeed = IncreaseSpeed();
         checkItem(globals.currentSpeed);
@@ -347,7 +348,7 @@ try {
         break;
 
       case "ArrowDown":
-        trace("ArrowDown");
+        logtrace("ArrowDown");
         evt.stopImmediatePropagation();
         globals.currentSpeed = DecreaseSpeed();
         checkItem(globals.currentSpeed);
@@ -355,7 +356,7 @@ try {
         break;
 
       case "KeyZ":
-        trace("KeyZ");
+        logtrace("KeyZ");
         evt.stopImmediatePropagation();
         chrome.runtime.sendMessage(
           {
@@ -392,7 +393,7 @@ try {
       globals.domain = params.get("domain") || ""; // needed because Netflix errs on skip
       const container = window.document.getElementById("speedBtnGroup");
 
-      trace(`DOMContentLoaded params
+      logtrace(`DOMContentLoaded params
           tabId:'${globals.tabId}'
           currentSpeed:'${globals.currentSpeed}'
           `);
@@ -415,12 +416,12 @@ try {
       )?.focus();
 
       document.addEventListener("keydown", (evt) => {
-        trace(`DOCUMENT.addEventListener("keydown")...`);
+        logtrace(`DOCUMENT.addEventListener("keydown")...`);
         HandleKeydown(evt);
       });
 
       container?.addEventListener("keydown", (evt) => {
-        trace(`CONTAINER.addEventListener("keydown")...`);
+        logtrace(`CONTAINER.addEventListener("keydown")...`);
         HandleKeydown(evt);
       });
 
@@ -433,7 +434,7 @@ try {
   });
 
   window.addEventListener("close", async (_e) => {
-    trace("close");
+    logtrace("close");
     await chrome.runtime.sendMessage({
       message: {
         cmd: "POPUP_CLOSING",
@@ -445,7 +446,7 @@ try {
   });
 
   document.addEventListener("close", async () => {
-    trace("popup closing via visibilitychange");
+    logtrace("popup closing via visibilitychange");
     await chrome.runtime.sendMessage({
       message: {
         cmd: "POPUP_CLOSING",

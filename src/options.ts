@@ -10,7 +10,7 @@ import {
   numbericOnly,
   rangeInt,
   saveSettings,
-} from "./common";
+} from "./common.js";
 
 // NOTE: debugging localStorage for extensions STILL isn't nativity supported,
 //  so use this 3rd party extension:
@@ -100,7 +100,7 @@ const loadSettingsIntoFields = (settings: SettingsType) => {
       zoomlistElem.innerHTML = list;
     }
     setTimeout(() => {
-      const buttons = document.getElementsByName("removeBtn");
+      const buttons = [...document.getElementsByName("removeBtn")];
       for (const eachButton of buttons) {
         eachButton.addEventListener("click", async (e) => {
           const parentLi = (e?.currentTarget as HTMLElement)?.closest("li");

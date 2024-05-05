@@ -1,28 +1,30 @@
 // @ts-check
 
-export const DEV_MODE = false;
+export const DEV_MODE = true;
 export const DEBUG_ENABLED = DEV_MODE && true;
-export const TRACE_ENABLED = DEV_MODE && false;
+export const TRACE_ENABLED = DEV_MODE && true;
 export const ERR_BREAK_ENABLED = DEV_MODE && true;
 
 export const IS_BETA_CHANNEL = false;
 
-export const DEFAULT_SPEED = "1.0";
-
 export const CSS_FILE = "videomax_inject.css";
 export const CSS_STYLE_HEADER_ID = "maximizier-css-inject";
-export const DEAULT_SPEED = "1.0";
 
-export const isRunningInIFrame = () => window !== window?.parent;
+export const DEFAULT_SPEED = "1.0";
 
+/*@__NO_SIDE_EFFECTS__*/
+export const isRunningInIFrame = () => {try { return window !== window?.parent; } catch (e) {return false; }};
+
+/*@__NO_SIDE_EFFECTS__*/
 export const logerr = (...args: any[]) => {
-  if (!DEBUG_ENABLED) {
+  if (!DEV_MODE) {
     return;
   }
+  const inIFrame = isRunningInIFrame() ? "iframe" : "main";
   // eslint-disable-next-line no-console
   console.trace(
-    `%c VideoMax ERROR`,
-    `color: white; font-weight: bold; background-color: red`,
+    `%c VideoMax ${inIFrame} ERROR`,
+    "color: white; font-weight: bold; background-color: red",
     ...args
   );
   if (ERR_BREAK_ENABLED) {
@@ -31,29 +33,33 @@ export const logerr = (...args: any[]) => {
   }
 };
 
+/*@__NO_SIDE_EFFECTS__*/
 export const logwarn = (...args: any[]) => {
-  if (!DEBUG_ENABLED) {
+  if (!DEV_MODE) {
     return;
   }
   const inIFrame = isRunningInIFrame() ? "iframe" : "main";
   // eslint-disable-next-line no-console
   console.warn(
-    `%c VideoMax INJECT ${inIFrame} ERROR`,
-    "color: white; font-weight: bold; background-color: orange",
+    `%c VideoMax ${inIFrame} WARNING`,
+    "color: white; font-weight: bold; background-color: coral",
     ...args
   );
 };
 
-export const trace = (...args: any[]) => {
-  if (TRACE_ENABLED) {
-    // blue color , no break
-    // eslint-disable-next-line no-console
-    console.log(
-      `%c VideoMax `,
-      `color: white; font-weight: bold; background-color: blue`,
-      ...args
-    );
+/*@__NO_SIDE_EFFECTS__*/
+export const logtrace = (...args: any[]) => {
+  if (!(DEV_MODE && TRACE_ENABLED)) {
+    return;
   }
+  const iframe = isRunningInIFrame() ? "iFrame" : "Main";
+  // blue color , no break
+  // eslint-disable-next-line no-console
+  console.log(
+    `%c VideoMax ${iframe}`,
+    `color: white; font-weight: bold; background-color: blue`,
+    ...args
+  );
 };
 
 /**
@@ -95,9 +101,11 @@ export const DEFAULT_SETTINGS: SettingsType = {
   beta3EndingShown: false,
 };
 
+/*@__NO_SIDE_EFFECTS__*/
 export const getKeys = <T extends object>(obj: T) =>
   Object.keys(obj) as Array<keyof T>;
 
+/*@__NO_SIDE_EFFECTS__*/
 export const getSettings = async (): Promise<SettingsType> => {
   try {
     const result = await chrome?.storage?.local?.get();
@@ -146,12 +154,15 @@ export const clearSettings = async () => {
   }
 };
 
+/*@__NO_SIDE_EFFECTS__*/
 export const numbericOnly = (str: string): string =>
   str.replace(/[^0-9]+/g, "");
 
+/*@__NO_SIDE_EFFECTS__*/
 export const rangeInt = (num: number, lower: number, upper: number): number =>
   Math.max(lower, Math.min(upper, num));
 
+/*@__NO_SIDE_EFFECTS__*/
 export const getDomain = (fullUrl: string | undefined | null): string => {
   try {
     if (!fullUrl?.length) {
@@ -173,17 +184,22 @@ export const getDomain = (fullUrl: string | undefined | null): string => {
 };
 
 /**
+ * @__NO_SIDE_EFFECTS__
  * Turn a comma list into array of strings
  */
 export const listToArray = (listStr: string): string[] =>
   (listStr?.split(",") || []).map((s) => s.trim()).filter((s) => s.length > 0);
 
 /**
+ * @__NO_SIDE_EFFECTS__
  * Returns true if there are any overlaps between two arrays of strings.
  */
 export const intersection = (arrA: string[], arrB: string[]): boolean =>
   arrA.filter((x) => arrB.includes(x)).length > 0;
 
+/**
+ * @__NO_SIDE_EFFECTS__
+ */
 export const isPageExcluded = (
   domain: string,
   zoomExclusionListStr: string
@@ -207,10 +223,7 @@ export const isPageExcluded = (
 };
 
 /**
- *
- * @param domain {string}
- * @param wholeDomainAccess {boolean}
- * @return {string}
+ * @__NO_SIDE_EFFECTS__
  */
 export const domainToSiteWildcard = (
   domain: string,
@@ -239,7 +252,7 @@ export const domainToSiteWildcard = (
 };
 
 /*
- * @returns {Promise<Object>}
+ * @__NO_SIDE_EFFECTS__
  */
 export const getManifestJson = async () => {
   try {
@@ -261,6 +274,7 @@ declare global {
     _VideoMaxExt: VideomaxGlobalsTypeBase | undefined;
     videmax_cmd: string;
   }
+
   interface Window {
     _VideoMaxExt: VideomaxGlobalsTypeBase | undefined;
     videmax_cmd: string;

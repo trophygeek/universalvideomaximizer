@@ -282,7 +282,7 @@ Node.prototype.getComponentSelection = function (): Selection | null {
 Node.prototype.hasSelection = function (): boolean {
   // TODO(luoe): use contains(node, {includeShadow: true}) when it is fixed for shadow dom.
   if (this instanceof HTMLElement) {
-    const slots = this.querySelectorAll("slot");
+    const slots = [...this.querySelectorAll("slot")];
     for (const slot of slots) {
       if (
         Array.prototype.some.call(slot.assignedNodes(), (node) =>

@@ -1,9 +1,19 @@
+# .DS_Store
 .DS_Store
-.idea
-node_modules
+.DS_Store?
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# Typescript & Rollup
+tsconfig.build.tsbuildinfo
+
+node_modules/
 *.log
 test/screenshots/*.png
 test/testvidmax/*
 test/yarn.lock
 build/*
+dist/*
 tmp/

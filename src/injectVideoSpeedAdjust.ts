@@ -1,23 +1,20 @@
-/**
- * There should be NO exernal includes.
- * Each function is injected into the page from the background script via
- * executeScript Any function abstraction needs to be inlined within the
- * function.
- *
- * To reduce duplicate code, many of the functions have been combined and a cmd
- * selector is pased in to select the action.
+/*
+  Video Maximizer
+
+ Copyright (c) 2023. trophygeek@gmail.com
+ www.videomaximizer.com
+
+  Removes the clutter. Maximizes videos to view in full-page theater mode on most sites.
+
+  Creative Commons Share Alike 4.0
+  To view a copy of this license, visit https://creativecommons.org/licenses/by-sa/4.0/
+
+
  */
 
-/**
- * This speeds up ALL <videos> not just the one zoomed.
- * Could just select the zoomed videos, but maybe useful when unzooming?
- * Also, while we try to set the speed, we'll get crossDomain errors that we
- * can use to requests more permissions so we can actually control the speed
- * next time.
- */
 export const injectVideoSpeedAdjust = async (
-  newspeed: string,
-  allowPlaybackToggle = true
+    newspeed: string,
+    allowPlaybackToggle = true
 ): Promise<string[]> => {
   const DEV_MODE = false;
   const resultCrossDomainErrs: Set<string> = new Set(); // use Set to dedup
@@ -26,26 +23,25 @@ export const injectVideoSpeedAdjust = async (
   if (DEV_MODE) {
     console.log(`
     VideoMaxExt injectVideoSpeedAdjust (${
-      isRunningInIFrame() ? "IFRAME" : "MAIN"
+        isRunningInIFrame() ? "IFRAME" : "MAIN"
     }):
       newspeed: ${newspeed} allowPlaybackToggle: ${allowPlaybackToggle}
     `);
-    const allVids: NodeListOf<HTMLVideoElement> =
-      document.querySelectorAll("video");
+    const allVids: HTMLVideoElement[] = [...document.querySelectorAll("video")];
     let count = 0;
     for (const eachVid of allVids) {
       count++;
       // skip videos that aren't loaded. mlb.com will play ads and video in the background
       // overlapping!
       if (
-        !eachVid?.src?.length ||
-        eachVid.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
+          !eachVid?.src?.length ||
+          eachVid.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
       ) {
         // eslint-disable-next-line no-console
         console.log(`
     VideoMaxExt injectVideoSpeedAdjust (${
-      isRunningInIFrame() ? "IFRAME" : "MAIN"
-    }): 
+            isRunningInIFrame() ? "IFRAME" : "MAIN"
+        }): 
       Video(${count} of ${allVids.length})
         src: "${eachVid.src}"
         readyState: ${eachVid.readyState} 
@@ -53,10 +49,10 @@ export const injectVideoSpeedAdjust = async (
       `);
       }
       console.log(
-        `
+          `
     VideoMaxExt injectVideoSpeedAdjust (${
-      isRunningInIFrame() ? "IFRAME" : "MAIN"
-    }):
+              isRunningInIFrame() ? "IFRAME" : "MAIN"
+          }):
       Video(${count} of ${allVids.length})
         src: "${eachVid.src}"
         currentSrc: "${eachVid.currentSrc}"
@@ -87,7 +83,7 @@ export const injectVideoSpeedAdjust = async (
         srcObject: ${eachVid.srcObject} (null?)
         textTracks: ${eachVid.textTracks}
       `,
-        eachVid
+          eachVid
       );
     }
   }
@@ -111,12 +107,12 @@ export const injectVideoSpeedAdjust = async (
     try {
       // check to see if we're still injected into page.
       const runningAttr =
-        document?.body?.getAttribute("data-videomax-running") || "";
+          document?.body?.getAttribute("data-videomax-running") || "";
       if (runningAttr.length <= 0) {
         if (DEV_MODE) {
           // eslint-disable-next-line no-console
           console.log(
-            `VideoMaxExt: loadStart injectVideoSpeedAdjust No longer injected, bailing`
+              `VideoMaxExt: loadStart injectVideoSpeedAdjust No longer injected, bailing`
           );
         }
         return;
@@ -124,8 +120,8 @@ export const injectVideoSpeedAdjust = async (
       const video_elem = event?.target as HTMLMediaElement;
 
       if (
-        !!video_elem?.src?.length ||
-        video_elem.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
+          !!video_elem?.src?.length ||
+          video_elem.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
       ) {
         if (DEV_MODE) {
           // eslint-disable-next-line no-console
@@ -137,10 +133,10 @@ export const injectVideoSpeedAdjust = async (
       }
 
       const isVis =
-        video_elem?.checkVisibility({
-          checkOpacity: true,
-          checkVisibilityCSS: true,
-        }) || false;
+          video_elem?.checkVisibility({
+                                        checkOpacity: true,
+                                        checkVisibilityCSS: true,
+                                      }) || false;
       const speedNumber = Math.abs(parseFloat(newspeed));
       if (DEV_MODE) {
         // eslint-disable-next-line no-console
@@ -164,16 +160,16 @@ export const injectVideoSpeedAdjust = async (
    * newPlaybackRate Neg means paused, but the speed is the "toggle back to speed"
    */
   const _injectSetSpeedForVideosFn = async (
-    doc: Document,
-    newPlaybackRate: number,
-    newAllowPlaybackToggle: boolean
+      doc: Document,
+      newPlaybackRate: number,
+      newAllowPlaybackToggle: boolean
   ) => {
     /** @param el {HTMLVideoElement} * */
     const _isVisibleFnFn = (el: Element) =>
-      el?.checkVisibility({
-        checkOpacity: true,
-        checkVisibilityCSS: true,
-      }) || false;
+        el?.checkVisibility({
+                              checkOpacity: true,
+                              checkVisibilityCSS: true,
+                            }) || false;
     const _getCenterCoordsFnFn = () => {
       // we hide scrollbars as part of zoom, so body element should be good enough?
       try {
@@ -184,10 +180,10 @@ export const injectVideoSpeedAdjust = async (
       } catch (err) {
         // eslint-disable-next-line no-console
         console.log(
-          `VideoMaxExt: _injectSetSpeedForVideosFn (${
-            isRunningInIFrame() ? "IFRAME" : "MAIN"
-          }): doc size empty`,
-          doc
+            `VideoMaxExt: _injectSetSpeedForVideosFn (${
+                isRunningInIFrame() ? "IFRAME" : "MAIN"
+            }): doc size empty`,
+            doc
         );
         return {
           centerX: 0,
@@ -216,16 +212,16 @@ export const injectVideoSpeedAdjust = async (
       if (DEV_MODE) {
         // eslint-disable-next-line no-console
         console.log(
-          `VVideoMaxExt injectVideoSpeedAdjust (${
-            isRunningInIFrame() ? "IFRAME" : "MAIN"
-          }):
+            `VVideoMaxExt injectVideoSpeedAdjust (${
+                isRunningInIFrame() ? "IFRAME" : "MAIN"
+            }):
         centerX:${centerX}
         centerY:${centerY}
         layedElems.length: ${layedElems.length}
         matches.length: ${matches.length}
         layedElems:
         `,
-          layedElems
+            layedElems
         );
       }
       if (matches.length) {
@@ -238,13 +234,13 @@ export const injectVideoSpeedAdjust = async (
       if (DEV_MODE) {
         // eslint-disable-next-line no-console
         console.log(
-          `VideoMaxExt: _injectSetSpeedForVideosFn (${
-            isRunningInIFrame() ? "IFRAME" : "MAIN"
-          }):
+            `VideoMaxExt: _injectSetSpeedForVideosFn (${
+                isRunningInIFrame() ? "IFRAME" : "MAIN"
+            }):
         elementsFromPoint failed to find video when directly searching using [data-videomax-target]
         matchedVideo: ${matchedVideo.length}
         `,
-          matchedVideo[0] || "undefined"
+            matchedVideo[0] || "undefined"
         );
       }
       return matchedVideo[0] || undefined;
@@ -255,9 +251,9 @@ export const injectVideoSpeedAdjust = async (
     const videos: HTMLVideoElement[] = [
       ...doc.querySelectorAll("video"),
     ].filter(
-      (eachVid) =>
-        !eachVid?.src?.length &&
-        eachVid.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+        (eachVid) =>
+            !eachVid?.src?.length &&
+            eachVid.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
     );
 
     for (const eachVideo of videos) {
@@ -273,9 +269,9 @@ export const injectVideoSpeedAdjust = async (
     if (newAllowPlaybackToggle && newPlaybackRate <= 0) {
       topVisVideo.pause();
     } else if (
-      newAllowPlaybackToggle &&
-      topVisVideo?.paused &&
-      !topVisVideo?.ended
+        newAllowPlaybackToggle &&
+        topVisVideo?.paused &&
+        !topVisVideo?.ended
     ) {
       await topVisVideo.play();
     }
@@ -297,171 +293,30 @@ export const injectVideoSpeedAdjust = async (
       // We WANT to await in a loop because we EXPECT to get errors thrown for cross-frame security
       // eslint-disable-next-line no-await-in-loop
       await _injectSetSpeedForVideosFn(
-        framedoc,
-        speadNumber,
-        allowPlaybackToggle
+          framedoc,
+          speadNumber,
+          allowPlaybackToggle
       );
     } catch (err) {
       // We record this url access that failed and ask for permission to it
       // but this is run in the context of the page see GET_IFRAME_PERMISSIONS
       // @ts-ignore
       if (
-        frame?.src?.length &&
-        document?._VideoMaxExt?.matchedVideo?.nodeName === "IFRAME"
+          frame?.src?.length &&
+          document?._VideoMaxExt?.matchedVideo?.nodeName === "IFRAME"
       ) {
         const url = frame?.src;
         if (url.startsWith("https://")) {
           const domain = new URL(url).host.toLowerCase();
           const iframeUrl =
-            document._VideoMaxExt.matchedVideo.src?.toLowerCase() || "";
+              document._VideoMaxExt.matchedVideo.src?.toLowerCase() || "";
           if (iframeUrl.indexOf(domain) !== -1) {
             resultCrossDomainErrs.add(domain);
-            // console.trace(`VideoMax speed error Need access to ${domain}`);
+            // console.logtrace(`VideoMax speed error Need access to ${domain}`);
           }
         }
       }
     }
   }
   return [...resultCrossDomainErrs]; // Set->array
-};
-
-export const injectGetPlaypackSpeed = (): string => {
-  try {
-    // we stash the current injected speed in the body as an attr.
-    const attrValue = document?.body?.getAttribute(
-      "data-videomax-playbackspeed"
-    );
-    if (attrValue?.length) {
-      return attrValue;
-    }
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    const isRunningInIFrame = window !== window?.parent;
-    console.warn(
-      `VideoMaxExt injectGetPlaypackSpeed (${
-        isRunningInIFrame ? "IFRAME" : "MAIN"
-      }): err`,
-      err
-    );
-  }
-  return "1.0";
-};
-
-/**
- * Negative numbers means skip backwards
- */
-export const injectVideoSkip = (skipSecondsStr: string) => {
-  const skipSeconds = parseFloat(skipSecondsStr);
-  for (const eachVideo of document.querySelectorAll("video")) {
-    try {
-      if (
-        !eachVideo.checkVisibility({
-          checkOpacity: true,
-          checkVisibilityCSS: true,
-        })
-      ) {
-        // eslint-disable-next-line no-console
-        // console.log(`VideoMaxExt: injectVideoSkip checkVisibility=false, skipping`, eachVideo);
-        continue;
-      }
-      if ((eachVideo?.seekable?.length || 0) <= 0) {
-        // eslint-disable-next-line no-console
-        // console.log(`VideoMaxExt: injectVideoSkip not seekable, skipping`, eachVideo?.seekable);
-        continue;
-      }
-      // restore playback speed after we skip
-      const savedSpeed = eachVideo.playbackRate || 1.0;
-
-      // eachVideo.pause(); // pause/play trigger controls to briefly show. (doesn't rehide on some
-      // sites)
-
-      // don't go negative;
-      eachVideo.currentTime = Math.max(0, eachVideo.currentTime + skipSeconds);
-      eachVideo.playbackRate = savedSpeed;
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        `VideoMaxExt: injectVideoSkip err for video`,
-        err,
-        eachVideo
-      );
-    }
-  }
-};
-
-export const injectCssHeader = (cssHRef: string, styleId: string): boolean => {
-  const MIN_IFRAME_WIDTH = 320;
-  const MIN_IFRAME_HEIGHT = 240;
-
-  try {
-    if (document.getElementById(styleId)) {
-      // eslint-disable-next-line no-console
-      // console.log(`VideoMax Native Inject. Style header already injected "${styleId}"`);
-      return true;
-    }
-    if (
-      window.innerWidth < MIN_IFRAME_WIDTH ||
-      window.innerHeight < MIN_IFRAME_HEIGHT
-    ) {
-      // eslint-disable-next-line no-console
-      // console.log(`VideoMax Native Inject. Style header already injected "${styleId}"`);
-      return true;
-    }
-    const styleLink = document.createElement("link");
-    styleLink.id = styleId;
-    styleLink.href = cssHRef;
-    styleLink.type = "text/css";
-    styleLink.rel = "stylesheet";
-    styleLink.media = "all";
-    document.getElementsByTagName("head")[0]?.appendChild(styleLink);
-    return true;
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error(
-      `
-      ****** VideoMax ERROR Native Inject
-      Injecting style header failed. CSP?
-      ******`,
-      err
-    );
-    return false;
-  }
-};
-
-/**
- * Remove the style element from the header
- */
-export const uninjectCssHeader = (styleId: string) => {
-  // warning run inside context of page
-  try {
-    const cssHeaderNode = document.getElementById(styleId);
-    cssHeaderNode?.parentNode?.removeChild(cssHeaderNode);
-  } catch (_err) {}
-};
-
-/**
- * needed because we cannot include a chrome reference css for a file:// or
- * if the CSP is too strict. Fallback it to inject from background task.
- */
-export const injectIsCssHeaderIsBlocked = (cssHRef: string): boolean => {
-  let isBlocked = true; // default to failed.
-  try {
-    for (let ii = document.styleSheets?.length || 0; ii >= 0; ii--) {
-      // we loop backward because our is most likely last.
-      if (document.styleSheets[ii]?.href === cssHRef) {
-        // try to access the rules to see if it loaded correctly
-        try {
-          isBlocked = document.styleSheets[ii].cssRules?.length === 0;
-        } catch (_err) {}
-        break;
-      }
-    }
-  } catch (_err) {}
-  if (isBlocked) {
-    // eslint-disable-next-line no-console
-    console.log(
-      `VideoMaxExt injectIsCssHeaderIsBlocked: css include file blocked?`
-    );
-  }
-  return isBlocked;
 };
