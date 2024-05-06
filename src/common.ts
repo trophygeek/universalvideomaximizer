@@ -13,42 +13,42 @@ export const CSS_STYLE_HEADER_ID = "maximizier-css-inject";
 export const DEFAULT_SPEED = "1.0";
 
 /*@__NO_SIDE_EFFECTS__*/
-export const isRunningInIFrame = () => {try { return window !== window?.parent; } catch (e) {return false; }};
+export function isRunningInIFrame() {try { return window !== window?.parent; } catch (e) {return false; }};
 
 /*@__NO_SIDE_EFFECTS__*/
-export const logerr = (...args: any[]) => {
+export function logerr(...args: any[]) {
   if (!DEV_MODE) {
     return;
   }
   const inIFrame = isRunningInIFrame() ? "iframe" : "main";
   // eslint-disable-next-line no-console
   console.trace(
-    `%c VideoMax ${inIFrame} ERROR`,
-    "color: white; font-weight: bold; background-color: red",
-    ...args
+      `%c VideoMax ${inIFrame} ERROR`,
+      "color: white; font-weight: bold; background-color: red",
+      ...args
   );
   if (ERR_BREAK_ENABLED) {
     // eslint-disable-next-line no-debugger
     debugger;
   }
-};
+}
 
 /*@__NO_SIDE_EFFECTS__*/
-export const logwarn = (...args: any[]) => {
+export function logwarn(...args: any[]) {
   if (!DEV_MODE) {
     return;
   }
   const inIFrame = isRunningInIFrame() ? "iframe" : "main";
   // eslint-disable-next-line no-console
   console.warn(
-    `%c VideoMax ${inIFrame} WARNING`,
-    "color: white; font-weight: bold; background-color: coral",
-    ...args
+      `%c VideoMax ${inIFrame} WARNING`,
+      "color: white; font-weight: bold; background-color: coral",
+      ...args
   );
-};
+}
 
 /*@__NO_SIDE_EFFECTS__*/
-export const logtrace = (...args: any[]) => {
+export function logtrace(...args: any[]) {
   if (!(DEV_MODE && TRACE_ENABLED)) {
     return;
   }
@@ -56,11 +56,11 @@ export const logtrace = (...args: any[]) => {
   // blue color , no break
   // eslint-disable-next-line no-console
   console.log(
-    `%c VideoMax ${iframe}`,
-    `color: white; font-weight: bold; background-color: blue`,
-    ...args
+      `%c VideoMax ${iframe}`,
+      `color: white; font-weight: bold; background-color: blue`,
+      ...args
   );
-};
+}
 
 /**
  * @type {SettingStorageKeyConstType}
@@ -73,18 +73,18 @@ export const UPDATE_NOTIFICATION_VERISON = "85"; // will get out of sync. bump t
 
 /* these are sites that are already zoomed, but playback speed is kind of nice */
 export const DEFAULT_ZOOM_EXCLUSION_LIST =
-  "amazon," +
-  "hbomax," +
-  "play.max," +
-  "disneyplus," +
-  "hulu," +
-  "netflix," +
-  "tv.youtube," +
-  "youku," +
-  "bet," +
-  "tv.apple," +
-  "play.google," +
-  "peacocktv,";
+    "amazon," +
+    "hbomax," +
+    "play.max," +
+    "disneyplus," +
+    "hulu," +
+    "netflix," +
+    "tv.youtube," +
+    "youku," +
+    "bet," +
+    "tv.apple," +
+    "play.google," +
+    "peacocktv,";
 
 export const DEFAULT_SETTINGS: SettingsType = {
   lastBetaVersion: "0", // number as string used to show initial "help" (also for major
@@ -102,30 +102,29 @@ export const DEFAULT_SETTINGS: SettingsType = {
 };
 
 /*@__NO_SIDE_EFFECTS__*/
-export const getKeys = <T extends object>(obj: T) =>
-  Object.keys(obj) as Array<keyof T>;
+export function getKeys<T extends object>(obj: T) {
+  return Object.keys(obj) as Array<keyof T>;
+}
 
 /*@__NO_SIDE_EFFECTS__*/
-export const getSettings = async (): Promise<SettingsType> => {
+export async function getSettings(): Promise<SettingsType> {
   try {
     const result = await chrome?.storage?.local?.get();
     if (!result[SETTINGS_STORAGE_KEY]?.length) {
-      return { ...DEFAULT_SETTINGS }; // make a copy
+      return {...DEFAULT_SETTINGS}; // make a copy
     }
     /** @type SettingsType * */
     const savedSetting: SettingsType = JSON.parse(result[SETTINGS_STORAGE_KEY]);
-    return { ...DEFAULT_SETTINGS, ...savedSetting };
+    return {...DEFAULT_SETTINGS, ...savedSetting};
   } catch (err) {
     logerr(err);
-    return { ...DEFAULT_SETTINGS }; // make a copy
+    return {...DEFAULT_SETTINGS}; // make a copy
   }
-};
+}
 
-export const saveSettings = async (
-  newSettings: SettingsType
-): Promise<void> => {
+export async function saveSettings(newSettings: SettingsType) {
   try {
-    const settings = { ...DEFAULT_SETTINGS, ...newSettings };
+    const settings = {...DEFAULT_SETTINGS, ...newSettings};
     // remove an settings that are default and don't save them.
     // if a user is using the "default" then the extension should be able to
     // change it in code in a future version.
@@ -140,30 +139,32 @@ export const saveSettings = async (
       }
     }
     const jsonStr = JSON.stringify(settings);
-    await chrome?.storage?.local?.set({ [SETTINGS_STORAGE_KEY]: jsonStr });
+    await chrome?.storage?.local?.set({[SETTINGS_STORAGE_KEY]: jsonStr});
   } catch (err) {
     logerr(err);
   }
-};
+}
 
-export const clearSettings = async () => {
+export async function clearSettings() {
   try {
     await chrome?.storage?.local?.remove(Object.keys(DEFAULT_SETTINGS));
   } catch (err) {
     logerr(err);
   }
-};
+}
 
 /*@__NO_SIDE_EFFECTS__*/
-export const numbericOnly = (str: string): string =>
-  str.replace(/[^0-9]+/g, "");
+export function numbericOnly(str: string) {
+  return str.replace(/[^0-9]+/g, "");
+}
 
 /*@__NO_SIDE_EFFECTS__*/
-export const rangeInt = (num: number, lower: number, upper: number): number =>
-  Math.max(lower, Math.min(upper, num));
+export function rangeInt(num: number, lower: number, upper: number) {
+  return Math.max(lower, Math.min(upper, num));
+}
 
 /*@__NO_SIDE_EFFECTS__*/
-export const getDomain = (fullUrl: string | undefined | null): string => {
+export function getDomain(fullUrl: string | undefined | null) {
   try {
     if (!fullUrl?.length) {
       return "";
@@ -181,29 +182,28 @@ export const getDomain = (fullUrl: string | undefined | null): string => {
     logerr(`getDomain err for "${fullUrl}"`, err);
     return fullUrl || "";
   }
-};
+}
 
 /**
  * @__NO_SIDE_EFFECTS__
  * Turn a comma list into array of strings
  */
-export const listToArray = (listStr: string): string[] =>
-  (listStr?.split(",") || []).map((s) => s.trim()).filter((s) => s.length > 0);
+export function listToArray(listStr: string): string[] {
+  return (listStr?.split(",") || []).map((s) => s.trim()).filter((s) => s.length > 0);
+}
 
 /**
  * @__NO_SIDE_EFFECTS__
  * Returns true if there are any overlaps between two arrays of strings.
  */
-export const intersection = (arrA: string[], arrB: string[]): boolean =>
-  arrA.filter((x) => arrB.includes(x)).length > 0;
+export function intersection(arrA: string[], arrB: string[]) {
+  return arrA.filter((x) => arrB.includes(x)).length > 0;
+}
 
 /**
  * @__NO_SIDE_EFFECTS__
  */
-export const isPageExcluded = (
-  domain: string,
-  zoomExclusionListStr: string
-): boolean => {
+export function isPageExcluded(domain: string, zoomExclusionListStr: string) {
   if (!domain?.length) {
     return false;
   }
@@ -212,7 +212,7 @@ export const isPageExcluded = (
   for (const eachExcludedDomain of excludedList) {
     // if it doesn't have a trailing . or .com then append a "."
     const each =
-      eachExcludedDomain.endsWith(".com") || eachExcludedDomain.endsWith(".")
+        eachExcludedDomain.endsWith(".com") || eachExcludedDomain.endsWith(".")
         ? eachExcludedDomain
         : `${eachExcludedDomain}.`;
     if (domain.includes(each)) {
@@ -220,15 +220,12 @@ export const isPageExcluded = (
     }
   }
   return false;
-};
+}
 
 /**
  * @__NO_SIDE_EFFECTS__
  */
-export const domainToSiteWildcard = (
-  domain: string,
-  wholeDomainAccess: boolean
-): string => {
+export function domainToSiteWildcard(domain: string, wholeDomainAccess: boolean): string {
   let domainStr = domain;
   if (!domainStr?.length) {
     return "";
@@ -249,12 +246,12 @@ export const domainToSiteWildcard = (
     domainStr = domainStr.substring("www.".length); // trim off 4 chars from front
   }
   return `https://*.${domainStr}/`;
-};
+}
 
 /*
  * @__NO_SIDE_EFFECTS__
  */
-export const getManifestJson = async () => {
+export async function getManifestJson() {
   try {
     const extManifestFileUri = chrome?.runtime?.getURL("manifest.json");
     if (extManifestFileUri !== "") {
@@ -267,7 +264,7 @@ export const getManifestJson = async () => {
     logerr(err);
   }
   return {};
-};
+}
 
 declare global {
   interface Document {

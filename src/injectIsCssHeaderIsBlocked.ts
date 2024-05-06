@@ -16,7 +16,7 @@
  * needed because we cannot include a chrome reference css for a file:// or
  * if the CSP is too strict. Fallback it to inject from background task.
  */
-export const injectIsCssHeaderIsBlocked = (cssHRef: string): boolean => {
+export function injectIsCssHeaderIsBlocked(cssHRef: string): boolean {
   let isBlocked = true; // default to failed.
   try {
     for (let ii = document.styleSheets?.length || 0; ii >= 0; ii--) {
@@ -37,4 +37,4 @@ export const injectIsCssHeaderIsBlocked = (cssHRef: string): boolean => {
     );
   }
   return isBlocked;
-};
+}

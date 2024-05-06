@@ -17,7 +17,7 @@
 /**
  * Negative numbers means skip backwards
  */
-export const injectVideoSkip = (skipSecondsStr: string) => {
+export function injectVideoSkip(skipSecondsStr: string) {
   const skipSeconds = parseFloat(skipSecondsStr);
   for (const eachVideo of document.querySelectorAll("video")) {
     try {
@@ -54,4 +54,4 @@ export const injectVideoSkip = (skipSecondsStr: string) => {
       );
     }
   }
-};
+}

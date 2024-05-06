@@ -1,4 +1,3 @@
-
 /*
   Video Maximizer
 
@@ -13,7 +12,7 @@
 
  */
 
-export const injectCssHeader = (cssHRef: string, styleId: string): boolean => {
+export function injectCssHeader (cssHRef: string, styleId: string): boolean {
   const MIN_IFRAME_WIDTH = 320;
   const MIN_IFRAME_HEIGHT = 240;
 
@@ -50,4 +49,4 @@ export const injectCssHeader = (cssHRef: string, styleId: string): boolean => {
     );
     return false;
   }
-};
+}

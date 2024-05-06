@@ -239,11 +239,7 @@ function setSubframeData(tabId: number, domain: string, subFrameStr: string) {
   };
 }
 
-async function setSpeedGlobalData(
-    tabId: number,
-    domain: string,
-    speed: string
-) {
+async function setSpeedGlobalData(tabId: number, domain: string, speed: string) {
   try {
     const key = `speed.${tabId}.${domain}`;
     const orgValue = await chrome.storage.session.get(key);
@@ -251,10 +247,8 @@ async function setSpeedGlobalData(
       return true; // call quota, so don't update unless it changes.
     }
     await chrome.storage.session.set({[`${key}`]: `${speed}`}); // key syntax
-    // is silly but
-    // seems
-    // required?
-    return !!orgValue[key]?.length;
+
+    return speed === "1.0"; // true if not speed change required.
   } catch (err) {
     logerr(`setSpeedGlobalData failed`, err);
     await chrome.storage.session.clear(); // we may have run out of quota if
@@ -444,10 +438,10 @@ function isActiveState(state: BackgroundState) {
  * Assume default is true or false. If any result in array
  *   is different then it that's the result of all of the values.
  */
-const injectionResultCheckBool = (
+function injectionResultCheckBool(
     injectionResults: InjectionResult<boolean>[],
     defaultVal = false
-) => {
+) {
   if ((injectionResults?.length || 0) === 0) {
     return defaultVal;
   }
@@ -457,7 +451,7 @@ const injectionResultCheckBool = (
     }
   }
   return defaultVal;
-};
+}
 
 async function DoInjectZoomJS(tabId: number) {
   try {
@@ -676,9 +670,7 @@ async function setSpeed(
     const wasSetBefore = await setSpeedGlobalData(tabId, domain, speedStr);
 
     if (!wasSetBefore && speedStr === DEFAULT_SPEED) {
-      logtrace(
-          "setSpeed: NOT setting video speed since it doesn't seem required (max compatability mode)"
-      );
+      logtrace("setSpeed: NOT setting video speed since it doesn't seem required (max compatability mode)");
       return false;
     }
     logtrace(`setSpeed: executeScript: injectVideoSpeedAdjust 
@@ -764,7 +756,7 @@ async function skipPlayback(
   }
 }
 
-const getSettingUseAdvFeatures = async (): Promise<boolean | any> => {
+async function getSettingUseAdvFeatures(): Promise<boolean | any> {
   try {
     const settings = await getSettings();
     logtrace(
@@ -776,9 +768,9 @@ const getSettingUseAdvFeatures = async (): Promise<boolean | any> => {
     logerr(err);
     return DEFAULT_SETTINGS.useAdvancedFeatures;
   }
-};
+}
 
-const getSettingIntroAlreadyShown = async () => {
+async function getSettingIntroAlreadyShown() {
   try {
     const settings = await getSettings();
     const wasAlreadyShown =
@@ -795,7 +787,7 @@ const getSettingIntroAlreadyShown = async () => {
     logerr(err);
     return true;
   }
-};
+}
 
 /** Fired when the extension is first installed, when the extension is updated to a new version,
  * and when Chrome is updated to a new version. */
@@ -976,11 +968,11 @@ chrome.action.onClicked.addListener((tab) => {
 /**
  * Called when we're zoomed but the popup is redisplayed.
  */
-const ReZoom = async (
+async function ReZoom (
     tabId: number,
     domain: string,
     speed: string
-) => {
+) {
   // the popup is about to display and thinks the page is zoomed, but it's may
   // not be (e.g. if escape key was pressed.) in theory, re-injecting should be
   // fine
@@ -1006,7 +998,7 @@ const ReZoom = async (
                       ]);
     logtrace("REZOOM_CMD -- Zooming -- COMPLETE");
   }
-};
+}
 
 // handle popup messages
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -1093,9 +1085,9 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     const domain = getDomain(changeInfo.url);
     logtrace(`tabs.onUpated event tabId=${tabId} 
       changeInfo: 
-${JSON.stringify(changeInfo, null, 2)}}
+          ${JSON.stringify(changeInfo, null, 2)}}
       tab:
-${JSON.stringify(tab, null, 2)}`);
+        ${JSON.stringify(tab, null, 2)}`);
     if (tabId && ["loading", "completed"].includes(changeInfo?.status || "")) {
       logtrace(`tabs.onUpdated event likely SPA nav`);
 

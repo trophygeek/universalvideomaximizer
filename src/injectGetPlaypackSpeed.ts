@@ -12,7 +12,7 @@
 
  */
 
-export const injectGetPlaypackSpeed = (): string => {
+export function injectGetPlaypackSpeed(): string {
   try {
     // we stash the current injected speed in the body as an attr.
     const attrValue = document?.body?.getAttribute(
@@ -32,4 +32,4 @@ export const injectGetPlaypackSpeed = (): string => {
     );
   }
   return "1.0";
-};
+}

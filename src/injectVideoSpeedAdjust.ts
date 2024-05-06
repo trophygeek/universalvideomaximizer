@@ -12,10 +12,10 @@
 
  */
 
-export const injectVideoSpeedAdjust = async (
+export async function injectVideoSpeedAdjust (
     newspeed: string,
     allowPlaybackToggle = true
-): Promise<string[]> => {
+): Promise<string[]> {
   const DEV_MODE = false;
   const resultCrossDomainErrs: Set<string> = new Set(); // use Set to dedup
 
@@ -319,4 +319,4 @@ export const injectVideoSpeedAdjust = async (
     }
   }
   return [...resultCrossDomainErrs]; // Set->array
-};
+}

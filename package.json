@@ -38,7 +38,6 @@
   "scripts": {
     "style": "prettier --write \"src/**/*.{ts,tsx}\"",
     "start": "yarn build:dev",
-    "tsc": "tsc",
     "build": "rollup -c rollup.config.mjs --environment BUILD:production",
     "build:dev": "NODE_ENV=development rollup -w -c rollup.config.mjs --no-treeshake --environment BUILD:development",
     "clean": "rimraf dist",
