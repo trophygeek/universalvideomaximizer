@@ -25,9 +25,7 @@ export function injectGetPlaypackSpeed(): string {
     // eslint-disable-next-line no-console
     const isRunningInIFrame = window !== window?.parent;
     console.warn(
-        `VideoMaxExt injectGetPlaypackSpeed (${
-            isRunningInIFrame ? "IFRAME" : "MAIN"
-        }): err`,
+        `VideoMaxExt injectGetPlaypackSpeed (${isRunningInIFrame ? "IFRAME" : "MAIN"}): err`,
         err
     );
   }

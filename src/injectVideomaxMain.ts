@@ -12,20 +12,22 @@
  */
 import {
   DEFAULT_SPEED,
-  getKeys,
+  getKeys, parseTwoPixelsString,
   isRunningInIFrame,
   logerr,
   logtrace,
   logwarn,
 } from "./common.js";
 
-const DEV_MODE_NOOP = true;
+// import "./DOMExtension";
+
+const DEV_MODE_NOOP = true; // todo: set to false for production builds.
 const BREAK_ON_BEST_MATCH = DEV_MODE_NOOP && false;
 
 // These are noisy and can be enabled when debugging areas. FULL_DEBUG must
 // also be true
-const EMBED_SCORES = DEV_MODE_NOOP && false;
-const COMMON_PARENT_SCORES = DEV_MODE_NOOP && false;
+const EMBED_SCORES = DEV_MODE_NOOP && true;
+const COMMON_PARENT_SCORES = DEV_MODE_NOOP && true;
 const DEBUG_HIDENODE = DEV_MODE_NOOP && false;
 const DEBUG_MUTATION_OBSERVER = DEV_MODE_NOOP && false;
 
@@ -402,6 +404,7 @@ function isVideoStillInDoc() {
       containingDoc?.contains(videomaxGlobals.matchedVideo) || false;
   if (!videoStillInDocument) {
     logerr(`Video element NO LONGER in document?`, videomaxGlobals.matchedVideo);
+    debugger;
   }
   return videoStillInDocument;
 }
@@ -1146,7 +1149,7 @@ function getVideoSource(
   return ""; // failed
 }
 
-function getElemsDocumentView(node: Node): Window | null { return getOwnerDoc(node)?.defaultView || null;}
+function getElemsDocumentView(node: Node): Window | null { return getOwnerDoc(node)?.defaultView ?? null;}
 
 /**
  * This is kind of an expensive op, maybe cache. The CSSStyleDeclaration is
@@ -1935,8 +1938,8 @@ function fixUpAttribs(node: Node | HTMLElement) {
         ) {
           continue;
         }
-        const attrName = getAttr(eachnode, "name") || "";
-        const attrValue = getAttr(eachnode, "value") || "";
+        const attrName = getAttr(eachnode, "name") ?? "";
+        const attrValue = getAttr(eachnode, "value") ?? "";
 
         logtrace(`  FixUpAttribs found param '${attrName}': '${attrValue}'`);
         if (["FLASHLETS", "DATA"].includes(attrName.toUpperCase())) {
@@ -1968,8 +1971,8 @@ function fixUpAttribs(node: Node | HTMLElement) {
       ) {
         continue;
       }
-      const name = getAttr(eachnode, "name") || "";
-      const orgValue = getAttr(eachnode, "value") || "";
+      const name = getAttr(eachnode, "name") ?? "";
+      const orgValue = getAttr(eachnode, "value") ?? "";
 
       if (Object.prototype.hasOwnProperty.call(newParams, name)) {
         // is this one we care about?
@@ -2310,7 +2313,7 @@ function hideCSS(id: string) {
 }
 
 function hasInjectedAlready() {
-  const attr = document.body.getAttribute(VIDEO_MAX_INSTALLED_ATTR) || "";
+  const attr = document.body.getAttribute(VIDEO_MAX_INSTALLED_ATTR) ?? "";
   const thinksInstalled = attr?.length > 0;
   if (!thinksInstalled) {
     return false;
@@ -2471,23 +2474,24 @@ function cumulativePositionRect(
   // coordinates SO HARD?!?) transformOrigin is for pluto's tv guide section.
   // there's still "transform: translate()" not handled.
   if (compStyle?.transformOrigin) {
-    // there's lots of string values for transformOrigin... we're just going
-    // to handle "#px #px"
-    const regex = /(-?\d+?.\d+)px (-?\d+?.\d+)px/;
-    const matches = compStyle?.transformOrigin.match(regex);
-    if (matches?.length === 3) {
-      top += parseFloat(matches[1]);
-      left += parseFloat(matches[2]);
-    }
+    const transform = parseTwoPixelsString(compStyle.transformOrigin);
+    top += transform.top;
+    left += transform.left;
+    logtrace(`Detected transform-origin: "${compStyle.transformOrigin}" translated to {top: ${transform.top}, left: ${transform.left}}`)
   }
   if (compStyle?.transform) {
     // "translate(100.1px, 202.202px) ..."
-    const regex = /translate\((-?\d+?.\d+)px, (-?\d+?.\d+)px\)/;
-    const matches = compStyle?.transformOrigin.match(regex);
-    if (matches?.length === 3) {
-      top += parseFloat(matches[1]);
-      left += parseFloat(matches[2]);
-    }
+    const translate = parseTwoPixelsString(compStyle.transform);
+    top += translate.top;
+    left += translate.left;
+    logtrace(`Detected transform: "${compStyle.transform}" translated to {top: ${translate.top}, left: ${translate.left}}`)
+  }
+  if (compStyle?.translate) {
+    // "translate(100.1px, 202.202px) ..."
+    const translate = parseTwoPixelsString(compStyle.translate);
+    top += translate.top;
+    left += translate.left;
+    logtrace(`Detected translate: "${compStyle.translate}" translated to {top: ${translate.top}, left: ${translate.left}}`)
   }
 
   // result.height, result.width set already
@@ -3096,7 +3100,7 @@ class ElemMatcherClass {
             PrintNode(elem)
         );
       }
-      const src = elem.getAttribute("src") || "";
+      const src = elem.getAttribute("src") ?? "";
 
       for (const eachMatch of DO_NOT_MATCH_IFRAME_SRC) {
         if (eachMatch.test(src)) {
@@ -3341,8 +3345,8 @@ class ElemMatcherClass {
     if (isHtmlElem) {
       try {
         const titleELem = (
-            elem?.title ||
-            elem?.ariaLabel ||
+            elem?.title ??
+            elem?.ariaLabel ??
             ""
         ).toLowerCase();
         const titlePage = window.document?.title.toLowerCase() || "";
@@ -3469,7 +3473,7 @@ function restoreAllSrollPositions () {
       ...document.querySelectorAll(`[${SAVED_SCROLL_TOP_ATTR}]`),
     ].reverse();
     for (const eachElem of topScrolledElems) {
-      const pos = Number(getAttr(eachElem, SAVED_SCROLL_TOP_ATTR) || 0);
+      const pos = Number(getAttr(eachElem, SAVED_SCROLL_TOP_ATTR) ?? 0);
       removeAttr(eachElem, SAVED_SCROLL_TOP_ATTR);
       if (eachElem?.scrollTo) {
         eachElem.scrollTo({top: pos});
@@ -3956,16 +3960,17 @@ function doZoomPageRetries(): boolean {
  * <video> elements. The PROBLEM is that it removes our found maximized
  * video. So, we eat the scroll events while zoomed.
  */
-function cancelScrollEvents(evt: Event): boolean {
+function cancelScrollEvents(evt: Event) {
   try {
     if (!videomaxGlobals?.isMaximized) {
-      return false;
+      return;
     }
     logtrace("cancelScrollEvent");
     evt.preventDefault();
     evt.stopImmediatePropagation();
-  } catch (_err) {}
-  return false;
+  } catch (err) {
+    logerr("cancelScrollEvent err", err);
+  }
 }
 
 function mainZoom(tagonly = false) {
@@ -4287,7 +4292,7 @@ function updateSpeedFromAttr(evt: Event) {
       // the frontmost? this can happen when ads cover or are behind the main
       // video.
       const speedStr =
-          document.body.getAttribute(PLAYBACK_SPEED_ATTR) || DEFAULT_SPEED;
+          document.body.getAttribute(PLAYBACK_SPEED_ATTR) ?? DEFAULT_SPEED;
       const speedFloat = safeParseFloat(speedStr);
       if (
           !videoElem.paused &&
@@ -4629,9 +4634,7 @@ class UndoZoom {
 // look at the command set by the first injected file
 logtrace(`
     ***
-    videmax_cmd: window.videmax_cmd:'${
-    document.videmax_cmd
-}'  getVideomaxCmd():'${getVideomaxCmd()}'
+    videmax_cmd: window.videmax_cmd:'${document.videmax_cmd}'  getVideomaxCmd():'${getVideomaxCmd()}'
     ***`);
 switch (getVideomaxCmd()) {
   case "unzoom":

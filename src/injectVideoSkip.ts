@@ -47,8 +47,7 @@ export function injectVideoSkip(skipSecondsStr: string) {
       eachVideo.playbackRate = savedSpeed;
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.warn(
-          `VideoMaxExt: injectVideoSkip err for video`,
+      console.warn(`VideoMaxExt: injectVideoSkip err for video`,
           err,
           eachVideo
       );

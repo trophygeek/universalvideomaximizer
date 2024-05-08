@@ -203,20 +203,34 @@ export function intersection(arrA: string[], arrB: string[]) {
 /**
  * @__NO_SIDE_EFFECTS__
  */
+export function normalizeDomain(domain: string) {
+  // example.co.uk, example.com.au tv.apple.com{
+  const elems = domain.split('.');
+  if (elems.length <= 1) {
+    return `.${elems[0]}.` ?? ".example."; // safe domain, never exists.
+  }
+
+  // remove the first work if it's a common prefix.
+  if (['www', 'web', 'ftp'].indexOf(elems[0]) > -1) {
+    elems.shift(); // remove it.
+  }
+  return `.${elems.join(".")}.`;
+}
+
+/**
+ * @__NO_SIDE_EFFECTS__
+ */
 export function isPageExcluded(domain: string, zoomExclusionListStr: string) {
   if (!domain?.length) {
     return false;
   }
+  const normalizedDomain = normalizeDomain(domain);
   const excludedList = listToArray(zoomExclusionListStr);
-  // tv.apple.com is the tricky part
+  // tv.apple.com, www.example.co.uk example.co.uk are tricky
   for (const eachExcludedDomain of excludedList) {
-    // if it doesn't have a trailing . or .com then append a "."
-    const each =
-        eachExcludedDomain.endsWith(".com") || eachExcludedDomain.endsWith(".")
-        ? eachExcludedDomain
-        : `${eachExcludedDomain}.`;
-    if (domain.includes(each)) {
-      return true;
+    const eachNormalizedExcludedDomain = normalizeDomain(eachExcludedDomain);
+    if (normalizedDomain.indexOf(eachNormalizedExcludedDomain) > -1) {
+      return true; // match
     }
   }
   return false;
@@ -264,6 +278,24 @@ export async function getManifestJson() {
     logerr(err);
   }
   return {};
+}
+
+/*
+ * @__NO_SIDE_EFFECTS__
+ */
+export function parseTwoPixelsString(value: string) {
+  // compStyle?.transformOrigin
+  // there's lots of string values for transformOrigin...
+  // we're just going to handle "#px #px"
+  // the trick is that the float matching can return 2-4 group matches if there's a decimal.
+  // [0] the whole string.
+  // [1] is always the first number, the 2nd number can be [2] or [3]
+  const regex = /([+-]?\d+(\.\d+)?)px\s*,?\s*([+-]?\d+(\.\d+)?)px/;
+  const matches = value.match(regex);
+  if (matches?.length === 5) {
+    return {top: parseFloat(matches[1]), left: parseFloat(matches[3])};
+  }
+      return {top: 0, left: 0}
 }
 
 declare global {

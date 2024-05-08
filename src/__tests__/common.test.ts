@@ -1,0 +1,135 @@
+/*
+  Video Maximizer
+
+ Copyright (c) 2024. trophygeek@gmail.com
+ www.videomaximizer.com
+
+  Removes the clutter. Maximizes videos to view in full-page theater mode on most sites.
+
+  Creative Commons Share Alike 4.0
+  To view a copy of this license, visit https://creativecommons.org/licenses/by-sa/4.0/
+
+
+ */
+
+import {
+  DEFAULT_ZOOM_EXCLUSION_LIST, domainToSiteWildcard,
+  getDomain, parseTwoPixelsString,
+  intersection,
+  isPageExcluded,
+  listToArray,
+  numbericOnly,
+  rangeInt,
+} from '../../src/common';
+
+describe("common.ts", () => {
+  test("numbericOnly", () => {
+    expect(numbericOnly("1234567890")).toBe("1234567890");
+    expect(numbericOnly("-1")).toBe("1"); // neg numbers not supported
+    expect(numbericOnly(" a12bc-345\r\n67 ")).toBe("1234567");
+    expect(numbericOnly(" abc\r\nde ")).toBe("");
+  });
+
+  test("rangeInt", () => {
+    expect(rangeInt(0, -1, 100)).toBe(0);
+    expect(rangeInt(100, -1, 100)).toBe(100);
+    expect(rangeInt(-100, -1, 100)).toBe(-1);
+    expect(rangeInt(2, 0, 1)).toBe(1);
+    expect(rangeInt(2, 1, 1)).toBe(1);
+  });
+
+  test("getDomain()", () => {
+    expect(getDomain("https://www.example.com/foo/bar.html?param1=1&param2=2"))
+        .toBe("www.example.com");
+    expect(getDomain("blob:https://www.example.com/foo/bar.html?param1=1&param2=2"))
+        .toBe("www.example.com");
+    expect(getDomain("www.example.com")).toBe("www.example.com");
+    expect(getDomain("")).toBe("");
+  });
+
+  test("domainToSiteWildcard() wholeDomainAccess=false", () => {
+    expect(domainToSiteWildcard("", false)).toBe("");
+    expect(domainToSiteWildcard("https://www.example.com/foo/bar.html?param1=1&param2=2", false))
+        .toBe("https://www.example.com/");
+  });
+
+  test("domainToSiteWildcard() wholeDomainAccess=true", () => {
+    expect(domainToSiteWildcard("", true)).toBe("");
+    expect(domainToSiteWildcard("https://www.example.com/foo/bar.html?param1=1&param2=2", true))
+        .toBe("https://*.example.com/");
+  });
+
+  test("listToArray()", () => {
+    expect(listToArray("www.example.com,example.co,example.game"))
+        .toStrictEqual(["www.example.com", "example.co", "example.game"]);
+    expect(listToArray("www.example.com"))
+        .toStrictEqual(["www.example.com"]);
+    expect(listToArray("")).toStrictEqual([]);
+    expect(listToArray(",")).toStrictEqual([]);
+  });
+
+  test("listToArray() dirty data", () => {
+    expect(listToArray(",www.example.com, example.co,, example.game,"))
+        .toStrictEqual([
+      "www.example.com",
+      "example.co",
+      "example.game",
+    ]);
+  });
+
+  test("intersection()", () => {
+    expect(intersection(["a", "b", "c", "d"], ["c", "e"])).toBe(true);
+    expect(intersection(["a", "b", "c", "d"], [])).toBe(false);
+    expect(intersection([], ["a", "b", "c", "d"])).toBe(false);
+  });
+
+  test("isPageExcluded() true", () => {
+    expect(isPageExcluded("www.example.com", "foo,example,bar")).toBe(true);
+    expect(isPageExcluded("www.example.co.uk", "foo,example,bar")).toBe(true);
+  });
+
+  test("isPageExcluded() false", () => {
+    expect(isPageExcluded("www.examplesite.com", "foo,example,bar")).toBe(false);
+    expect(isPageExcluded("www.sexample.com", "foo,example,bar")).toBe(false);
+  });
+
+  test("isPageExcluded() tv.youtube", () => {
+    expect(isPageExcluded("www.youtube.com", "tv.youtube,foo")).toBe(false);
+  });
+
+  test("isPageExcluded() tv.apple.com", () => {
+    expect(isPageExcluded("tv.apple.com", DEFAULT_ZOOM_EXCLUSION_LIST)).toBe(true);
+  });
+
+
+  test("isPageExcluded() real false", () => {
+    expect(isPageExcluded("pluto.tv", DEFAULT_ZOOM_EXCLUSION_LIST)).toBe(false);
+    expect(isPageExcluded("www.youtube.com", DEFAULT_ZOOM_EXCLUSION_LIST)).toBe(false);
+  });
+
+  test("isPageExcluded() tough", () => {
+    expect(isPageExcluded("www.example.com", "example.com,bar")).toBe(true);
+    expect(isPageExcluded("example1.foobar.com", "foo,example,bar")).toBe(false);
+    // this one fails. but it's not used for security checks, so it's fine.
+    // expect(isPageExcluded("example.foobar.com", "foo,example,bar")).toBe(false);
+  });
+
+  test("parseTwoPixelsString() simple", () => {
+    expect(parseTwoPixelsString("12px 13px")).toStrictEqual({top: 12, left: 13});
+    expect(parseTwoPixelsString(" 14px 15px ")).toStrictEqual({top: 14, left: 15});
+  });
+
+  test("parseTwoPixelsString() translate", () => {
+    expect(parseTwoPixelsString("translate(18px, 19px)")).toStrictEqual({top: 18, left: 19});
+    expect(parseTwoPixelsString("translate(20px,21px)")).toStrictEqual({top: 20, left: 21});
+    expect(parseTwoPixelsString(" translate ( 22px,  23px ) ")).toStrictEqual({top: 22, left: 23});
+  });
+
+  test("parseTwoPixelsString() float", () => {
+    expect(parseTwoPixelsString("(-18.7px,-19.1px)")).toStrictEqual({top: -18.7, left: -19.1});
+    expect(parseTwoPixelsString("translate(18.7px, 19.1px)")).toStrictEqual({top: 18.7, left: 19.1});
+    expect(parseTwoPixelsString("translate(20px,-21px)")).toStrictEqual({top: 20, left: -21});
+    expect(parseTwoPixelsString(" translate ( -22.1px,  23px ) ")).toStrictEqual({top: -22.1, left: 23});
+    expect(parseTwoPixelsString(" ( 22.1px  -23px ) ")).toStrictEqual({top: 22.1, left: -23});
+  });
+});

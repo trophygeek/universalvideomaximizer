@@ -32,9 +32,7 @@ export function injectIsCssHeaderIsBlocked(cssHRef: string): boolean {
   } catch (_err) {}
   if (isBlocked) {
     // eslint-disable-next-line no-console
-    console.log(
-        `VideoMaxExt injectIsCssHeaderIsBlocked: css include file blocked?`
-    );
+    console.log(`VideoMaxExt injectIsCssHeaderIsBlocked: css include file blocked?`);
   }
   return isBlocked;
 }
