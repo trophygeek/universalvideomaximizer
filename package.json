@@ -37,7 +37,7 @@
   "scripts": {
     "start": "yarn build:dev",
     "build": "rollup -c rollup.config.mjs --environment BUILD:production",
-    "build:dev": "NODE_ENV=development rollup -w -c rollup.config.mjs --no-treeshake --environment BUILD:development",
+    "build:dev": "NODE_ENV=development rollup -w -c rollup.config.mjs --environment BUILD:development",
     "clean": "rimraf dist",
     "test": "jest --force-exit",
     "lint:fix": "prettier --bracket-same-line  --print-width 100 --write \"src/**/*.{ts,tsx}\"",
