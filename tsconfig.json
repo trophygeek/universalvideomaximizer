@@ -11,10 +11,15 @@
     "rootDir": "./src",
     "outDir": "dist/videomaximizer",
     "noEmitOnError": false,
-    "lib": ["dom", "dom.iterable","ES2022"],
+    "lib": [
+      "ES2022",
+      "dom",
+      "dom.iterable"],
     "typeRoots": [
-      "./node_modules/@types",
-      "./@types"
+      "node_modules/@types",
+      "@types",
+      "@types/videomax",
+      "src",
     ],
     "types": [
       "videomax",

@@ -105,14 +105,12 @@ const loadSettingsIntoFields = (settings: SettingsType) => {
         eachButton.addEventListener("click", async (e) => {
           const parentLi = (e?.currentTarget as HTMLElement)?.closest("li");
           const domain =
-            (parentLi?.querySelector(`div[class*="domain"]`) as HTMLElement)
-              ?.innerText || "";
+            (parentLi?.querySelector(`div[class*="domain"]`) as HTMLElement)?.innerText || "";
           parentLi?.classList.add("fade-out");
           // remove domain from list and save.
           const updateSettings = await getSettings();
           updateSettings.zoomExclusionListStr =
-            updateSettings?.zoomExclusionListStr.replace(`,${domain}`, "") ||
-            "";
+            updateSettings?.zoomExclusionListStr.replace(`,${domain}`, "") || "";
           await saveSettings(updateSettings);
         });
       }
@@ -151,9 +149,7 @@ const save = async () => {
 
 const enableAdvanceFeaturesOptions = () => {
   const useAdvancedFeatures = getChecked("useAdvancedFeatures");
-  const disableFields = document.getElementsByClassName(
-    "diableForSimpleFeatures"
-  );
+  const disableFields = document.getElementsByClassName("diableForSimpleFeatures");
   for (const eachField of disableFields) {
     if (useAdvancedFeatures) {
       eachField.classList.remove("is-disabled");
@@ -170,8 +166,7 @@ const setupPageFromSettings = async () => {
 
     // show debug info
     const settingStr = JSON.stringify(g_settings, null, 2);
-    const manifestVersion =
-      (await getManifestVersion()) || "[missing manifest version]";
+    const manifestVersion = (await getManifestVersion()) || "[missing manifest version]";
     // noinspection JSUnresolvedReference
     // @ts-ignore `userAgentData` is experimental but available on chrome
     const userAgent = JSON.stringify(navigator?.userAgentData, null, 2);
@@ -196,59 +191,51 @@ document.addEventListener("DOMContentLoaded", async () => {
   try {
     await setupPageFromSettings();
 
-    document
-      .getElementById("mainForm")
-      ?.addEventListener("change", async (_e) => {
-        await save();
-      });
+    document.getElementById("mainForm")?.addEventListener("change", async (_e) => {
+      await save();
+    });
 
-    document
-      .getElementById("useAdvancedFeatures")
-      ?.addEventListener("click", async (_e) => {
-        enableAdvanceFeaturesOptions();
-        setTimeout(() => {
-          if (!getChecked("useAdvancedFeatures")) {
-            // eslint-disable-next-line no-alert
-            alert(`
+    document.getElementById("useAdvancedFeatures")?.addEventListener("click", async (_e) => {
+      enableAdvanceFeaturesOptions();
+      setTimeout(() => {
+        if (!getChecked("useAdvancedFeatures")) {
+          // eslint-disable-next-line no-alert
+          alert(`
 This will remove the speed controls.
 
 To access this Option page in the future, RIGHT-CLICK on the extension's icon in toolbar and select "options"`);
-          }
-        }, 250);
-      });
+        }
+      }, 250);
+    });
 
-    document
-      .getElementById("allSitesAccess")
-      ?.addEventListener("click", async (_e) => {
-        setTimeout(() => {
-          if (getChecked("allSitesAccess")) {
-            // eslint-disable-next-line no-alert
-            alert(`
+    document.getElementById("allSitesAccess")?.addEventListener("click", async (_e) => {
+      setTimeout(() => {
+        if (getChecked("allSitesAccess")) {
+          // eslint-disable-next-line no-alert
+          alert(`
 Enabling this feature will prompt you ONE last time to grant this extension FULL ACCESS.
 
 You may need to REFRESH the video page before it takes effect.`);
-          }
-        }, 250);
-      });
-
-    document
-      .getElementById("addpathblacklist")
-      ?.addEventListener("click", async (e) => {
-        // eslint-disable-next-line no-alert
-        const newDomainStr = prompt("New domain name to exclude from zooming:");
-        if (newDomainStr?.length) {
-          const domain = getDomain(newDomainStr);
-          g_settings.zoomExclusionListStr = `${g_settings.zoomExclusionListStr},${domain}`;
-          await save();
-          // scroll to bottom
-          const objDiv = document.getElementById("nozoomlist");
-          if (objDiv?.scrollTop && objDiv?.scrollHeight) {
-            objDiv.scrollTop = objDiv.scrollHeight;
-          }
         }
-        e.stopPropagation();
-        return false;
-      });
+      }, 250);
+    });
+
+    document.getElementById("addpathblacklist")?.addEventListener("click", async (e) => {
+      // eslint-disable-next-line no-alert
+      const newDomainStr = prompt("New domain name to exclude from zooming:");
+      if (newDomainStr?.length) {
+        const domain = getDomain(newDomainStr);
+        g_settings.zoomExclusionListStr = `${g_settings.zoomExclusionListStr},${domain}`;
+        await save();
+        // scroll to bottom
+        const objDiv = document.getElementById("nozoomlist");
+        if (objDiv?.scrollTop && objDiv?.scrollHeight) {
+          objDiv.scrollTop = objDiv.scrollHeight;
+        }
+      }
+      e.stopPropagation();
+      return false;
+    });
 
     document.getElementById("reset")?.addEventListener("click", async (_e) => {
       await clearSettings();

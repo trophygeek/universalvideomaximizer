@@ -1,12 +1,6 @@
 // @ts-check
 // useful reference for exports https://web.dev/es-modules-in-sw/
-import {
-  DEFAULT_SETTINGS,
-  DEFAULT_SPEED,
-  getSettings,
-  logerr,
-  logtrace,
-} from "./common.js";
+import { DEFAULT_SETTINGS, DEFAULT_SPEED_STR, getSettings, logerr, logtrace } from "./common.js";
 import Port = chrome.runtime.Port;
 
 // @ts-ignore
@@ -39,7 +33,7 @@ try {
     },
     {
       label: "1.0",
-      value: DEFAULT_SPEED,
+      value: DEFAULT_SPEED_STR,
     },
     {
       label: "1.25",
@@ -81,7 +75,7 @@ try {
   const globals = {
     url: new URL(document.location.href),
     domain: "",
-    currentSpeed: DEFAULT_SPEED,
+    currentSpeed: DEFAULT_SPEED_STR,
     settings: DEFAULT_SETTINGS, // onload overrides
     tabId: 0,
     debounceTimerId: 0,
@@ -100,15 +94,10 @@ try {
   };
 
   const checkItem = (itemValue: string) => {
-    const itemValueStr = itemValue.startsWith("-")
-      ? "PAUSE_CMD"
-      : String(itemValue);
+    const itemValueStr = itemValue.startsWith("-") ? "PAUSE_CMD" : String(itemValue);
     const group = document.getElementById("speedBtnGroup");
     for (const eachElem of group?.children || []) {
-      if (
-        eachElem instanceof HTMLInputElement &&
-        eachElem.type === "checkbox"
-      ) {
+      if (eachElem instanceof HTMLInputElement && eachElem.type === "checkbox") {
         eachElem.checked = eachElem.dataset.value === itemValueStr;
         if (eachElem.checked) {
           eachElem.focus();
@@ -122,10 +111,8 @@ try {
       // already maxed
       return globals.currentSpeed;
     }
-    const offset = MENU.findIndex(
-      (item) => item.value === globals.currentSpeed
-    );
-    return MENU[offset + 1]?.value || DEFAULT_SPEED;
+    const offset = MENU.findIndex((item) => item.value === globals.currentSpeed);
+    return MENU[offset + 1]?.value || DEFAULT_SPEED_STR;
   };
 
   const DecreaseSpeed = (): string => {
@@ -133,10 +120,8 @@ try {
       // already maxed
       return globals.currentSpeed;
     }
-    const offset = MENU.findIndex(
-      (item) => item.value === globals.currentSpeed
-    );
-    return MENU[offset - 1]?.value || DEFAULT_SPEED;
+    const offset = MENU.findIndex((item) => item.value === globals.currentSpeed);
+    return MENU[offset - 1]?.value || DEFAULT_SPEED_STR;
   };
 
   const addSpeedControlUI = (parentElem: HTMLElement, tabId: number) => {
@@ -225,7 +210,7 @@ try {
             logtrace(`replacing PAUSE_CMD with negative speed: ${value}`);
           }
 
-          let speed = DEFAULT_SPEED;
+          let speed = DEFAULT_SPEED_STR;
           if (!(value === "UNZOOM_BTN_CMD" || value === globals.currentSpeed)) {
             // toggle speed
             speed = value;
@@ -233,8 +218,7 @@ try {
 
           globals.currentSpeed = speed;
           checkItem(speed);
-          const cmd: string =
-            value === "UNZOOM_BTN_CMD" ? "UNZOOM_CMD" : "SET_SPEED_CMD";
+          const cmd: string = value === "UNZOOM_BTN_CMD" ? "UNZOOM_CMD" : "SET_SPEED_CMD";
           chrome.runtime.sendMessage(
             {
               message: {
@@ -326,8 +310,7 @@ try {
             ? globals.settings.longSkipSeconds
             : globals.settings.regSkipSeconds;
           // currentSpeed could be zero, so floor it to 0.25
-          const relativeTimeFwd =
-            skipSecFwd * Math.max(parseFloat(globals.currentSpeed), 0.25);
+          const relativeTimeFwd = skipSecFwd * Math.max(parseFloat(globals.currentSpeed), 0.25);
           await chrome.runtime.sendMessage({
             message: {
               cmd: "SKIP_PLAYBACK_CMD",
@@ -389,7 +372,7 @@ try {
     try {
       const params = new URLSearchParams(globals.url.hash.replace("#", ""));
       globals.tabId = Number(params.get("tabId") || "0");
-      globals.currentSpeed = params.get("speed") || DEFAULT_SPEED;
+      globals.currentSpeed = params.get("speed") || DEFAULT_SPEED_STR;
       globals.domain = params.get("domain") || ""; // needed because Netflix errs on skip
       const container = window.document.getElementById("speedBtnGroup");
 
@@ -409,11 +392,7 @@ try {
 
       // update the selected checkbox
       checkItem(globals.currentSpeed);
-      (
-        document.querySelector(
-          'input[name="speedChoice"]:checked'
-        ) as HTMLElement
-      )?.focus();
+      (document.querySelector('input[name="speedChoice"]:checked') as HTMLElement)?.focus();
 
       document.addEventListener("keydown", (evt) => {
         logtrace(`DOCUMENT.addEventListener("keydown")...`);
@@ -439,7 +418,7 @@ try {
       message: {
         cmd: "POPUP_CLOSING",
         domain: globals.domain,
-        speed: DEFAULT_SPEED,
+        speed: DEFAULT_SPEED_STR,
         tabId: globals.tabId,
       },
     });
@@ -451,7 +430,7 @@ try {
       message: {
         cmd: "POPUP_CLOSING",
         domain: globals.domain,
-        speed: DEFAULT_SPEED,
+        speed: DEFAULT_SPEED_STR,
         tabId: globals.tabId,
       },
     });

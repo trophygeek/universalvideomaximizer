@@ -12,7 +12,7 @@
 
  */
 
-export function injectCssHeader (cssHRef: string, styleId: string): boolean {
+export function injectCssHeader(cssHRef: string, styleId: string): boolean {
   const MIN_IFRAME_WIDTH = 320;
   const MIN_IFRAME_HEIGHT = 240;
 
@@ -22,10 +22,7 @@ export function injectCssHeader (cssHRef: string, styleId: string): boolean {
       // console.log(`VideoMax Native Inject. Style header already injected "${styleId}"`);
       return true;
     }
-    if (
-        window.innerWidth < MIN_IFRAME_WIDTH ||
-        window.innerHeight < MIN_IFRAME_HEIGHT
-    ) {
+    if (window.innerWidth < MIN_IFRAME_WIDTH || window.innerHeight < MIN_IFRAME_HEIGHT) {
       // eslint-disable-next-line no-console
       // console.log(`VideoMax Native Inject. Style header already injected "${styleId}"`);
       return true;
@@ -41,11 +38,11 @@ export function injectCssHeader (cssHRef: string, styleId: string): boolean {
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(
-        `
+      `
       ****** VideoMax ERROR Native Inject
       Injecting style header failed. CSP?
       ******`,
-        err
+      err
     );
     return false;
   }

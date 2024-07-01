@@ -76,9 +76,8 @@ type HtmlElementTypes = HtmlElementType[];
 type InjectExecScriptCmds = "CrossDomainFailedIFrames" | "VideoSpeedAdjust";
 
 type VideomaxGlobalsTypeBase = {
-  matchedVideo: HTMLVideoElement | HTMLIFrameElement | null;
+  matchedVideo: HTMLVideoElement | HTMLIFrameElement | Element | null;
   matchVideoRect: DomRect;
-  matchedIsHtml5Video: boolean;
   matchedVideoSrc: string;
   matchedCommonCntl: Element | null;
   processInFrame: boolean,

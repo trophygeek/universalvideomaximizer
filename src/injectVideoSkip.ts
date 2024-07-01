@@ -1,5 +1,3 @@
-
-
 /*
   Video Maximizer
 
@@ -14,43 +12,28 @@
 
  */
 
+import { findVideosAtCenter } from "./common";
+
 /**
  * Negative numbers means skip backwards
  */
 export function injectVideoSkip(skipSecondsStr: string) {
   const skipSeconds = parseFloat(skipSecondsStr);
-  for (const eachVideo of document.querySelectorAll("video")) {
-    try {
-      if (
-          !eachVideo.checkVisibility({
-                                       checkOpacity: true,
-                                       checkVisibilityCSS: true,
-                                     })
-      ) {
-        // eslint-disable-next-line no-console
-        // console.log(`VideoMaxExt: injectVideoSkip checkVisibility=false, skipping`, eachVideo);
-        continue;
-      }
+  try {
+    const topVisVideos = findVideosAtCenter(document.body);
+    for (const eachVideo of topVisVideos) {
       if ((eachVideo?.seekable?.length || 0) <= 0) {
-        // eslint-disable-next-line no-console
-        // console.log(`VideoMaxExt: injectVideoSkip not seekable, skipping`, eachVideo?.seekable);
         continue;
       }
+
       // restore playback speed after we skip
       const savedSpeed = eachVideo.playbackRate || 1.0;
-
-      // eachVideo.pause(); // pause/play trigger controls to briefly show. (doesn't rehide on some
-      // sites)
 
       // don't go negative;
       eachVideo.currentTime = Math.max(0, eachVideo.currentTime + skipSeconds);
       eachVideo.playbackRate = savedSpeed;
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn(`VideoMaxExt: injectVideoSkip err for video`,
-          err,
-          eachVideo
-      );
     }
+  } catch (err) {
+    console.warn(`VideoMaxExt: injectVideoSkip err for video`, err);
   }
 }
