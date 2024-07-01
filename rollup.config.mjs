@@ -3,7 +3,7 @@
 // import resolve from '@rollup/plugin-node-resolve';
 // import commonjs from '@rollup/plugin-commonjs';
 import typescript from '@rollup/plugin-typescript';
-import ts from 'typescript';
+import ts, {ModuleResolutionKind} from 'typescript';
 
 import copy from 'rollup-plugin-copy';
 
@@ -16,56 +16,99 @@ const dist = `dist/videomaximizer`;
 const isProd = process.env.NODE_ENV === 'production';
 const isWatch = !isProd; // copy only once?
 
+const generatedCode = {
+  constBindings: true,
+  arrowFunctions: true,
+  objectShorthand: true,
+  reservedNamesAsProps: true,
+  symbols: false,
+};
+
+/** everything but the input **/
+const defaultStep = {
+  output: {
+    dir: `${dist}`,
+    format: 'esm', // 'iife' | 'cjs' | 'esm'
+    sourcemap: !isProd,
+    generatedCode: generatedCode,
+  },
+  treeshake: {
+    preset: 'smallest',
+    unknownGlobalSideEffects: false,
+    manualPureFunctions: ['styled', 'local'],
+  },
+  plugins: [
+    typescript({
+      typescript: ts,
+      tsconfig: isProd ? './tsconfig.prod.json' : './tsconfig.dev.json',
+    }),
+  ],
+};
+
+const defaultStepTryCatch = {
+  ...defaultStep,
+  plugins: [
+    typescript({
+      typescript: ts,
+      tsconfig: isProd ? './tsconfig.prod.json' : './tsconfig.dev.json',
+    }),
+    rollupPluginTryCatch(),
+  ],
+}
+
 export default [
+  // these share common.js
   {
-    // these can have tree shaking
     input: [
       'src/background.ts',
-      'src/common.ts',
-      'src/injectCheckPermissions.ts',
-      'src/injectCssHeader.ts',
-      'src/injectCssHeaderRemove.ts',
-      'src/injectGetPlaypackSpeed.ts',
-      'src/injectIsCssHeaderIsBlocked.ts',
-      'src/injectVideoSkip.ts',
-      'src/injectVideoSpeedAdjust.ts',
       'src/options.ts',
       'src/popup.ts',
     ],
-    output: {
-      dir: `${dist}`,
-      format: 'esm',
-      sourcemap: !isProd,
-    },
-    treeshake: {
-      preset: 'smallest',
-      manualPureFunctions: ['styled', 'local'],
-      annotations: !isProd,
-    },
-    plugins: [
-      ...(isProd ? [emptyDir()] : []),
-      typescript({
-        typescript: ts,
-        tsconfig: isProd ? './tsconfig.prod.json' : './tsconfig.dev.json',
-      }),
-    ],
+
+    ...defaultStep,
   },
+  {
+    input: ['src/injectCheckPermissions.ts'],
+    ...defaultStepTryCatch,
+  },
+  {
+    input: ['src/injectCssHeader.ts'],
+    ...defaultStepTryCatch,
+  },
+  {
+    input: ['src/injectCssHeaderRemove.ts'],
+    ...defaultStepTryCatch,
+  },
+  {
+    input: ['src/injectIsCssHeaderIsBlocked.ts'],
+    ...defaultStepTryCatch,
+  },
+  {
+    input: ['src/injectGetPlaypackSpeed.ts'],
+    ...defaultStepTryCatch,
+  },
+  {
+    input: ['src/injectGetPlaypackSpeed.ts'],
+    ...defaultStepTryCatch,
+  },
+  {
+    input: ['src/injectVideoSpeedAdjust.ts'],
+    ...defaultStepTryCatch,
+  },
+  {
+    input: ['src/injectVideoSpeedAdjust.ts'],
+    ...defaultStepTryCatch,
+  },
+  {
+    input: ['src/injectVideoSkip.ts'],
+    ...defaultStepTryCatch,
+  },
+  // last one need to figure out merge files.
   {
     input: [
       'src/injectVideomaxMain.ts',
     ],
-    output: {
-      dir: `${dist}`,
-      format: 'esm', // 'iife' | 'cjs' | 'esm'
-      sourcemap: !isProd,
-      generatedCode: {
-        constBindings: false,
-      }, // global consts prevent re-injection
-    },
-    treeshake: {
-      preset: 'smallest',
-      annotations: !isProd,
-    },
+    ...defaultStepTryCatch,
     plugins: [
       typescript({
         typescript: ts,
