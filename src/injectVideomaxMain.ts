@@ -9,6 +9,7 @@
 
 /* we really want imports injected INSIDE of the try {} block this allows for double
  injections without hitting duplicate names and keeps everything scoped nicely.
+ We do this with a rollup plugin.
  */
 import {
   customDiceCoefficient,
@@ -30,10 +31,9 @@ import {
   round,
   safeParseFloat,
   safeParseInt,
-  shadowDomDrillDown,
   shadowRoot,
   splitUrlWords,
-} from "./common.js";
+} from "./common.js"; // .js embeds the contents
 
 const DEV_MODE_NOOP = true; // todo: set to false for production builds.
 const BREAK_ON_BEST_MATCH = DEV_MODE_NOOP && false;
@@ -2227,15 +2227,20 @@ function getOuterBoundingRect(elem: Element) {
  */
 function cumulativePositionRect(elemIn: Element, compStyle: CSSStyleDeclaration | null = null) {
   const result = getOuterBoundingRect(elemIn);
-  if (!(elemIn instanceof HTMLElement)) {
-    logerr("cumulativePositionRect on Element that's not an HTMLElement", PrintNode(elemIn));
+  if (!(elemIn instanceof HTMLElement) && elemIn.nodeName !== "VIDEO") {
+    // MLB.com: if video is in iframe, then the <video> element doesn't test as an HTMLElement?!
+    logerr(
+      "cumulativePositionRect on Element that's not an HTMLElement",
+      PrintNode(elemIn),
+      elemIn
+    );
     return result;
   }
 
   // always use initial position
   let top = 0;
   let left = 0;
-  let eachElem = elemIn;
+  let eachElem = elemIn as HTMLElement; // see `elemIn instanceof HTMLElement` for iframe comment above
   while (eachElem?.offsetParent instanceof HTMLElement) {
     const compStyleElem = getElemComputedStyle(eachElem); // $$$
     if (compStyleElem.position !== "absolute") {
@@ -3926,6 +3931,7 @@ function updateSpeedFromAttr(evt: Event) {
   }, 1);
 }
 
+/** "can play" is a state of the video */
 function videoCanPlayRemove() {
   try {
     videomaxGlobals?.matchedVideo?.removeEventListener("canplay", updateSpeedFromAttr);

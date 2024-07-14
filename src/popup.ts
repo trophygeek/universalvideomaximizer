@@ -1,6 +1,7 @@
 // @ts-check
 // useful reference for exports https://web.dev/es-modules-in-sw/
-import { DEFAULT_SETTINGS, DEFAULT_SPEED_STR, getSettings, logerr, logtrace } from "./common.js";
+import { DEFAULT_SETTINGS, DEFAULT_SPEED_STR, getSettings, logerr, logtrace } from "./common";
+
 import Port = chrome.runtime.Port;
 
 // @ts-ignore

@@ -493,13 +493,6 @@ export function shadowRoot(targetNode: Node | null): ShadowRoot | null {
   return targetNode?.shadowRoot ?? null;
 }
 
-export function shadowDomDrillDown(elem: Element) {
-  if (!(elem instanceof Element) || !elem?.shadowRoot) {
-    return null;
-  }
-  return shadowHost(elem.shadowRoot);
-}
-
 export function deDupArray(arr: any[]): any[] {
   return [...new Set(...arr).entries()];
 }
@@ -507,6 +500,7 @@ export function deDupArray(arr: any[]): any[] {
 export function findVideoElementsInShadowRoot(root: ShadowRoot | Document): HTMLVideoElement[] {
   const elements: HTMLVideoElement[] = [];
   // @ts-ignore querySelectorAll("*") includes iFrames... so wtf?
+  // querySelectorAll works for iframes and shadow roots, but RETURNS EVERYTHING!
   for (const { shadowRoot, contentDocument } of root.querySelectorAll("*")) {
     if (shadowRoot) {
       // Look for elements in the current root
@@ -537,8 +531,6 @@ export function findVideosAtCenter(
   if (!topElem) {
     return [];
   }
-
-  logtrace("findVideosAtCenter", topElem);
 
   if (topElem instanceof HTMLVideoElement) {
     return [topElem];

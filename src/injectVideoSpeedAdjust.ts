@@ -24,7 +24,7 @@ import {
   PLAYBACK_SPEED_ATTR,
   safeParseFloat,
   DEFAULT_SPEED_STR,
-} from "./common";
+} from "./common.js"; // .js embeds the contents
 
 /**
  * @param newspeed If empty, then try and load the speed saved at the doc level and reapply it. If both empty, then
@@ -32,8 +32,8 @@ import {
  * @param allowPlaybackToggle
  */
 export function injectVideoSpeedAdjust(newspeed: string, allowPlaybackToggle = true) {
-  const speedNumber = (() => {
-    if (newspeed?.length > 0) {
+  function _getSavedSpeedFromDocument(newspeed?: string) {
+    if (newspeed && newspeed?.length > 0) {
       return safeParseFloat(newspeed, 1.0);
     }
     const savedSpeedStr = document.body.getAttribute(PLAYBACK_SPEED_ATTR) ?? DEFAULT_SPEED_STR;
@@ -41,17 +41,6 @@ export function injectVideoSpeedAdjust(newspeed: string, allowPlaybackToggle = t
       return safeParseFloat(newspeed, 1.0);
     }
     return 1.0;
-  })(); // inline figure out the number
-
-  try {
-    if (document?.body && newspeed !== DEFAULT_SPEED_STR) {
-      document.body.setAttribute(PLAYBACK_SPEED_ATTR, newspeed);
-    } else {
-      // default then we should remove it.
-      document.body.removeAttribute(PLAYBACK_SPEED_ATTR);
-    }
-  } catch (err) {
-    // could be cross frame error?
   }
 
   /**
@@ -83,7 +72,7 @@ export function injectVideoSpeedAdjust(newspeed: string, allowPlaybackToggle = t
       }
 
       const isVis = isElemVisable(videoElem);
-      const speedNumber = Math.abs(parseFloat(newspeed));
+      const speedNumber = _getSavedSpeedFromDocument();
       // eslint-disable-next-line no-console
       logtrace(`VideoMaxExt: loadStart injectVideoSpeedAdjust
           isVis: ${isVis} (false means won't set speed) 
@@ -131,6 +120,18 @@ export function injectVideoSpeedAdjust(newspeed: string, allowPlaybackToggle = t
     videoElem.addEventListener("loadstart", _loadStart);
   }
 
+  const speedNumber = _getSavedSpeedFromDocument(newspeed);
+  try {
+    if (document?.body && newspeed !== DEFAULT_SPEED_STR) {
+      document.body.setAttribute(PLAYBACK_SPEED_ATTR, newspeed);
+    } else {
+      // default then we should remove it.
+      document.body.removeAttribute(PLAYBACK_SPEED_ATTR);
+    }
+  } catch (err) {
+    // could be cross frame error?
+  }
+
   const topVisVideos = findVideosAtCenter(document?.body);
   if (topVisVideos.length === 0) {
     // this happens a lot when injected into a iframe that's not a video one
@@ -139,5 +140,6 @@ export function injectVideoSpeedAdjust(newspeed: string, allowPlaybackToggle = t
 
   for (const eachVideo of topVisVideos) {
     _injectSetSpeedForVideo(eachVideo, speedNumber, allowPlaybackToggle);
+    break; // for MBA, if we do ALL the videos then skipping ads will skip main video
   }
 }

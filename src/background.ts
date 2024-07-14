@@ -27,17 +27,17 @@ import {
   saveSettings,
   SETTINGS_STORAGE_KEY,
   logtrace,
-} from "./common.js";
+} from "./common";
+
+import { injectCssHeaderRemove } from "./injectCssHeaderRemove";
+import { injectIsCssHeaderIsBlocked } from "./injectIsCssHeaderIsBlocked";
+import { injectCssHeader } from "./injectCssHeader";
+import { injectVideoSpeedAdjust } from "./injectVideoSpeedAdjust";
+import { injectGetPlaypackSpeed } from "./injectGetPlaypackSpeed";
+import { injectVideoSkip } from "./injectVideoSkip";
+import { injectCheckPermissions } from "./injectCheckPermissions";
 
 import InjectionResult = chrome.scripting.InjectionResult;
-
-import { injectCssHeaderRemove } from "./injectCssHeaderRemove.js";
-import { injectIsCssHeaderIsBlocked } from "./injectIsCssHeaderIsBlocked.js";
-import { injectCssHeader } from "./injectCssHeader.js";
-import { injectVideoSpeedAdjust } from "./injectVideoSpeedAdjust.js";
-import { injectGetPlaypackSpeed } from "./injectGetPlaypackSpeed.js";
-import { injectVideoSkip } from "./injectVideoSkip.js";
-import { injectCheckPermissions } from "./injectCheckPermissions.js";
 
 /**
  *
@@ -526,7 +526,6 @@ async function doInjectCheckCSSIsBlocked(tabId: number) {
   try {
     logtrace("doInjectCheckCSSIsBlocked enter");
     const cssFilePath = chrome.runtime.getURL(CSS_FILE);
-    /** @var {InjectionResult[]} */
     const injectionresult = await chrome.scripting.executeScript({
       target: {
         tabId,

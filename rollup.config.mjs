@@ -1,28 +1,40 @@
-// import path from 'path';
-//
-// import resolve from '@rollup/plugin-node-resolve';
-// import commonjs from '@rollup/plugin-commonjs';
+/**
+ *
+ Subtle behavior with file suffix to watch out for
+ ```
+ {
+ input: ['src/injectVideoSkip.ts'],
+ ...defaultIsolatedStep,
+ },
+ ```
+ causes injectVideoSkip.js to use `import`
+
+ ```
+ {
+ input: ['src/injectVideoSkip.ts'],
+ ...defaultIsolatedStep,
+ },
+ ```
+ causes injectVideoSkip.js to inline just functions used from common.js
+
+ */
 import typescript from '@rollup/plugin-typescript';
-import ts, {ModuleResolutionKind} from 'typescript';
+import ts from 'typescript';
 
 import copy from 'rollup-plugin-copy';
 
-import {emptyDir} from 'rollup-plugin-empty-dir';
+// import {emptyDir} from 'rollup-plugin-empty-dir';
 // import zip from 'rollup-plugin-zip';
+// import commonjs from '@rollup/plugin-commonjs';
 
+import inline from "rollup-plugin-inline-js";
 import rollupPluginTryCatch from './scripts/rollup-plugin-try-catch-block.mjs';
+import rollupPluginInlinedExport
+  from './scripts/rollup-plugin-inlined-export.mjs';
 
 const dist = `dist/videomaximizer`;
 const isProd = process.env.NODE_ENV === 'production';
 const isWatch = !isProd; // copy only once?
-
-const generatedCode = {
-  constBindings: true,
-  arrowFunctions: true,
-  objectShorthand: true,
-  reservedNamesAsProps: true,
-  symbols: false,
-};
 
 /** everything but the input **/
 const defaultStep = {
@@ -30,31 +42,37 @@ const defaultStep = {
     dir: `${dist}`,
     format: 'esm', // 'iife' | 'cjs' | 'esm'
     sourcemap: !isProd,
-    generatedCode: generatedCode,
+    // exports: 'named',
+    generatedCode: {
+      constBindings: true, // use const over var
+    },
   },
   treeshake: {
     preset: 'smallest',
     unknownGlobalSideEffects: false,
-    manualPureFunctions: ['styled', 'local'],
+    moduleSideEffects: false,
+    propertyReadSideEffects: false,
   },
   plugins: [
     typescript({
       typescript: ts,
       tsconfig: isProd ? './tsconfig.prod.json' : './tsconfig.dev.json',
     }),
+
   ],
 };
 
-const defaultStepTryCatch = {
+const defaultIsolatedStep = {
   ...defaultStep,
+  output: {
+    ...defaultStep.output,
+    format: 'es',
+  },
   plugins: [
-    typescript({
-      typescript: ts,
-      tsconfig: isProd ? './tsconfig.prod.json' : './tsconfig.dev.json',
-    }),
-    rollupPluginTryCatch(),
+    ...defaultStep.plugins,
+    rollupPluginInlinedExport(),
   ],
-}
+};
 
 export default [
   // these share common.js
@@ -63,52 +81,57 @@ export default [
       'src/background.ts',
       'src/options.ts',
       'src/popup.ts',
+      // adding these here fixes imports in background.js
+      'src/common.ts',
+      'src/injectVideoSkip.ts',
+      'src/injectCheckPermissions.ts',
+      'src/injectCssHeader.ts',
+      'src/injectCssHeaderRemove.ts',
+      'src/injectIsCssHeaderIsBlocked.ts',
+      'src/injectGetPlaypackSpeed.ts',
+      'src/injectVideoSpeedAdjust.ts',
+      'src/injectVideoSkip.ts',
     ],
-
     ...defaultStep,
   },
   {
+    input: ['src/common.ts'],
+    ...defaultIsolatedStep,
+  },
+  {
     input: ['src/injectCheckPermissions.ts'],
-    ...defaultStepTryCatch,
+    ...defaultIsolatedStep,
   },
   {
     input: ['src/injectCssHeader.ts'],
-    ...defaultStepTryCatch,
+    ...defaultIsolatedStep,
   },
   {
     input: ['src/injectCssHeaderRemove.ts'],
-    ...defaultStepTryCatch,
+    ...defaultIsolatedStep,
   },
   {
     input: ['src/injectIsCssHeaderIsBlocked.ts'],
-    ...defaultStepTryCatch,
+    ...defaultIsolatedStep,
   },
   {
     input: ['src/injectGetPlaypackSpeed.ts'],
-    ...defaultStepTryCatch,
-  },
-  {
-    input: ['src/injectGetPlaypackSpeed.ts'],
-    ...defaultStepTryCatch,
+    ...defaultIsolatedStep,
   },
   {
     input: ['src/injectVideoSpeedAdjust.ts'],
-    ...defaultStepTryCatch,
-  },
-  {
-    input: ['src/injectVideoSpeedAdjust.ts'],
-    ...defaultStepTryCatch,
+    ...defaultIsolatedStep,
   },
   {
     input: ['src/injectVideoSkip.ts'],
-    ...defaultStepTryCatch,
+    ...defaultIsolatedStep,
   },
   // last one need to figure out merge files.
   {
     input: [
       'src/injectVideomaxMain.ts',
     ],
-    ...defaultStepTryCatch,
+    ...defaultStep,
     plugins: [
       typescript({
         typescript: ts,

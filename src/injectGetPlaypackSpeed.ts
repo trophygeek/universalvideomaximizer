@@ -19,7 +19,7 @@ import {
   formatFloat,
   logerr,
   PLAYBACK_SPEED_ATTR,
-} from "./common";
+} from "./common.js"; // .js embeds the contents
 
 export function injectGetPlaypackSpeed(): string {
   try {

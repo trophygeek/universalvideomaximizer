@@ -1,26 +1,30 @@
 {
   "compilerOptions": {
     "strict": true,
-    "target": "ESNext",
-    "allowSyntheticDefaultImports": true,
-    "module": "ESNext",
-    "moduleResolution": "node",
     "noImplicitReturns": true,
     "noUnusedLocals": true,
     "esModuleInterop": false,
     "rootDir": "./src",
     "outDir": "dist/videomaximizer",
     "noEmitOnError": false,
+
+    "target": "ESNext",
+    "module": "ESNext",
+    "allowSyntheticDefaultImports": true,
+    "moduleResolution": "node",
+    "isolatedModules": false,
+    "resolveJsonModule": true,
+    "sourceMap": false,
+
     "lib": [
-      "ES2022",
+      "ES2023",
       "dom",
       "dom.iterable"],
     "typeRoots": [
       "node_modules/@types",
       "@types",
       "@types/videomax",
-      "src",
-    ],
+      "src"],
     "types": [
       "videomax",
       "chrome",

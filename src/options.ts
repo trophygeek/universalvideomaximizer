@@ -10,7 +10,7 @@ import {
   numbericOnly,
   rangeInt,
   saveSettings,
-} from "./common.js";
+} from "./common";
 
 // NOTE: debugging localStorage for extensions STILL isn't nativity supported,
 //  so use this 3rd party extension:
