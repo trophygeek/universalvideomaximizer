@@ -51,7 +51,7 @@ export function injectVideoSpeedAdjust(newspeed: string, allowPlaybackToggle = t
   function _loadStart(event: Event) {
     try {
       // check to see if we're still injected into page.
-      const runningAttr = document?.body?.getAttribute("data-videomax-running") || "";
+      const runningAttr = document?.body?.getAttribute("data-videomax-running") ?? "";
       if (runningAttr.length <= 0) {
         if (DEV_MODE) {
           // eslint-disable-next-line no-console

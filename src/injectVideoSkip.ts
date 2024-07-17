@@ -12,7 +12,7 @@
 
  */
 
-import {findVideosAtCenter, logtrace} from "./common.js"; // .js embeds the contents
+import { findVideosAtCenter, logtrace } from "./common.js"; // .js embeds the contents
 
 /**
  * Negative numbers means skip backwards
@@ -28,7 +28,7 @@ export function injectVideoSkip(skipSecondsStr: string) {
 
       // restore playback speed after we skip
       const savedSpeed = eachVideo.playbackRate || 1.0;
-      logtrace(`injectVideoSkip savedspeed="${savedSpeed}"`);
+      logtrace(`injectVideoSkip restore savedspeed="${savedSpeed}" after skip`);
       // don't go negative;
       eachVideo.currentTime = Math.max(0, eachVideo.currentTime + skipSeconds);
       eachVideo.playbackRate = savedSpeed;

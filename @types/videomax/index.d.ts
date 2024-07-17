@@ -5,7 +5,9 @@
  * too transpile with javascript. Neat.
  */
 
-type KeyValuePair = { [key: string]: string };
+type KeyValuePair = {
+  [key: string]: string
+};
 
 type SettingsType = {
   lastBetaVersion?: string,
@@ -33,40 +35,36 @@ type CmdType =
     | "SET_SPEED_CMD"
     | "REZOOM_CMD"
     | "SKIP_PLAYBACK_CMD"
-    | "TOGGLE_PLAYBACK_CMD"
     | "OPTIONS_CMD"
-    | "FIRST_USE_REFRESH_POPUP_URL_CMD"
-    | "POPUP_CLOSING";
+    | "GET_SPEED_PREP_CMD"
+    | "GET_SPEED_COMPLETE_CMD"
+    | ""; // last one is fallback
+
+type BackgroundMessage = {
+  message: {
+    cmd: CmdType,
+    tabId: number,
+    domain?: string,
+    speed?: string,
+  }
+}
+
+type BackgroundMessageResponse = {
+  success: boolean,
+  playbackSpeed?: string,
+}
 
 // Used by popup for buttons that aren't speed changes.
 type PopupMenuCmd = "UNZOOM_BTN_CMD" | "OPTIONS_BTN_CMD";
 
 type DomRect = {
-  top: number, left: number, bottom: number, width: number, right: number, height: number
+  top: number,
+  left: number,
+  bottom: number,
+  width: number,
+  right: number,
+  height: number
 }
-
-type BackgroundState = | "UNZOOMED" | "ZOOMING" // maps to ZOOMED_NOSPEED or ZOOMED_SPEED
-    | "ZOOMING_SPEED_ONLY" // maps to SPEED_ONLY
-    | "ZOOMED_NOSPEED" | "ZOOMED_SPEED" | "SPEED_ONLY" | "REFRESH" | "ERR_PERMISSION" | "ERR_URL" | ""; // means
-                                                                                                        // preserve
-                                                                                                        // state
-
-type BackgroundStateValue = {
-  readonly badge: string,
-  readonly title: string,
-  readonly showpopup: boolean,
-  readonly zoomed: boolean,
-  readonly color: string,
-};
-
-type BackgroundStateMap = {
-  [key in BackgroundState]: BackgroundStateValue;
-}
-
-type SubFrameParamData = {
-  tabId: number; domain: string; subFrameStr: string;
-};
-type SubFramePermMatching = { [tabId: number]: SubFrameParamData };
 
 type ActionFunction = (elem: Node) => boolean;
 

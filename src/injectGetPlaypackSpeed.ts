@@ -14,32 +14,30 @@
 
 import {
   DEFAULT_SPEED_NUM,
-  DEFAULT_SPEED_STR,
   findVideosAtCenter,
   formatFloat,
   logerr,
   PLAYBACK_SPEED_ATTR,
 } from "./common.js"; // .js embeds the contents
 
-export function injectGetPlaypackSpeed(): string {
+export function injectGetPlaypackSpeed(): string | null {
   try {
-    // we stash the current injected speed in the body as an attr.
-    const attrValue = document?.body?.getAttribute(PLAYBACK_SPEED_ATTR);
     const topVisVideos = findVideosAtCenter(document?.body);
     for (const eachVideo of topVisVideos) {
       if (eachVideo.playbackRate !== DEFAULT_SPEED_NUM) {
         // we found a video NOT playing at the default rate, so that's what we use.
-        return formatFloat(eachVideo.playbackRate);
+        const result = formatFloat(eachVideo.playbackRate);
+        document.body.setAttribute(PLAYBACK_SPEED_ATTR, result);
+        return result;
       }
     }
-    if (attrValue === DEFAULT_SPEED_STR) {
-      // if we get here, then all the found video are playing 1.0, if the PLAYBACK_SPEED_ATTR is 1.0, then
-      // we really don't know for sure what it should be, so just return an empty string.
+
+    // We reach here and all the videos are default. Return null in case another frame contains a video.
+    if (document?.body?.getAttribute(PLAYBACK_SPEED_ATTR)) {
       document.body.removeAttribute(PLAYBACK_SPEED_ATTR);
-      return "";
     }
 
-    return attrValue ?? "";
+    return null;
   } catch (err) {
     logerr("injectGetPlaypackSpeed error: ", err);
     return "";

@@ -50,19 +50,19 @@ try {
     },
     {
       label: "2x",
-      value: "2.0",
+      value: "2.00",
     },
     {
       label: "4x",
-      value: "4.0",
+      value: "4.00",
     },
     {
       label: "8x",
-      value: "8.0",
+      value: "8.00",
     },
     {
       label: "16x",
-      value: "16.0",
+      value: "16.00",
     },
     {
       label: UNZOOM_LABEL,
@@ -164,7 +164,7 @@ try {
 
             checkItem(globals.currentSpeed);
 
-            await chrome.runtime.sendMessage({
+            await chrome.runtime.sendMessage<BackgroundMessage>({
               message: {
                 cmd: "SET_SPEED_CMD",
                 domain: globals.domain,
@@ -185,12 +185,12 @@ try {
             return;
           }
 
-          let value = target.dataset?.value as string;
+          let value = (target.dataset?.value as string) ?? "";
 
           logtrace(`click '${value}' currentspeed='${globals.currentSpeed}'`);
 
           if (value === "OPTIONS_BTN_CMD") {
-            chrome.runtime.sendMessage(
+            chrome.runtime.sendMessage<BackgroundMessage>(
               {
                 message: {
                   cmd: "OPTIONS_CMD",
@@ -219,8 +219,8 @@ try {
 
           globals.currentSpeed = speed;
           checkItem(speed);
-          const cmd: string = value === "UNZOOM_BTN_CMD" ? "UNZOOM_CMD" : "SET_SPEED_CMD";
-          chrome.runtime.sendMessage(
+          const cmd: CmdType = value === "UNZOOM_BTN_CMD" ? "UNZOOM_CMD" : "SET_SPEED_CMD";
+          chrome.runtime.sendMessage<BackgroundMessage>(
             {
               message: {
                 cmd,
@@ -231,13 +231,6 @@ try {
             },
             (_response) => {
               if (cmd === "UNZOOM_CMD") {
-                chrome.runtime.sendMessage({
-                  message: {
-                    cmd: "POPUP_CLOSING",
-                    domain: globals.domain,
-                    tabId,
-                  },
-                });
                 window.close();
               }
             }
@@ -251,7 +244,7 @@ try {
 
   const RefreshSpeed = async () => {
     // The page could have been UNZOOMED by the escape key and everything could be out of sync
-    await chrome.runtime.sendMessage({
+    await chrome.runtime.sendMessage<BackgroundMessage>({
       message: {
         cmd: "SET_SPEED_CMD",
         domain: globals.domain,
@@ -260,6 +253,48 @@ try {
       },
     });
   };
+
+  function GetSpeedRecursive(delay = 25, retrycount = 0) {
+    if (retrycount > 5) {
+      return; // stop
+    }
+    if (retrycount === 0) {
+      // first time, we tell the background to get the speed via injection,
+      // but because message replies can't wait for the inject to finish
+      // we poll for the results (GET_SPEED_COMPLETE_CMD)
+      setTimeout(async () => {
+        await chrome.runtime.sendMessage<BackgroundMessage>(
+            {
+            message: {
+              cmd: "GET_SPEED_PREP_CMD",
+              domain: globals.domain,
+              tabId: globals.tabId,
+            },
+          });
+      }, 0);
+    }
+    setTimeout(async () => {
+      const result = await chrome.runtime.sendMessage<
+        BackgroundMessage,
+        BackgroundMessageResponse | undefined
+      >({
+        message: {
+          cmd: "GET_SPEED_COMPLETE_CMD",
+          domain: globals.domain,
+          tabId: globals.tabId,
+        },
+      });
+      logtrace(`GetSpeedRecursive response`, result);
+      if (result?.success && result?.playbackSpeed) {
+        globals.currentSpeed = result.playbackSpeed;
+        checkItem(result.playbackSpeed);
+        logtrace(`GetSpeedRecursive new speed`, globals.currentSpeed);
+      } else {
+        logtrace(`GetSpeedRecursive trying retrycount: ${retrycount + 1}`);
+        GetSpeedRecursive(delay + 250, retrycount + 1);
+      }
+    }, delay);
+  }
 
   /**
    *
@@ -272,13 +307,6 @@ try {
     switch (evt.code) {
       case "Escape":
         evt.stopImmediatePropagation();
-        await chrome.runtime.sendMessage({
-          message: {
-            cmd: "POPUP_CLOSING",
-            domain,
-            tabId,
-          },
-        });
         window.close();
         break;
 
@@ -292,7 +320,7 @@ try {
           // currentSpeed could be zero, so floor it to 0.25
           const relativeTimeBack =
             skipSecBack * Math.max(parseFloat(globals.currentSpeed), 0.25) * -1;
-          await chrome.runtime.sendMessage({
+          await chrome.runtime.sendMessage<BackgroundMessage>({
             message: {
               cmd: "SKIP_PLAYBACK_CMD",
               domain,
@@ -312,7 +340,7 @@ try {
             : globals.settings.regSkipSeconds;
           // currentSpeed could be zero, so floor it to 0.25
           const relativeTimeFwd = skipSecFwd * Math.max(parseFloat(globals.currentSpeed), 0.25);
-          await chrome.runtime.sendMessage({
+          await chrome.runtime.sendMessage<BackgroundMessage>({
             message: {
               cmd: "SKIP_PLAYBACK_CMD",
               domain,
@@ -342,7 +370,7 @@ try {
       case "KeyZ":
         logtrace("KeyZ");
         evt.stopImmediatePropagation();
-        chrome.runtime.sendMessage(
+        chrome.runtime.sendMessage<BackgroundMessage>(
           {
             message: {
               cmd: "UNZOOM_CMD",
@@ -351,13 +379,6 @@ try {
             },
           },
           (_response) => {
-            chrome.runtime.sendMessage({
-              message: {
-                cmd: "POPUP_CLOSING",
-                domain,
-                tabId,
-              },
-            });
             window.close();
           }
         );
@@ -372,18 +393,15 @@ try {
   document.addEventListener("DOMContentLoaded", async () => {
     try {
       const params = new URLSearchParams(globals.url.hash.replace("#", ""));
-      globals.tabId = Number(params.get("tabId") || "0");
-      globals.currentSpeed = params.get("speed") || DEFAULT_SPEED_STR;
-      globals.domain = params.get("domain") || ""; // needed because Netflix errs on skip
+      globals.tabId = Number(params.get("tabId") ?? "0");
+      globals.currentSpeed = params.get("speed") ?? DEFAULT_SPEED_STR;
+      globals.domain = params.get("domain") ?? ""; // needed because Netflix errs on skip
       const container = window.document.getElementById("speedBtnGroup");
 
       logtrace(`DOMContentLoaded params
           tabId:'${globals.tabId}'
           currentSpeed:'${globals.currentSpeed}'
           `);
-
-      // if the user pressed escape in the page, then our zoom was lost, reapply it.
-      await RefreshSpeed();
 
       const settings = await getSettings();
       globals.settings = { ...globals.settings, ...settings };
@@ -405,36 +423,15 @@ try {
         HandleKeydown(evt);
       });
 
+      // if the user pressed escape in the page, then our zoom was lost, update speed.
+      GetSpeedRecursive();
+
       // to know when the popup has closed, we have to open a socket and watch for it to be
       // closed. Seriously?!? WTF!
       _detectCloseListenerPort = chrome.runtime.connect();
     } catch (err) {
       logerr(err);
     }
-  });
-
-  window.addEventListener("close", async (_e) => {
-    logtrace("close");
-    await chrome.runtime.sendMessage({
-      message: {
-        cmd: "POPUP_CLOSING",
-        domain: globals.domain,
-        speed: DEFAULT_SPEED_STR,
-        tabId: globals.tabId,
-      },
-    });
-  });
-
-  document.addEventListener("close", async () => {
-    logtrace("popup closing via visibilitychange");
-    await chrome.runtime.sendMessage({
-      message: {
-        cmd: "POPUP_CLOSING",
-        domain: globals.domain,
-        speed: DEFAULT_SPEED_STR,
-        tabId: globals.tabId,
-      },
-    });
   });
 } catch (e) {
   logerr(e);

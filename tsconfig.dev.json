@@ -2,6 +2,6 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "removeComments": false,
-    "sourceMap": true
+    "sourceMap": false  // chrome can't locate source and the typescript is pretty close to the js anyway
   }
 }

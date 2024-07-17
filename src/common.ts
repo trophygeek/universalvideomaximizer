@@ -13,7 +13,10 @@ export const CSS_FILE = "videomax_inject.css";
 export const CSS_STYLE_HEADER_ID = "maximizier-css-inject";
 export const PLAYBACK_SPEED_ATTR = "data-videomax-playbackspeed";
 export const DEFAULT_SPEED_NUM = 1.0;
-export const DEFAULT_SPEED_STR = "1.0";
+export const DEFAULT_SPEED_STR = "1.00";
+
+// todo: move into a setting.
+export const BLOCKED_SKIPFEATURE_DOMAINS = ["netflix."]; // skipping breaks these sites
 
 export function isRunningInIFrame() {
   try {
@@ -202,7 +205,7 @@ export function normalizeDomain(domain: string) {
   // example.co.uk, example.com.au tv.apple.com{
   const elems = domain.split(".");
   if (elems.length <= 1) {
-    return `.${elems[0]}.` ?? ".example."; // safe domain, never exists.
+    return `.${elems[0] ?? ".example."}.`; // safe domain, never exists.
   }
 
   // remove the first work if it's a common prefix.
