@@ -2102,6 +2102,10 @@ function hasInjectedAlready() {
     // we are in a partial state, we may need to unzoom? This can happen on multiple-videos in instagram
     logwarn("VIDEO_MAX_INSTALLED_ATTR on body but matched video missing. Atempting unzoom.");
     UndoZoom.mainUnzoom();
+    // maybe better this way?
+    // removeClassObserver();
+    // videoCanPlayRemove();
+    // UndoZoom.undoAll(document);
     return false;
   }
   return true;
@@ -3128,8 +3132,10 @@ function restoreAllSrollPositions() {
       const pos = Number(getAttr(eachElem, SAVED_SCROLL_TOP_ATTR) ?? 0);
       removeAttr(eachElem, SAVED_SCROLL_TOP_ATTR);
       if (eachElem?.scrollTo) {
-        eachElem.scrollTo({top: pos});
-        logtrace(`restoreAllSrollPositions top: ${pos} for elem ${PrintNode(eachElem)}`);
+        try {
+          eachElem.scrollTo({top: pos});
+          logtrace(`restoreAllSrollPositions top: ${pos} for elem ${PrintNode(eachElem)}`);
+        } catch (err) {}
       }
     }
   }
@@ -3141,8 +3147,10 @@ function restoreAllSrollPositions() {
       const pos = Number(getAttr(eachElem, SAVED_SCROLL_LEFT_ATTR)) || 0;
       removeAttr(eachElem, SAVED_SCROLL_LEFT_ATTR);
       if (eachElem?.scrollTo) {
-        eachElem.scrollTo({left: pos});
-        logtrace(`restoreAllSrollPositions left: ${pos} for elem ${PrintNode(eachElem)}`);
+        try {
+          eachElem.scrollTo({left: pos});
+          logtrace(`restoreAllSrollPositions left: ${pos} for elem ${PrintNode(eachElem)}`);
+        } catch (err) {}
       }
     }
   }
@@ -3648,10 +3656,12 @@ function mainZoom(tagonly = false) {
 
 function removeClassObserver() {
   if (videomaxGlobals.mutationObserverAttr) {
+    logtrace("found mutationObserverAttr removing");
     videomaxGlobals.mutationObserverAttr.disconnect();
     videomaxGlobals.mutationObserverAttr = null;
   }
   if (videomaxGlobals.mutationObserverVideoDelete) {
+    logtrace("found mutationObserverVideoDelete removing");
     videomaxGlobals.mutationObserverVideoDelete.disconnect();
     videomaxGlobals.mutationObserverVideoDelete = null;
   }
@@ -4126,6 +4136,14 @@ class UndoZoom {
 
   static mainUnzoom() {
     try {
+      // clear if we have var saved in window/document
+      if (!isRunningInIFrame() && window._VideoMaxExt) {
+        logtrace("removing window._VideoMaxExt for main thread");
+        delete window._VideoMaxExt;
+      } else if (document._VideoMaxExt) {
+        logtrace("removing document._VideoMaxExt");
+        delete document._VideoMaxExt;
+      }
       videomaxGlobals.unzooming = true;
       videomaxGlobals.isMaximized = false;
       document.body.removeAttribute(VIDEO_MAX_INSTALLED_ATTR);
@@ -4202,13 +4220,6 @@ class UndoZoom {
           }
         }
       } // DEV_MODE
-
-      // clear if we have var saved in window/document
-      if (!isRunningInIFrame() && document?._VideoMaxExt) {
-        window._VideoMaxExt = undefined;
-      } else if (document._VideoMaxExt) {
-        document._VideoMaxExt = undefined;
-      }
       UndoZoom.unzoomForceRefresh(document);
       // UndoZoom.unzoomForceRefresh(savedVideo);
     } catch (ex) {
