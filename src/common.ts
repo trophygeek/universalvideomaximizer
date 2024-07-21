@@ -603,6 +603,7 @@ declare global {
   interface Window {
     _VideoMaxExt: VideomaxGlobalsTypeBase | undefined;
     videmax_cmd: string;
+    _VideoMaxExtEscapeUnzoom: boolean | undefined;
   }
 }
 

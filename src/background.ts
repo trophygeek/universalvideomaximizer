@@ -35,6 +35,7 @@ import {injectIsCssHeaderIsBlocked} from "./injectIsCssHeaderIsBlocked";
 import {injectCssHeader} from "./injectCssHeader";
 import {injectVideoSpeedAdjust} from "./injectVideoSpeedAdjust";
 import {injectGetPlaypackSpeed} from "./injectGetPlaypackSpeed";
+import {injectGetVideoZoomed} from "./injectGetVideoZoomed";
 import {injectVideoSkip} from "./injectVideoSkip";
 import {injectCheckPermissions} from "./injectCheckPermissions";
 
@@ -492,7 +493,7 @@ function injectionResultCheckBool(
  *   is different then it that, then it's considered result for all of the values.
  */
 function injectionResultCheckString(
-    injectionResults: InjectionResult<string|null>[],
+    injectionResults: InjectionResult<string | null>[],
     defaultVal: string | null
 ): string | null {
   if (injectionResults == null || (injectionResults?.length || 0) === 0) {
@@ -506,12 +507,10 @@ function injectionResultCheckString(
   return defaultVal;
 }
 
-
-
-async function doInjectZoomJS(tabId: number) {
+async function doInjectZoom(tabId: number) {
   try {
     // The script will be run at document_end
-    logtrace("doInjectZoomJS enter");
+    logtrace("doInjectZoom enter");
     await chrome.scripting.executeScript({
                                            target: {
                                              tabId,
@@ -527,7 +526,7 @@ async function doInjectZoomJS(tabId: number) {
                                            }, // world:  "MAIN",
                                            files: ["cmd_zoom_inject.js", "injectVideomaxMain.js"],
                                          });
-    logtrace("doInjectZoomJS leave");
+    logtrace("doInjectZoom leave");
   } catch (err) {
     logerr(err);
   }
@@ -657,7 +656,7 @@ async function DoZoom(tabId: number, state: BackgroundState, domain?: string) {
                         ]);
     } else {
       await Promise.all([
-                          doInjectZoomJS(tabId),
+                          doInjectZoom(tabId),
                           doInjectZoomCSS(tabId),
                           setCurrentTabState(tabId, "ZOOMING", domain),
                         ]);
@@ -723,9 +722,27 @@ async function doInjectSetSpeed(
   }
 }
 
+async function doInjectGetVideoZoomed(tabId: number) {
+  try {
+    const results = await chrome.scripting.executeScript({
+                                                           target: {
+                                                             tabId,
+                                                             allFrames: false,
+                                                           }, // world:  "MAIN",
+                                                           func: injectGetVideoZoomed,
+                                                           args: [],
+                                                         });
+    // only injected into the single main, no iframes, so should be a single result.
+    return injectionResultCheckBool(results);
+  } catch (err) {
+    logtrace("doInjectGetSpeed error", err);
+    return DEFAULT_SPEED_STR;
+  }
+}
+
 async function doInjectGetSpeed(tabId: number, domain: string) {
   try {
-    logtrace(`doInjectGetSpeed enter for tabId:${tabId} domain: ${domain}`, );
+    logtrace(`doInjectGetSpeed enter for tabId:${tabId} domain: ${domain}`,);
     const results = await chrome.scripting.executeScript({
                                                            target: {
                                                              tabId,
@@ -738,7 +755,7 @@ async function doInjectGetSpeed(tabId: number, domain: string) {
     const speed = injectionResultCheckString(results, "");
     if (speed) {
       await setSpeedGlobalData(tabId, domain, speed);
-      logtrace(`doInjectGetSpeed returned "${speed}" for tabId:${tabId} domain: ${domain}`, );
+      logtrace(`doInjectGetSpeed returned "${speed}" for tabId:${tabId} domain: ${domain}`,);
       return speed;
     } else {
       // no videos in any frame had non-default 1.0 speed, so reset our assumption
@@ -1028,9 +1045,7 @@ async function ReZoom(tabId: number, domain: string) {
   // not be (e.g. if escape key was pressed.) in theory, re-injecting should be
   // fine
   const currentState = await getCurrentTabState(tabId);
-  // ignore the speed sent in. For rezoom, the popup has been deleted, so it
-  // can't send the speed, we have to reget it.
-  const currentSpeed = await doInjectGetSpeed(tabId, domain);
+
   if (currentState === "ZOOMING_SPEED_ONLY") {
     logtrace("REZOOM_CMD - Speed only, not rezooming");
     // 6/2024 We now read speed back from page on load
@@ -1038,6 +1053,10 @@ async function ReZoom(tabId: number, domain: string) {
   } else {
     logtrace("REZOOM_CMD -- Zooming");
     // a full zoom isn't needed, just the css reinjected.
+
+    // ignore the speed sent in. For rezoom, the popup has been deleted, so it
+    // can't send the speed, we have to reget it.
+    const currentSpeed = await doInjectGetSpeed(tabId, domain);
 
     // we need to see if we're in "SPEED_ONLY" mode because
     // we don't have access to the url to see if it's a site like hulu
@@ -1125,6 +1144,12 @@ chrome.runtime.onMessage.addListener((request: BackgroundMessage, sender, sendRe
         case "GET_SPEED_PREP_CMD":
           // this saves result and the GET_SPEED_COMPLETE_CMD will read it.
           await doInjectGetSpeed(tabId, domain);
+          const iszoomed= await doInjectGetVideoZoomed(tabId);
+          if (!iszoomed) {
+            logtrace(`doInjectGetVideoZoomed says zoom was long, rezooming`);
+            // we lost our zoom. Probably because
+            await doInjectZoom(tabId);
+          }
           break;
       }
     } catch (err) {

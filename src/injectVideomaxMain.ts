@@ -14,7 +14,7 @@
 import {
   customDiceCoefficient,
   DEFAULT_SPEED_STR,
-  diceCoefficient,
+  diceCoefficient, findVideoElementsInShadowRoot,
   formatFloat,
   formatInt,
   getCoords,
@@ -82,11 +82,15 @@ const EXCEPTIONTORULE_FIXUP_FOR_WHOLE_DOC: boolean = false;
 const FINDIFRAMEINDOCUMENT2: boolean = true;
 const NEW_ISELEMINIFRAME: boolean = false;
 
-const MIN_VIDEO_WIDTH: number = 320;
-const MIN_VIDEO_HEIGHT: number = 240;
+// some domains are allowed smaller sizes
+const MIN_ALLOWED_VIDEO_WIDTH: number = 320;
+const MIN_ALLOWED_VIDEO_HEIGHT: number = 240;
 
-const MIN_IFRAME_WIDTH = MIN_VIDEO_WIDTH;
-const MIN_IFRAME_HEIGHT = MIN_VIDEO_HEIGHT;
+const MIN_IFRAME_WIDTH = MIN_ALLOWED_VIDEO_WIDTH;
+const MIN_IFRAME_HEIGHT = MIN_ALLOWED_VIDEO_HEIGHT;
+
+const MIN_VIDEO_WIDTH: number = 50;
+const MIN_VIDEO_HEIGHT: number = 50;
 
 // when walking dom how many levels up to check when looking for controls?
 // too low and we miss some playback position controls (vimeo)
@@ -118,8 +122,9 @@ const ADVERTISE_WEIGHT: number = -100.0; // don't hide ads, but  dont' want them
 const DOOMSCROLL_PLAYING_BOOST_FACTOR: number = 50.0;
 const DOOMSCROLL_UNMUTED_BOOST_FACTOR: number = 25.0;
 
-const ALLOW_SMALL_VIDEOS_DOMAINS = ["tiktok"];
-const DOOMSCROLL_BOOST_DOMAINS = ["tiktok", "facebook", "imgur", "twitter"];
+// todo: move to settings!
+const ALLOW_SMALL_VIDEOS_DOMAINS = ["tiktok", "cnn"];
+const DOOMSCROLL_BOOST_DOMAINS = ["tiktok", "facebook", "imgur"];
 
 const ALWAYS_HIDE_NODES: HtmlElementTypes = [
   "footer",
@@ -1051,7 +1056,20 @@ function findShadowDomsUnderElem(elem: Element): Element[] {
       matched.push(shadowDomWalker.currentNode);
     }
   }
-  return matched;
+
+  const results: Element[] = [];
+  // we need to filter out shadowdoms without videos, other shadowdoms or iframes.
+  // CNN's bottom ads match when page width is narrow.
+  for (const eachmatched of matched) {
+    if (!eachmatched.shadowRoot) {
+      continue;
+    }
+    const subelements = findVideoElementsInShadowRoot(eachmatched.shadowRoot);
+    if (subelements.length > 1) {
+      results.push(eachmatched);
+    }
+  }
+  return results;
 }
 
 function getOwnerDoc(node: Element | Node) {
@@ -2651,22 +2669,26 @@ class ElemMatcherClass {
     };
 
     const {width, height} = this.getElemDimensions(elem, compStyle);
+    if (width < MIN_VIDEO_WIDTH || height < MIN_VIDEO_HEIGHT) {
+      return 0;
+    }
 
     // videos may be constrained by the iframe or window.
     const doc = getElemsDocumentView(elem);
 
+    const minWidth = isAllowSmallVideosSite() ? MIN_ALLOWED_VIDEO_WIDTH : MIN_VIDEO_WIDTH;
+    const minHeight = isAllowSmallVideosSite() ? MIN_ALLOWED_VIDEO_HEIGHT : MIN_VIDEO_HEIGHT;
     if (
         !doc ||
-        ((width < MIN_VIDEO_WIDTH || height < MIN_VIDEO_HEIGHT) && // too small
-         doc.outerWidth > MIN_VIDEO_WIDTH && // but not a small window.
-         doc.outerHeight > MIN_VIDEO_HEIGHT &&
-         !isAllowSmallVideosSite())
+        ((width < minWidth || height < minHeight) && // too small
+         doc.outerWidth > minWidth &&
+         doc.outerHeight > minHeight)
     ) {
       /// / we allow really small on some sites.
       logtrace(
           `\tWidth or height too small, skipping other checks
-        width: ${width} < ${MIN_VIDEO_WIDTH} (MIN_VIDEO_HEIGHT)
-        width: ${height} < ${MIN_VIDEO_HEIGHT} (MIN_VIDEO_WIDTH)`,
+        width: ${width} < ${minWidth} (minHeight)
+        width: ${height} < ${minHeight} (minWidth)`,
           elem
       );
       return 0;
@@ -2778,17 +2800,14 @@ class ElemMatcherClass {
     // frame shaped like videos?
     if (isIFrameElem(elem)) {
       if (DEV_MODE_NOOP && !isIFrameElemMeetsRequirements(elem)) {
-        logwarn("isIFrameElemMeetsRequirements is false, should skip?", PrintNode(elem));
+        logtrace("isIFrameElemMeetsRequirements is false, should skipping! (NEW)", PrintNode(elem));
+        return 0;
       }
       const src = elem.getAttribute("src") ?? "";
 
       for (const eachMatch of DO_NOT_MATCH_IFRAME_SRC) {
         if (eachMatch.test(src)) {
-          logtrace(
-              `DO_NOT_MATCH_IFRAME_SRC true for "${src}"
-            Old weight=${weight}`,
-              eachMatch
-          );
+          logtrace(`DO_NOT_MATCH_IFRAME_SRC true for "${src}" Old weight=${weight}`, eachMatch);
           return 0;
         }
       }
@@ -2814,7 +2833,7 @@ class ElemMatcherClass {
         (compStyle?.visibility.toLowerCase() === "hidden" ||
          compStyle?.display.toLowerCase() === "none" ||
          compStyle?.opacity === "0" ||
-         elem.offsetParent === null ||
+         elem?.offsetParent === null ||
          safeParseInt(compStyle?.width) === 0 ||
          safeParseInt(compStyle?.height) === 0)
     ) {
@@ -3377,6 +3396,9 @@ function updateEventListeners(elem: Element, removeOnly = false) {
           }
         } catch (err) {}
         UndoZoom.mainUnzoom();
+        // the popup and background still think we're zoomed
+        // we let them know by setting a global
+        window._VideoMaxExtEscapeUnzoom = true;
         logtrace("trying to stop default event handler");
         event.stopPropagation();
         event.preventDefault();
@@ -3608,7 +3630,11 @@ function cancelScrollEvents(evt: Event) {
 
 function mainZoom(tagonly = false) {
   videomaxGlobals.unzooming = false; // clear if we start zooming again.
-  // needed or retry timers
+  // this is set by the escape key unzoom, remove if we're zooming.
+  if (window._VideoMaxExtEscapeUnzoom) {
+    delete window._VideoMaxExtEscapeUnzoom;
+  }
+      // needed or retry timers
   if (hasInjectedAlready()) {
     logtrace("detected already injected. something is off?");
     return;

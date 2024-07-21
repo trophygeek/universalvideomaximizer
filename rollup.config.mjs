@@ -91,6 +91,7 @@ export default [
       'src/injectGetPlaypackSpeed.ts',
       'src/injectVideoSpeedAdjust.ts',
       'src/injectVideoSkip.ts',
+      'src/injectGetVideoZoomed.ts',
     ],
     ...defaultStep,
   },
@@ -124,6 +125,10 @@ export default [
   },
   {
     input: ['src/injectVideoSkip.ts'],
+    ...defaultIsolatedStep,
+  },
+  {
+    input: ['src/injectGetVideoZoomed.ts'],
     ...defaultIsolatedStep,
   },
   // last one need to figure out merge files.
