@@ -97,13 +97,18 @@ try {
   const checkItem = (itemValue: string) => {
     const itemValueStr = itemValue.startsWith("-") ? "PAUSE_CMD" : String(itemValue);
     const group = document.getElementById("speedBtnGroup");
+    let matched = false;
     for (const eachElem of group?.children || []) {
       if (eachElem instanceof HTMLInputElement && eachElem.type === "checkbox") {
         eachElem.checked = eachElem.dataset.value === itemValueStr;
         if (eachElem.checked) {
           eachElem.focus();
+          matched = true;
         }
       }
+    }
+    if (!matched) {
+      logerr(`checkItem("${itemValue}") not found`);
     }
   };
 
@@ -263,14 +268,13 @@ try {
       // but because message replies can't wait for the inject to finish
       // we poll for the results (GET_SPEED_COMPLETE_CMD)
       setTimeout(async () => {
-        await chrome.runtime.sendMessage<BackgroundMessage>(
-            {
-            message: {
-              cmd: "GET_SPEED_PREP_CMD",
-              domain: globals.domain,
-              tabId: globals.tabId,
-            },
-          });
+        await chrome.runtime.sendMessage<BackgroundMessage>({
+          message: {
+            cmd: "GET_SPEED_PREP_CMD",
+            domain: globals.domain,
+            tabId: globals.tabId,
+          },
+        });
       }, 0);
     }
     setTimeout(async () => {

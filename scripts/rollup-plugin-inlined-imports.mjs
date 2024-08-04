@@ -1,7 +1,7 @@
 import MagicString from 'magic-string';
 import fs from 'node:fs';
 
-export default function rollupPluginInlinedExport() {
+export default function rollupPluginInlinedImports() {
   return {
     name: 'rollup-plugin-inlined-export',
     writeBundle(opts, bundle) {

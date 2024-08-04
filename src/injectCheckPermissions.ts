@@ -7,6 +7,8 @@
  Removes the clutter. Maximizes videos to view in full-page theater mode on most sites.
  */
 
+import { logtrace } from "./common";
+
 export function injectCheckPermissions(): string[] {
   const resultCrossDomainErrs: Set<string> = new Set<string>(); // use Set to dedup
   const allIFrames = document.querySelectorAll("iframe");
@@ -16,8 +18,12 @@ export function injectCheckPermissions(): string[] {
       if (!contentDocument) {
         continue;
       }
-      // We WANT to await in a loop because we EXPECT to get errors thrown for cross-frame security
-      contentDocument.body.querySelectorAll("video");
+      // we because we EXPECT to get errors thrown for cross-frame security
+      const result = [...contentDocument.body.querySelectorAll("video")];
+      if (result.length) {
+        // we've got to do something with the result to keep the tree shaking from removing?
+        window._videomax_permissioncheck = [...(window._videomax_permissioncheck ?? []), ...result];
+      }
     } catch (err) {
       // We record this url access that failed and ask for permission to it
       // but this is run in the context of the page see GET_IFRAME_PERMISSIONS
@@ -36,7 +42,7 @@ export function injectCheckPermissions(): string[] {
           const iframeUrl = document._VideoMaxExt.matchedVideo.src?.toLowerCase() || "";
           if (iframeUrl.indexOf(domain) !== -1) {
             resultCrossDomainErrs.add(domain);
-            // console.logtrace(`VideoMax speed error Need access to ${domain}`);
+            logtrace(`VideoMax speed error Need access to ${domain}`);
           }
         }
       }

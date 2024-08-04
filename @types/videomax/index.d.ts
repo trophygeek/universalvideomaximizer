@@ -23,6 +23,7 @@ type SettingsType = {
   beta3EndingShown?: boolean,
   firstUseShown?: boolean,
   firstUseOn2ndScreen?: boolean,
+  stickySPANav?: boolean, // true if zooming should auto-reapply on the same domain (e.g. back button)
 };
 
 type SettingsKeyType = keyof SettingsType;

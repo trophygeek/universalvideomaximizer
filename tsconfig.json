@@ -2,7 +2,7 @@
   "compilerOptions": {
     "strict": true,
     "noImplicitReturns": true,
-    "noUnusedLocals": true,
+    "noUnusedLocals": false,
     "esModuleInterop": false,
     "rootDir": "./src",
     "outDir": "dist/videomaximizer",

@@ -17,6 +17,8 @@ export const DEFAULT_SPEED_STR = "1.00";
 
 // todo: move into a setting.
 export const BLOCKED_SKIPFEATURE_DOMAINS = ["netflix."]; // skipping breaks these sites
+export const ALLOW_SMALL_VIDEOS_DOMAINS = ["tiktok", "cnn"];
+export const DOOMSCROLL_BOOST_DOMAINS = ["tiktok", "facebook", "imgur"];
 
 export function isRunningInIFrame() {
   try {
@@ -604,6 +606,7 @@ declare global {
     _VideoMaxExt: VideomaxGlobalsTypeBase | undefined;
     videmax_cmd: string;
     _VideoMaxExtEscapeUnzoom: boolean | undefined;
+    _videomax_permissioncheck: HTMLElement[] | undefined;
   }
 }
 

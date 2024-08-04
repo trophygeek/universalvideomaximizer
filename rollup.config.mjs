@@ -29,8 +29,8 @@ import copy from 'rollup-plugin-copy';
 
 import inline from "rollup-plugin-inline-js";
 import rollupPluginTryCatch from './scripts/rollup-plugin-try-catch-block.mjs';
-import rollupPluginInlinedExport
-  from './scripts/rollup-plugin-inlined-export.mjs';
+import rollupPluginInlinedImports
+  from './scripts/rollup-plugin-inlined-imports.mjs';
 
 const dist = `dist/videomaximizer`;
 const isProd = process.env.NODE_ENV === 'production';
@@ -70,7 +70,7 @@ const defaultIsolatedStep = {
   },
   plugins: [
     ...defaultStep.plugins,
-    rollupPluginInlinedExport(),
+    rollupPluginInlinedImports(),
   ],
 };
 

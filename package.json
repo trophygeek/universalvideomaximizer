@@ -40,7 +40,7 @@
     "start": "yarn build:dev",
     "build": "NODE_ENV=production rollup -c rollup.config.mjs --environment BUILD:production",
     "build:dev": "NODE_ENV=development rollup -c rollup.config.mjs --environment BUILD:development",
-    "build:dev:watch": "NODE_ENV=development rollup -w -c rollup.config.mjs --environment BUILD:development",
+    "build:dev:watch": "NODE_ENV=development rollup --watch --watch.skipWrite=false --externalImportAssertions -c rollup.config.mjs --environment BUILD:development",
     "clean": "rimraf dist/videomaximizer",
     "test": "jest --force-exit",
     "lint:fix": "prettier --bracket-same-line  --print-width 100 --write \"src/**/*.{ts,tsx}\"",

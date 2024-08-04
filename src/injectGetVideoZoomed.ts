@@ -18,7 +18,7 @@ export function injectGetVideoZoomed(): boolean {
       return false;
     }
     // @ts-ignore
-    return (!!window?._VideoMaxExt || !!document._VideomaxExt)
+    return !!window?._VideoMaxExt || !!document._VideomaxExt;
   } catch (e) {
     return false;
   }
