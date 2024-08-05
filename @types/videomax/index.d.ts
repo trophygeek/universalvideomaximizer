@@ -72,7 +72,6 @@ type ActionFunction = (elem: Node) => boolean;
 type HtmlElementType = keyof Partial<HTMLElementTagNameMap>;
 type HtmlElementTypes = HtmlElementType[];
 
-type InjectExecScriptCmds = "CrossDomainFailedIFrames" | "VideoSpeedAdjust";
 
 type VideomaxGlobalsTypeBase = {
   matchedVideo: HTMLVideoElement | HTMLIFrameElement | Element | null;

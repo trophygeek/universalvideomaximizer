@@ -132,27 +132,30 @@ body.videomax-ext-crackle #player-controls.videomax-ext-overlap {
   height: calc(100vw) !important;
 }
 
-/** misc elements that the algorithm currently can't identify as disrupting the theater mode experience
+/**
+misc elements that the algorithm currently can't identify as disrupting the theater mode experience
   todo: Some of these could be detected with a "post zoom" video overlap detection that checks if items are
         NOT set to transition to invisible.
+  Not sure if 100% are correct. Some reported by users. Probably will break often since they depend on the site's
+  element naming.
 */
-body.videomax-ext-redd div.mx-auto.videomax-ext-overlap,
+body.videomax-ext-chaturbate img.cbLogo,
+body.videomax-ext-dailymail-co div#chromelessPlayer,
 body.videomax-ext-dailymail-co div.connatix-wrapper,
 body.videomax-ext-dailymail-co div.video-ads-placeholder,
-body.videomax-ext-dailymail-co div#chromelessPlayer,
-body.videomax-ext-chaturbate img.cbLogo,
-body.videomax-ext-livejasmin .mc_video_overlay.mc_js_video_overlay.videomax-ext-overlap,
+body.videomax-ext-haitu div.yzmplayer-logo.videomax-ext-overlap img,
 body.videomax-ext-livejasmin .curtains.mc_js_curtains.curtains_hidden.videomax-ext-overlap,
-body.videomax-ext-livejasmin .mc_video_background.videomax-ext-overlap,
 body.videomax-ext-livejasmin .mc_bonus_animation.js_bonus_animation.mc_bonus_animation--with_sidebar.videomax-ext-overlap,
+body.videomax-ext-livejasmin .mc_video_background.videomax-ext-overlap,
+body.videomax-ext-livejasmin .mc_video_overlay.mc_js_video_overlay.videomax-ext-overlap,
 body.videomax-ext-mediaite .bxc.bx-base.bx-impress,
-body.videomax-ext-twitch [data-test-selector="sad-overlay"],
+body.videomax-ext-redd div.mx-auto.videomax-ext-overlap,
 body.videomax-ext-twitch [data-test-selector="ad-banner-default-text"],
-body.videomax-ext-youtube .ytp-chrome-top-buttons,
-body.videomax-ext-youtube .ytp-share-button,
+body.videomax-ext-twitch [data-test-selector="sad-overlay"],
 body.videomax-ext-youtube .annotation-type-custom.iv-branding,
+body.videomax-ext-youtube .ytp-chrome-top-buttons,
 body.videomax-ext-youtube .ytp-fullscreen-button.ytp-button,
-body.videomax-ext-haitu div.yzmplayer-logo.videomax-ext-overlap img
+body.videomax-ext-youtube .ytp-share-button
 {
   visibility: hidden !important;
   display: none !important;

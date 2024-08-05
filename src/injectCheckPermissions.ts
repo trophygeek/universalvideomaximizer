@@ -7,11 +7,12 @@
  Removes the clutter. Maximizes videos to view in full-page theater mode on most sites.
  */
 
-import {logtrace} from "./common";
+import { logtrace } from "./common";
 
 export function injectCheckPermissions(): string[] {
-  const matchedIFrame = document?._VideoMaxExt?.matchedVideo?.nodeName === "IFRAME" ||
-                        window?._VideoMaxExt?.matchedVideo?.nodeName === "IFRAME";
+  const matchedIFrame =
+    document?._VideoMaxExt?.matchedVideo?.nodeName === "IFRAME" ||
+    window?._VideoMaxExt?.matchedVideo?.nodeName === "IFRAME";
   if (!matchedIFrame) {
     return [];
   }
@@ -20,8 +21,7 @@ export function injectCheckPermissions(): string[] {
   function addresult(frame: HTMLIFrameElement) {
     // We record this url access that failed and ask for permission to it
     // but this is run in the context of the page see GET_IFRAME_PERMISSIONS
-    if (frame instanceof HTMLIFrameElement &&
-        frame?.src?.length) {
+    if (frame instanceof HTMLIFrameElement && frame?.src?.length) {
       const url = frame?.src;
       if (url.startsWith("https://")) {
         const domain = new URL(url).host.toLowerCase();
@@ -34,11 +34,10 @@ export function injectCheckPermissions(): string[] {
     }
   }
 
-  debugger;
   const allIFrames = document.querySelectorAll("iframe");
   for (const eachframe of [...allIFrames]) {
     try {
-      const {contentDocument} = eachframe;
+      const { contentDocument } = eachframe;
       if (!contentDocument) {
         addresult(eachframe);
         continue;

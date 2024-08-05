@@ -94,6 +94,7 @@ try {
     return `-${speedStr}`;
   };
 
+  // can handle negative (paused) values
   const checkItem = (itemValue: string) => {
     const itemValueStr = itemValue.startsWith("-") ? "PAUSE_CMD" : String(itemValue);
     const group = document.getElementById("speedBtnGroup");
@@ -164,11 +165,12 @@ try {
           }
           globals.debounceTimerId = setTimeout(async () => {
             // we toggle between a current speed and stop.
-            // neg speed means paused and the value is the "toggle"
+            // negative speed means paused and the value is the "toggle"
             globals.currentSpeed = toggleSpeedStr(globals.currentSpeed);
 
             checkItem(globals.currentSpeed);
 
+            // setspeed
             await chrome.runtime.sendMessage<BackgroundMessage>({
               message: {
                 cmd: "SET_SPEED_CMD",
