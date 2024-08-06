@@ -208,7 +208,7 @@ try {
               },
               (_response) => {
                 window.close();
-              }
+              },
             );
             return;
           }
@@ -240,7 +240,7 @@ try {
               if (cmd === "UNZOOM_CMD") {
                 window.close();
               }
-            }
+            },
           );
         } catch (err) {
           logerr(err);
@@ -386,7 +386,7 @@ try {
           },
           (_response) => {
             window.close();
-          }
+          },
         );
         break;
 

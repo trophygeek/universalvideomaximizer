@@ -100,7 +100,7 @@ export function injectVideoSpeedAdjust(newspeed: string, allowPlaybackToggle = t
   function _injectSetSpeedForVideo(
     videoElem: HTMLVideoElement,
     newPlaybackRate: number,
-    newAllowPlaybackToggle: boolean
+    newAllowPlaybackToggle: boolean,
   ) {
     // Always remove possible loadstart listeners since ads may be on top of older videos
     //  filter out any videos that don't have a src or data?

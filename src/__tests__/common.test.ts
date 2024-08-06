@@ -49,10 +49,10 @@ describe("common.ts", () => {
 
   test("getDomain()", () => {
     expect(getDomain("https://www.example.com/foo/bar.html?param1=1&param2=2")).toBe(
-      "www.example.com"
+      "www.example.com",
     );
     expect(getDomain("blob:https://www.example.com/foo/bar.html?param1=1&param2=2")).toBe(
-      "www.example.com"
+      "www.example.com",
     );
     expect(getDomain("www.example.com")).toBe("www.example.com");
     expect(getDomain("")).toBe("");
@@ -61,14 +61,14 @@ describe("common.ts", () => {
   test("domainToSiteWildcard() wholeDomainAccess=false", () => {
     expect(domainToSiteWildcard("", false)).toBe("");
     expect(
-      domainToSiteWildcard("https://www.example.com/foo/bar.html?param1=1&param2=2", false)
+      domainToSiteWildcard("https://www.example.com/foo/bar.html?param1=1&param2=2", false),
     ).toBe("https://www.example.com/");
   });
 
   test("domainToSiteWildcard() wholeDomainAccess=true", () => {
     expect(domainToSiteWildcard("", true)).toBe("");
     expect(
-      domainToSiteWildcard("https://www.example.com/foo/bar.html?param1=1&param2=2", true)
+      domainToSiteWildcard("https://www.example.com/foo/bar.html?param1=1&param2=2", true),
     ).toBe("https://*.example.com/");
   });
 
@@ -204,12 +204,12 @@ describe("common.ts", () => {
 
   test("splitUrlWords()", () => {
     expect(
-      splitUrlWords("https://www.foo.bar.com/path/filename.html?q=search&param2=bar")
+      splitUrlWords("https://www.foo.bar.com/path/filename.html?q=search&param2=bar"),
     ).toStrictEqual(["foo", "bar", "path", "filename"]);
     expect(
       splitUrlWords(
-        "https://www.nbcnews.com/meet-the-press/video/kristen-welker-it-is-an-incredible-honor-to-be-sitting-in-this-chair-193145413853"
-      )
+        "https://www.nbcnews.com/meet-the-press/video/kristen-welker-it-is-an-incredible-honor-to-be-sitting-in-this-chair-193145413853",
+      ),
     ).toStrictEqual([
       "nbcnews",
       "meet",

@@ -42,7 +42,7 @@ export function injectCssHeader(cssHRef: string, styleId: string): boolean {
       ****** VideoMax ERROR Native Inject
       Injecting style header failed. CSP?
       ******`,
-      err
+      err,
     );
     return false;
   }

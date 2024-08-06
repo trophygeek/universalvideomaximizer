@@ -37,7 +37,7 @@ export function logerr(...args: any[]) {
   console.trace(
     `%c VideoMax ${inIFrame} ERROR`,
     "color: white; font-weight: bold; background-color: red",
-    ...args
+    ...args,
   );
   if (ERR_BREAK_ENABLED) {
     // eslint-disable-next-line no-debugger
@@ -54,7 +54,7 @@ export function logwarn(...args: any[]) {
   console.warn(
     `%c VideoMax ${inIFrame} WARNING`,
     "color: white; font-weight: bold; background-color: coral",
-    ...args
+    ...args,
   );
 }
 
@@ -68,7 +68,7 @@ export function logtrace(...args: any[]) {
   console.log(
     `%c VideoMax ${iframe}`,
     `color: white; font-weight: bold; background-color: blue`,
-    ...args
+    ...args,
   );
 }
 
@@ -517,7 +517,7 @@ export function findVideoElementsInShadowRoot(root: ShadowRoot | Document): HTML
  */
 export function findVideosAtCenter(
   topElem: Element | null | undefined = undefined,
-  optCenter?: Point
+  optCenter?: Point,
 ): HTMLVideoElement[] {
   if (!topElem) {
     return [];

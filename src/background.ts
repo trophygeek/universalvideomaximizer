@@ -273,10 +273,10 @@ function setSubframeData(
   tabId: number,
   domain: string,
   subFrameStr: string,
-  playbackSpeed = DEFAULT_SPEED_STR
+  playbackSpeed = DEFAULT_SPEED_STR,
 ) {
   logtrace(
-    `setSubframeData tabId:"${tabId}", domain:"${domain}", subFrameStr: "${subFrameStr}", playbackSpeed: "${playbackSpeed}"`
+    `setSubframeData tabId:"${tabId}", domain:"${domain}", subFrameStr: "${subFrameStr}", playbackSpeed: "${playbackSpeed}"`,
   );
   g_globalAccessSubframeData[tabId] = {
     tabId,
@@ -376,7 +376,7 @@ async function setCurrentTabState(
   tabId: number,
   startingState: BackgroundState,
   domain = "",
-  speed = DEFAULT_SPEED_STR
+  speed = DEFAULT_SPEED_STR,
 ) {
   try {
     let state = startingState;
@@ -417,7 +417,7 @@ async function setCurrentTabState(
     title: "${title}"
     showpopup: "${showpopup}"
     color: "${color}"`,
-      STATE_DATA[state]
+      STATE_DATA[state],
     );
 
     // we need to pass in the tab id because the popup js can't get it and the
@@ -471,7 +471,7 @@ function isActiveState(state: BackgroundState) {
  */
 function injectionResultCheckBool(
   injectionResults: InjectionResult<boolean>[],
-  defaultVal = false
+  defaultVal = false,
 ) {
   if ((injectionResults?.length || 0) === 0) {
     return defaultVal;
@@ -492,7 +492,7 @@ function injectionResultCheckBool(
  */
 function injectionResultCheckString(
   injectionResults: InjectionResult<string | null>[],
-  defaultVal: string
+  defaultVal: string,
 ): string {
   if (injectionResults == null || (injectionResults?.length || 0) === 0) {
     return defaultVal;
@@ -556,7 +556,7 @@ async function doInjectTagOnlyJS(tabId: number) {
 
 async function doInjectZoomCSS(
   tabId: number,
-  isDummy = false // for JS only injection (no zoom), we
+  isDummy = false, // for JS only injection (no zoom), we
   // still inject a dummy css header as
   // a
   // marker that we injected
@@ -691,7 +691,7 @@ async function doInjectSetSpeed(
   tabId: number,
   domain: string,
   speedStr = DEFAULT_SPEED_STR,
-  allowPlaybackToggle = true
+  allowPlaybackToggle = true,
 ) {
   try {
     logtrace(`doInjectSetSpeed: enter tabId:${tabId} new speed:${speedStr}`);
@@ -704,7 +704,7 @@ async function doInjectSetSpeed(
 
     if (currentSpeed === speedStr) {
       logtrace(
-        `doInjectSetSpeed: NOT setting video speed since currentSpeed === speedStr "${currentSpeed}"`
+        `doInjectSetSpeed: NOT setting video speed since currentSpeed === speedStr "${currentSpeed}"`,
       );
       return;
     }
@@ -812,7 +812,7 @@ function processIFrameExtraPermissionsResult(
   results: InjectionResult<string[]>[],
   tabId: number,
   domain: string,
-  playbackSpeed: string = DEFAULT_SPEED_STR
+  playbackSpeed: string = DEFAULT_SPEED_STR,
 ) {
   if (!GET_IFRAME_PERMISSIONS || results.length === 0) {
     return false;
@@ -1017,7 +1017,7 @@ chrome.action.onClicked.addListener((tab) => {
           if (!granted) {
             await setCurrentTabState(tabId, "ERR_PERMISSION");
             logerr(
-              `permissions to run were denied for "${tab?.url}", so extension is not injecting`
+              `permissions to run were denied for "${tab?.url}", so extension is not injecting`,
             );
             const fileAccessEnabledForExtention =
               await chrome.extension.isAllowedFileSchemeAccess();
@@ -1044,7 +1044,7 @@ chrome.action.onClicked.addListener((tab) => {
           // used to detect SPA nav. Clip anchor
           const url = tab.url.split("#")[0];
           await setLastUrlTitleFromOnUpdated(tabId, url, tab?.title ?? "");
-        }
+        },
       );
     });
   } catch (err) {
@@ -1103,7 +1103,7 @@ chrome.runtime.onMessage.addListener((request: BackgroundMessage, sender, sendRe
   logtrace(
     `chrome.runtime.onMessage cmd:"${cmd}" tabId:"${tabId}" domain:"${domain}"`,
     request,
-    sender
+    sender,
   );
 
   if (cmd === "GET_SPEED_COMPLETE_CMD") {
@@ -1115,7 +1115,7 @@ chrome.runtime.onMessage.addListener((request: BackgroundMessage, sender, sendRe
     logtrace(
       `GET_SPEED_COMPLETE_CMD: sendResponse({success: ${success}, playbackSpeed: ${playbackSpeed} })
         subvrameParamData:`,
-      match
+      match,
     );
   }
 
@@ -1274,8 +1274,8 @@ chrome.runtime.onConnect.addListener((externalPort) => {
       g_PopupOpenedForTabs = [...g_PopupOpenedForTabs, tabId];
       logtrace(
         `Popup opened. Added tabId:'${tabId}' g_PopupOpenedForTabs: [${g_PopupOpenedForTabs.join(
-          ","
-        )}]`
+          ",",
+        )}]`,
       );
     }
   }
@@ -1292,8 +1292,8 @@ chrome.runtime.onConnect.addListener((externalPort) => {
     if (g_PopupOpenedForTabs.includes(tabId)) {
       logtrace(
         `Popup closed. Removed tabId:'${tabId}' g_PopupOpenedForTabs: [${g_PopupOpenedForTabs.join(
-          ","
-        )}]`
+          ",",
+        )}]`,
       );
       g_PopupOpenedForTabs = g_PopupOpenedForTabs.filter((eachId) => tabId !== eachId);
     }
