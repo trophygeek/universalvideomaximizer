@@ -1177,6 +1177,11 @@ chrome.runtime.onMessage.addListener((request: BackgroundMessage, sender, sendRe
             await doInjectZoom(tabId);
           }
           break;
+
+        case "":
+        case "GET_SPEED_COMPLETE_CMD":
+          // nothing to do, just here for completeness.
+          break;
       }
     } catch (err) {
       logerr(err);
@@ -1244,7 +1249,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
               newUrl: "${newUrl}"
               newTitle: "${newTitle}"
               `);
-          logtrace("removed unzoom - breaks instagram");
+          // removed unzoom - breaks instagram"
           // await doInjectUnZoom(tabId, domain);
         } else {
           logtrace(`tabs.onUpdated event tabId not currently zoomed ${tabId}`);

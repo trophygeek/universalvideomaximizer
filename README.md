@@ -12,17 +12,13 @@ Just added the `./node_modules/@types/chrome` directory. After running `yarn ins
 
 # Building
 
-This extension uses typescript with modules since it's supported in mv3; however, modules don't work for injected
-javascript. There are two types of injection used in the background service worker: `chrome.scripting.executeScript`
-with
-`files:` and with `func:`:
+Since it's supported in mv3, this extension uses typescript with modules for the background, the popup and option scripts; 
+however, modules don't work for injected javascript. 
+ 
+We want DRY code where possible so we use a [custom rollup plugin](scripts/rollup-plugin-inlined-imports.mjs) to 
+produce a single js file for each of the inject functions.
 
-- `files:` injects the main (and quite large) `injectVideomaxMain`
-- `func:` is for interactive features like speed changes are are in `inject*.ts` files Each function needs
-  to be stand alone or it won't work.
-
-- We want DRY code where possible so we use `rollup` with `typescript` to produce a single js file for
-  injectVideomaxMain
+- 
 
 # License
 

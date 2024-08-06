@@ -185,7 +185,7 @@ export function getDomain(fullUrl: string | undefined | null) {
     return new URL(url).host.toLowerCase();
   } catch (err) {
     logerr(`getDomain err for "${fullUrl}"`, err);
-    return fullUrl || "";
+    return fullUrl ?? "";
   }
 }
 
@@ -459,20 +459,6 @@ export function PrintNode(elem: Element | Node | string | null): string {
     return ` UNKNOWN [${err}]`;
   }
 }
-// export function getApproxCenterOfWindow() {
-//   // we hide scrollbars as part of zoom, so body element should be good enough?
-//   try {
-//     return {
-//       centerX: Math.round(window.innerWidth / 2),
-//       centerY: Math.round(window.innerHeight / 2),
-//     };
-//   } catch (err) {
-//     return {
-//       centerX: 0,
-//       centerY: 0,
-//     };
-//   }
-// }
 
 // @ts-ignore
 export function shadowHost(targetNode: Node): Node | null {
@@ -587,12 +573,10 @@ export function isElemVisable(elem: Element) {
   //   return vis ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
   // }
   return (
-    (elem?.checkVisibility &&
-      elem?.checkVisibility({
-        checkOpacity: true,
-        checkVisibilityCSS: true,
-      })) ??
-    true
+    elem?.checkVisibility({
+      checkOpacity: true,
+      checkVisibilityCSS: true,
+    }) ?? true
   );
 }
 

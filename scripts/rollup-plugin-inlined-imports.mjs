@@ -1,6 +1,46 @@
 import MagicString from 'magic-string';
 import fs from 'node:fs';
 
+/**
+ * simple plugin to move the `export function` line to the top of the file.
+ * The goal is to put all in inlined included declarations into the scope of
+ * the exported function. This is required for `chrome.scripting.executeScript`
+ *
+ * **Example:**
+ * typescript:
+ * ```typescript
+ * import {foo} from "./common.js";
+ *
+ * export function bar(param: string): string {
+ *   return foo(param);
+ * }
+ * ```
+ *
+ * post rollup inlining and treeshaking:
+ * ```javascript
+ * function foo(param) {
+ *   return "works";
+ * }
+ * export function bar(param) {
+ *   return foo(param);
+ * }
+ * ```
+ *
+ * post this plugin:
+ * ```javascript
+ * export function bar(param) {
+ * function foo(param) {
+ *   return "works";
+ * }
+ *
+ *   return foo(param);
+ * }
+ * ```
+ *
+ * Now everything that's needed for the function to work is scoped within it
+ * and `chrome.scripting.executeScript()` works.
+ *
+ */
 export default function rollupPluginInlinedImports() {
   return {
     name: 'rollup-plugin-inlined-export',
@@ -24,7 +64,8 @@ export default function rollupPluginInlinedImports() {
         const functionname = exportmatches[0][1];
 
         // find the offset of the function
-        const function_startindex = code.indexOf(`function ${functionname}`, 'g');
+        const function_startindex = code.indexOf(`function ${functionname}`,
+          'g');
         if (function_startindex <= 0) {
           continue;
         }
@@ -39,7 +80,9 @@ export default function rollupPluginInlinedImports() {
           continue;
         }
 
-        const extraoffset = code[function_endindex + 1] === "\n" ? function_endindex + 2 : function_endindex + 1;
+        const extraoffset = code[function_endindex + 1] === '\n' ?
+          function_endindex + 2 :
+          function_endindex + 1;
         s.move(function_startindex, extraoffset, 0);
 
         const map = s.generateMap({

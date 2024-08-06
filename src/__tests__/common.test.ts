@@ -186,6 +186,8 @@ describe("common.ts", () => {
     expect(formatFloat(123)).toBe("123.00");
     expect(formatFloat(123.45)).toBe("123.45");
     expect(formatFloat(123.456)).toBe("123.46");
+    expect(formatFloat(1)).toBe("1.00");
+    expect(formatFloat(-1)).toBe("-1.00");
   });
 
   test("round()", () => {
