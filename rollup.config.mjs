@@ -52,6 +52,8 @@ const defaultStep = {
     unknownGlobalSideEffects: false,
     moduleSideEffects: false,
     propertyReadSideEffects: false,
+    tryCatchDeoptimization: true,
+    manualPureFunctions: ["printNode", "logerr", "logtrace", "logwarn", "isRunningInIFrame"],
   },
   plugins: [
     typescript({
@@ -91,7 +93,7 @@ export default [
       'src/injectGetPlaypackSpeed.ts',
       'src/injectVideoSpeedAdjust.ts',
       'src/injectVideoSkip.ts',
-      'src/injectGetVideoZoomed.ts',
+      'src/injectGetVideoZoomedState.ts',
     ],
     ...defaultStep,
   },
@@ -128,7 +130,7 @@ export default [
     ...defaultIsolatedStep,
   },
   {
-    input: ['src/injectGetVideoZoomed.ts'],
+    input: ['src/injectGetVideoZoomedState.ts'],
     ...defaultIsolatedStep,
   },
   // last one need to figure out merge files.

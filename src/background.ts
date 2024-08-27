@@ -35,7 +35,7 @@ import { injectIsCssHeaderIsBlocked } from "./injectIsCssHeaderIsBlocked";
 import { injectCssHeader } from "./injectCssHeader";
 import { injectVideoSpeedAdjust } from "./injectVideoSpeedAdjust";
 import { injectGetPlaypackSpeed } from "./injectGetPlaypackSpeed";
-import { injectGetVideoZoomed } from "./injectGetVideoZoomed";
+import { injectGetVideoZoomedState } from "./injectGetVideoZoomedState";
 import { injectVideoSkip } from "./injectVideoSkip";
 import { injectCheckPermissions } from "./injectCheckPermissions";
 
@@ -389,18 +389,20 @@ async function setCurrentTabState(
       if (state === "REFRESH") {
         // Exception
         state = "ZOOMING"; // remapped again below
+        logtrace(`setCurrentState empty state inital case: "REFRESH" => "ZOOMING"`);
       }
     }
 
     switch (state) {
       case "ZOOMING":
-        logtrace(`setCurrentState "${state}"`);
         state = (await getSettingUseAdvFeatures()) ? "ZOOMED_SPEED" : "ZOOMED_NOSPEED";
+        logtrace(`setCurrentState precheck from "ZOOMING" => "${state}"`);
         break;
 
       case "ZOOMING_SPEED_ONLY":
-        logtrace(`setCurrentState "${state}"`);
         state = "SPEED_ONLY";
+        logtrace(`setCurrentState precheck from "ZOOMING_SPEED_ONLY" => "SPEED_ONLY"`);
+        debugger;
         break;
 
       default:
@@ -409,6 +411,7 @@ async function setCurrentTabState(
 
     let { badge, title, showpopup, color } = STATE_DATA[state];
     if (state === "UNZOOMED") {
+      debugger;
       title = await getUnzoomTitle();
     }
     logtrace(
@@ -501,6 +504,41 @@ function injectionResultCheckString(
     if (frameresult?.result !== defaultVal && frameresult?.result) {
       return frameresult.result;
     }
+  }
+  return defaultVal;
+}
+
+/**
+ * Injection returns an array of results, this aggregates them into a single
+ * result.
+ * Assume default is a string. The first result in array
+ *   is different then it that, then it's considered result for all of the values.
+ */
+function injectionResultCheckZoomState(
+  injectionResults: InjectionResult<CheckVideoZoomedState | null>[],
+  defaultVal: CheckVideoZoomedState,
+): CheckVideoZoomedState {
+  if (injectionResults == null || (injectionResults?.length || 0) === 0) {
+    return defaultVal;
+  }
+  const counts: { [key in CheckVideoZoomedState]: number } = {
+    UNZOOMED: 0,
+    ZOOMED: 0,
+    NEEDS_REZOOM: 0,
+  };
+  for (const frameresult of injectionResults) {
+    const result = frameresult?.result ?? defaultVal;
+    counts[result]++;
+  }
+  // now we have all the counts. If there are any NEEDS_REZOOM then use that.
+  if (counts["NEEDS_REZOOM"] > 0) {
+    return "NEEDS_REZOOM";
+  }
+  if (counts["ZOOMED"] > 0) {
+    return "ZOOMED";
+  }
+  if (counts["UNZOOMED"] > 0) {
+    return "UNZOOMED";
   }
   return defaultVal;
 }
@@ -655,15 +693,13 @@ async function DoZoom(tabId: number, state: BackgroundState, domain?: string) {
     }
 
     if (excluded_zoom || state === "SPEED_ONLY") {
-      await Promise.all([
-        doInjectTagOnlyJS(tabId), // doInjectZoomCSS(tabId, true),
-        setCurrentTabState(tabId, "ZOOMING_SPEED_ONLY", domain),
-      ]);
+      await setCurrentTabState(tabId, "ZOOMING_SPEED_ONLY", domain);
+      await doInjectTagOnlyJS(tabId); // doInjectZoomCSS(tabId, true)
     } else {
+      await setCurrentTabState(tabId, "ZOOMING", domain);
       await Promise.all([
         doInjectZoom(tabId),
-        doInjectZoomCSS(tabId),
-        setCurrentTabState(tabId, "ZOOMING", domain),
+        doInjectZoomCSS(tabId)
       ]);
 
       // now verify the css wasn't blocked by CSP.
@@ -730,24 +766,28 @@ async function doInjectSetSpeed(
   }
 }
 
-async function doInjectGetVideoZoomed(tabId: number, domain: string) {
+async function doInjectGetVideoZoomed(
+  tabId: number,
+  domain: string,
+): Promise<CheckVideoZoomedState> {
   try {
     const results = await chrome.scripting.executeScript({
       target: {
         tabId,
         allFrames: true,
       }, // world:  "MAIN",
-      func: injectGetVideoZoomed,
+      func: injectGetVideoZoomedState,
       args: [],
       injectImmediately: true,
     });
+    logtrace(`injectGetVideoZoomedState:`, results);
     // only injected into the single main, no iframes, so should be a single result.
-    const result = injectionResultCheckBool(results);
-    logtrace(`doInjectGetVideoZoomed "${result}" for tabId:${tabId} domain: ${domain}`);
+    const result = injectionResultCheckZoomState(results, "UNZOOMED");
+    logtrace(`injectGetVideoZoomedState "${result}" for tabId:${tabId} domain: ${domain}`);
     return result;
   } catch (err) {
-    logtrace("doInjectGetSpeed error", err);
-    return DEFAULT_SPEED_STR;
+    logtrace("injectGetVideoZoomedState error", err);
+    return "UNZOOMED";
   }
 }
 
@@ -1170,17 +1210,28 @@ chrome.runtime.onMessage.addListener((request: BackgroundMessage, sender, sendRe
           // it is NOT in this switch because it has a response that cannot be async
           // and since it cannot be async, we have this two-part request.
           await doInjectGetSpeed(tabId, domain);
-          const iszoomed = await doInjectGetVideoZoomed(tabId, domain);
-          if (!iszoomed) {
-            logtrace(`doInjectGetVideoZoomed says zoom was long, rezooming`);
-            // we lost our zoom. Probably because
-            await doInjectZoom(tabId);
-          }
+
+          setTimeout(async () => {
+            debugger;
+            const zoomedstate = await doInjectGetVideoZoomed(tabId, domain);
+            if (zoomedstate === "NEEDS_REZOOM") {
+              logtrace(`doInjectGetVideoZoomed says zoom was lost, Unzooming first`);
+              await doInjectUnZoom(tabId, domain);
+            }
+          }, 0);
           break;
 
         case "":
         case "GET_SPEED_COMPLETE_CMD":
-          // nothing to do, just here for completeness.
+          // mostly handled above
+          setTimeout(async () => {
+            const zoomedstate = await doInjectGetVideoZoomed(tabId, domain);
+            if (zoomedstate !== "ZOOMED") {
+              logtrace(`doInjectGetVideoZoomed says zoom was lost, rezooming`);
+              await doInjectZoom(tabId);
+            }
+          }, 0);
+
           break;
       }
     } catch (err) {

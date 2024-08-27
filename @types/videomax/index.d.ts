@@ -55,6 +55,9 @@ type BackgroundMessageResponse = {
   playbackSpeed?: string,
 }
 
+type CheckVideoZoomedState = "UNZOOMED" | "ZOOMED" | "NEEDS_REZOOM";
+
+
 // Used by popup for buttons that aren't speed changes.
 type PopupMenuCmd = "UNZOOM_BTN_CMD" | "OPTIONS_BTN_CMD";
 

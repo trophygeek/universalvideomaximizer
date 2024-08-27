@@ -73,12 +73,17 @@ try {
   // used to simplify IncreaseSpeed()/DecreaseSpeed()
   const MIN_SPEED = "0.25";
   const MAX_SPEED = "16.0";
+
+  // parse some setting passed to us via the url (tabid, domain, etc)
+  const url = new URL(document.location.href);
+  const params = new URLSearchParams(url.hash.replace("#", ""));
+
   const globals = {
-    url: new URL(document.location.href),
-    domain: "",
-    currentSpeed: DEFAULT_SPEED_STR,
+    url: url,
+    domain: params.get("domain") ?? "", // needed because Netflix errs on skip
+    currentSpeed: params.get("speed") ?? DEFAULT_SPEED_STR,
     settings: DEFAULT_SETTINGS, // onload overrides
-    tabId: 0,
+    tabId: Number(params.get("tabId") ?? "0"),
     debounceTimerId: 0,
   };
 
@@ -398,10 +403,6 @@ try {
 
   document.addEventListener("DOMContentLoaded", async () => {
     try {
-      const params = new URLSearchParams(globals.url.hash.replace("#", ""));
-      globals.tabId = Number(params.get("tabId") ?? "0");
-      globals.currentSpeed = params.get("speed") ?? DEFAULT_SPEED_STR;
-      globals.domain = params.get("domain") ?? ""; // needed because Netflix errs on skip
       const container = window.document.getElementById("speedBtnGroup");
 
       logtrace(`DOMContentLoaded params
@@ -438,6 +439,16 @@ try {
     } catch (err) {
       logerr(err);
     }
+  });
+
+  // if the popup is opening, then the video should be zoomed. Can get unzoomed and confused
+  // when the user hits escape inside the page to unzoom.
+  chrome.runtime.sendMessage<BackgroundMessage>({
+    message: {
+      cmd: "REZOOM_CMD",
+      domain: globals.domain,
+      tabId: globals.tabId,
+    },
   });
 } catch (e) {
   logerr(e);

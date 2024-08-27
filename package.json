@@ -37,15 +37,14 @@
     ]
   },
   "scripts": {
-    "start": "yarn build:dev",
+    "start": "NODE_ENV=development rollup --watch --watch.skipWrite=false --externalImportAssertions -c rollup.config.mjs --environment BUILD:development",
     "build": "NODE_ENV=production rollup -c rollup.config.mjs --environment BUILD:production",
     "build:dev": "NODE_ENV=development rollup -c rollup.config.mjs --environment BUILD:development",
-    "build:dev:watch": "NODE_ENV=development rollup --watch --watch.skipWrite=false --externalImportAssertions -c rollup.config.mjs --environment BUILD:development",
     "clean": "rimraf dist/videomaximizer",
     "test": "jest --force-exit",
     "lint:fix": "prettier --bracket-same-line  --print-width 100 --write \"src/**/*.{ts,tsx}\"",
     "update": "git checkout -- yarn.lock && yarn install && yarn upgrade --lastest",
-    "buildpackage": "yarn build:prod && node ./scripts/bundlepackage.js"
+    "buildpackage": "yarn build && node ./scripts/bundlepackage.js"
   },
   "sideEffects": false
 }

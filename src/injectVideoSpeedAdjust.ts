@@ -21,7 +21,7 @@ import {
   findVideosAtCenter,
   isElemVisable,
   logerr,
-  PLAYBACK_SPEED_ATTR,
+  PLAYBACK_SPEED_DOC_ATTR,
   safeParseFloat,
   DEFAULT_SPEED_STR,
 } from "./common.js"; // .js embeds the contents
@@ -36,7 +36,7 @@ export function injectVideoSpeedAdjust(newspeed: string, allowPlaybackToggle = t
     if (newspeed && newspeed?.length > 0) {
       return safeParseFloat(newspeed, 1.0);
     }
-    const savedSpeedStr = document.body.getAttribute(PLAYBACK_SPEED_ATTR) ?? DEFAULT_SPEED_STR;
+    const savedSpeedStr = document.body.getAttribute(PLAYBACK_SPEED_DOC_ATTR) ?? DEFAULT_SPEED_STR;
     if (savedSpeedStr?.length > 0) {
       return safeParseFloat(newspeed, 1.0);
     }
@@ -123,10 +123,10 @@ export function injectVideoSpeedAdjust(newspeed: string, allowPlaybackToggle = t
   const speedNumber = _getSavedSpeedFromDocument(newspeed);
   try {
     if (document?.body && newspeed !== DEFAULT_SPEED_STR) {
-      document.body.setAttribute(PLAYBACK_SPEED_ATTR, newspeed);
+      document.body.setAttribute(PLAYBACK_SPEED_DOC_ATTR, newspeed);
     } else {
       // default then we should remove it.
-      document.body.removeAttribute(PLAYBACK_SPEED_ATTR);
+      document.body.removeAttribute(PLAYBACK_SPEED_DOC_ATTR);
     }
   } catch (err) {
     // could be cross frame error?

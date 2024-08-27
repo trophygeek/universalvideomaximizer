@@ -11,7 +11,7 @@ export const IS_BETA_CHANNEL = false;
 
 export const CSS_FILE = "videomax_inject.css";
 export const CSS_STYLE_HEADER_ID = "maximizier-css-inject";
-export const PLAYBACK_SPEED_ATTR = "data-videomax-playbackspeed";
+export const PLAYBACK_SPEED_DOC_ATTR = "data-videomax-playbackspeed";
 export const DEFAULT_SPEED_NUM = 1.0;
 export const DEFAULT_SPEED_STR = "1.00";
 
@@ -20,6 +20,39 @@ export const BLOCKED_SKIPFEATURE_DOMAINS = ["netflix."]; // skipping breaks thes
 export const ALLOW_SMALL_VIDEOS_DOMAINS = ["tiktok", "cnn"];
 export const DOOMSCROLL_BOOST_DOMAINS = ["tiktok", "facebook", "imgur"];
 
+// we use the prop class then flip all the classes at the end.
+// The reason for this is that the clientRect can get confused on rezoom if
+//     the background page couldn't inject the css as a header.
+export const PREFIX_CSS_CLASS = "videomax-ext";
+export const PREFIX_CSS_CLASS_PREP = "videomax-ext-prep";
+// adding ANY new elements should be added to inject_undo
+export const OVERLAP_CSS_CLASS = `${PREFIX_CSS_CLASS_PREP}-overlap`;
+export const HIDDEN_CSS_CLASS = `${PREFIX_CSS_CLASS_PREP}-hide`;
+export const MAX_CSS_CLASS = `${PREFIX_CSS_CLASS_PREP}-max`;
+export const PLAYBACK_CNTLS_CSS_CLASS = `${PREFIX_CSS_CLASS_PREP}-playback-controls`;
+export const PLAYBACK_CNTLS_FULL_HEIGHT_CSS_CLASS = `${PLAYBACK_CNTLS_CSS_CLASS}-fullheight`;
+export const PLAYBACK_VIDEO_MATCHED_CLASS = `${PREFIX_CSS_CLASS_PREP}-video-matched`;
+export const MARKER_COMMON_CONTAINER_CLASS = `${PREFIX_CSS_CLASS}-container-common`;
+export const MARKER_TRANSITION_CLASS = `${PREFIX_CSS_CLASS}-trans`;
+export const NO_HIDE_CLASS = `${PREFIX_CSS_CLASS}-no-hide`;
+
+// used to save off attributes that are modified on iframes/flash
+export const VIDEO_MAX_DATA_PREFIX = "data-videomax";
+export const VIDEO_MAX_DATA_ATTRIB_UNDO_PREFIX = `${VIDEO_MAX_DATA_PREFIX}-saved`;
+// used to find all the VIDEO_MAX_DATA_ATTRIB_UNDO_PREFIX easily
+export const VIDEO_MAX_DATA_ATTRIB_UNDO_TAG = `${VIDEO_MAX_DATA_PREFIX}-tag-saved`;
+
+// from background script on body
+export const VIDEO_MAX_INSTALLED_ATTR = `${VIDEO_MAX_DATA_PREFIX}-running`; // data-videomax-running
+export const YOUTUBE_RESTORE_NON_THEATER_ATTR = `${VIDEO_MAX_DATA_PREFIX}-youtube-nontheater-restore`;
+export const SAVED_SCROLL_TOP_ATTR = `${VIDEO_MAX_DATA_PREFIX}-scrolltop`;
+export const SAVED_SCROLL_LEFT_ATTR = `${VIDEO_MAX_DATA_PREFIX}-scrollleft`;
+
+export const EMBEDED_SCORES = `${VIDEO_MAX_DATA_PREFIX}-scores`;
+export const VIDEO_MAX_ATTRIB_FIND = `${VIDEO_MAX_DATA_PREFIX}-target`;
+export const VIDEO_MAX_ATTRIB_ID = "zoomed-video";
+
+/* DOM Functions should be moved to their own file*/
 export function isRunningInIFrame() {
   try {
     return window !== window?.parent;
@@ -29,7 +62,7 @@ export function isRunningInIFrame() {
 }
 
 export function logerr(...args: any[]) {
-  if (!DEV_MODE) {
+  if (!DEBUG_ENABLED) {
     return;
   }
   const inIFrame = isRunningInIFrame() ? "iframe" : "main";
@@ -46,7 +79,7 @@ export function logerr(...args: any[]) {
 }
 
 export function logwarn(...args: any[]) {
-  if (!DEV_MODE) {
+  if (!DEBUG_ENABLED) {
     return;
   }
   const inIFrame = isRunningInIFrame() ? "iframe" : "main";
@@ -59,7 +92,7 @@ export function logwarn(...args: any[]) {
 }
 
 export function logtrace(...args: any[]) {
-  if (!(DEV_MODE && TRACE_ENABLED)) {
+  if (!(DEBUG_ENABLED && TRACE_ENABLED)) {
     return;
   }
   const iframe = isRunningInIFrame() ? "iFrame" : "Main";
@@ -431,7 +464,7 @@ export function getCoords(el: Element) {
 /**
  * Converts element into a string like "<div class='Foo bar' />"
  */
-export function PrintNode(elem: Element | Node | string | null): string {
+export function printNode(elem: Element | Node | string | null): string {
   try {
     if (!elem) {
       return "undefined";
@@ -488,6 +521,18 @@ export function deDupArray(arr: any[]): any[] {
   return [...new Set(...arr).entries()];
 }
 
+export function getOwnerDoc(node: Element | Node) {
+  if (node instanceof Document) {
+    return node;
+  }
+  return node?.ownerDocument ?? document;
+}
+
+export function elementExists(node: Element | Node) {
+  const doc = getOwnerDoc(node);
+  return doc.contains(node);
+}
+
 export function findVideoElementsInShadowRoot(root: ShadowRoot | Document): HTMLVideoElement[] {
   const elements: HTMLVideoElement[] = [];
   // @ts-ignore querySelectorAll("*") includes iFrames... so wtf?
@@ -511,6 +556,62 @@ export function findVideoElementsInShadowRoot(root: ShadowRoot | Document): HTML
   return elements;
 }
 
+export function getVideomaxCmd() {
+  // @ts-ignore
+  try {
+    return document.videmax_cmd ?? window.videmax_cmd ?? "";
+  } catch (err) {
+    return "";
+  }
+}
+
+export function getAttr(elem: Element, attr: string): string | null {
+  try {
+    if (typeof elem?.getAttribute !== "function") {
+      DEV_MODE && logtrace("element doesn't have getAttribute() function, return null");
+      return null;
+    }
+    return elem.getAttribute(attr);
+  } catch (err) {
+    return null;
+  }
+}
+
+export function setAttr(elem: Element | HTMLElement, attr: string, value: string) {
+  try {
+    elem.setAttribute(attr, value);
+  } catch (err) {
+    logtrace(err);
+  }
+}
+
+export const removeAttr = (elem: Element | HTMLElement, attr: string) => {
+  try {
+    elem.removeAttribute(attr);
+  } catch (err) {
+    logtrace(err);
+  }
+};
+
+/**
+ * Checks if the zoomed video is still in containing document
+ */
+export function isVideoStillInDoc(videomaxGlobals: VideomaxGlobalsTypeBase) {
+  if (!videomaxGlobals?.isMaximized || !videomaxGlobals?.matchedVideo) {
+    return false;
+  }
+  const videoStillInDocument = elementExists(videomaxGlobals.matchedVideo);
+  if (!videoStillInDocument && DEV_MODE) {
+    logerr(`Video element NO LONGER in document?`, videomaxGlobals.matchedVideo);
+    debugger;
+  }
+  return videoStillInDocument;
+}
+
+export function centerElem(elem: Element) {
+  const { top, left, width, height } = getCoords(elem);
+  return { x: Math.round(left + width / 2), y: Math.round(top + height / 2) };
+}
 /**
  * @param topElem initially, document.body
  * @param optCenter undefined for root, but when recursing, pass in calc value for optimization.
@@ -527,13 +628,7 @@ export function findVideosAtCenter(
     return [topElem];
   }
   // only calculate if not passed in. inline function.
-  const center: Point = (() => {
-    if (optCenter) {
-      return optCenter;
-    }
-    const { top, left, width, height } = getCoords(topElem);
-    return { x: Math.round(left + width / 2), y: Math.round(top + height / 2) };
-  })(); // declare and call immediately.
+  const center: Point = optCenter ? optCenter : centerElem(topElem);
 
   // elementFromPoint returns the topmost, if we get ALL the elements at a point, we can filter down through them.
   const elements = topElem.ownerDocument.elementsFromPoint(center.x, center.y);
