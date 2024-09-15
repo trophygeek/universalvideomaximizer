@@ -1,7 +1,20 @@
-// The injected script may be reinjected multiple times.
-// This script wraps the whole file in a try/catch() to scope it
-// and prevent script errors from breaking out into the page.
-// It attempts to preserve source maps as it works.
+/*
+ Video Maximizer
+
+ Copyright (c) 2024. trophygeek@gmail.com
+ www.videomaximizer.com
+
+ Removes the clutter. Maximizes videos to view in full-page theater mode on most sites.
+
+ Creative Commons Share Alike 4.0
+ To view a copy of this license, visit https://creativecommons.org/licenses/by-sa/4.0/
+
+
+ This script wraps the whole file in a try/catch() to scope it
+ and prevent script errors from breaking out into the page.
+ It attempts to preserve source maps as it works.
+
+ */
 import fs from 'node:fs';
 import MagicString from 'magic-string';
 

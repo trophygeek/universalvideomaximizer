@@ -12,8 +12,11 @@
  We do this with a rollup plugin.
  */
 import {
+  DEV_MODE,
   ALLOW_SMALL_VIDEOS_DOMAINS,
-  centerElem,
+  logerr,
+  logtrace,
+  logwarn,
   CSS_STYLE_HEADER_ID,
   customDiceCoefficient,
   DEFAULT_SPEED_STR,
@@ -35,9 +38,6 @@ import {
   isElemVisable,
   isRunningInIFrame,
   isVideoStillInDoc,
-  logerr as logerr_common,
-  logtrace as logtrace_common,
-  logwarn as logwarn_common,
   MARKER_COMMON_CONTAINER_CLASS,
   MARKER_TRANSITION_CLASS,
   MAX_CSS_CLASS,
@@ -69,7 +69,6 @@ import {
   YOUTUBE_RESTORE_NON_THEATER_ATTR,
 } from "./common.js";
 
-const DEV_MODE = true; // Warning: Cannot come from common or treeshaking doesn't work.
 const BREAK_ON_BEST_MATCH = DEV_MODE && false;
 
 // These are noisy and can be enabled when debugging areas. FULL_DEBUG must
@@ -78,15 +77,6 @@ const EMBED_SCORES = DEV_MODE && true;
 const COMMON_PARENT_SCORES = DEV_MODE && true;
 const DEBUG_HIDENODE = DEV_MODE && false;
 const DEBUG_MUTATION_OBSERVER = DEV_MODE && false;
-
-// helping rollup treeshaking. But STILL won't remove: logtrace(`${var}`)
-// tslint:disable-next-line:no-empty
-
-function noop() {}
-
-const logerr = DEV_MODE ? logerr_common : (...args: any) => {};
-const logtrace = DEV_MODE ? logtrace_common : (...args: any) => {};
-const logwarn = DEV_MODE ? logwarn_common : (...args: any) => {};
 
 // Recent changes - keep these flags to quickly regression check various
 // fixes across sites What fixes one site often breaks another. Eventually,

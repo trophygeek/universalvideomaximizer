@@ -2,7 +2,7 @@
 
 import Point = chrome.system.display.Point;
 
-export const DEV_MODE = true;
+export const DEV_MODE = import.meta.env.DEV;
 export const DEBUG_ENABLED = DEV_MODE && true;
 export const TRACE_ENABLED = DEV_MODE && true;
 export const ERR_BREAK_ENABLED = DEV_MODE && true;
@@ -65,9 +65,9 @@ export function logerr(...args: any[]) {
   if (!DEBUG_ENABLED) {
     return;
   }
-  const inIFrame = isRunningInIFrame() ? "iframe" : "main";
+  const inIFrame = /*@__PURE__*/ isRunningInIFrame() ? "iframe" : "main";
   // eslint-disable-next-line no-console
-  console.trace(
+  /*@__PURE__*/ console.trace(
     `%c VideoMax ${inIFrame} ERROR`,
     "color: white; font-weight: bold; background-color: red",
     ...args,
@@ -82,9 +82,9 @@ export function logwarn(...args: any[]) {
   if (!DEBUG_ENABLED) {
     return;
   }
-  const inIFrame = isRunningInIFrame() ? "iframe" : "main";
+  const inIFrame = /*@__PURE__*/ isRunningInIFrame() ? "iframe" : "main";
   // eslint-disable-next-line no-console
-  console.warn(
+  /*@__PURE__*/ console.warn(
     `%c VideoMax ${inIFrame} WARNING`,
     "color: white; font-weight: bold; background-color: coral",
     ...args,
@@ -95,10 +95,10 @@ export function logtrace(...args: any[]) {
   if (!(DEBUG_ENABLED && TRACE_ENABLED)) {
     return;
   }
-  const iframe = isRunningInIFrame() ? "iFrame" : "Main";
+  const iframe = /*@__PURE__*/ isRunningInIFrame() ? "iFrame" : "Main";
   // blue color , no break
   // eslint-disable-next-line no-console
-  console.log(
+  /*@__PURE__*/ console.log(
     `%c VideoMax ${iframe}`,
     `color: white; font-weight: bold; background-color: blue`,
     ...args,

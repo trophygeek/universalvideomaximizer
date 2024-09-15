@@ -23,18 +23,44 @@ import ts from 'typescript';
 
 import copy from 'rollup-plugin-copy';
 
-// import {emptyDir} from 'rollup-plugin-empty-dir';
 // import zip from 'rollup-plugin-zip';
-// import commonjs from '@rollup/plugin-commonjs';
 
-import inline from "rollup-plugin-inline-js";
 import rollupPluginTryCatch from './scripts/rollup-plugin-try-catch-block.mjs';
 import rollupPluginInlinedImports
   from './scripts/rollup-plugin-inlined-imports.mjs';
+import rollupReplace from '@rollup/plugin-replace';
 
 const dist = `dist/videomaximizer`;
 const isProd = process.env.NODE_ENV === 'production';
+const isDev = !isProd;
 const isWatch = !isProd; // copy only once?
+
+
+const replace = opts => {
+  if (isProd) {
+    return rollupReplace({
+      ...opts,
+      exclude: ['**/common.*'],
+      delimiters: ['', ''],
+      preventAssignment: false,
+      'logerr,': ' ',
+      'logerr(': 'false && (',
+      'logtrace,': '',
+      'logtrace(': 'false && (',
+      'logwarn,': '',
+      'logwarn(': 'false && ('
+    })
+  }
+};
+
+const devMode  = opts => {
+    return rollupReplace({
+      ...opts,
+      delimiters: ['', ''],
+      preventAssignment: false,
+      'import.meta.env.DEV': `${isDev}`
+    })
+};
 
 /** everything but the input **/
 const defaultStep = {
@@ -52,10 +78,17 @@ const defaultStep = {
     unknownGlobalSideEffects: false,
     moduleSideEffects: false,
     propertyReadSideEffects: false,
-    tryCatchDeoptimization: true,
-    manualPureFunctions: ["printNode", "logerr", "logtrace", "logwarn", "isRunningInIFrame"],
+    tryCatchDeoptimization: false,
+    manualPureFunctions: [
+      'printNode',
+      'logerr',
+      'logtrace',
+      'logwarn',
+      'isRunningInIFrame'],
   },
   plugins: [
+    replace(),
+    devMode(),
     typescript({
       typescript: ts,
       tsconfig: isProd ? './tsconfig.prod.json' : './tsconfig.dev.json',
@@ -140,6 +173,8 @@ export default [
     ],
     ...defaultStep,
     plugins: [
+      replace(),
+      devMode(),
       typescript({
         typescript: ts,
         tsconfig: isProd ? './tsconfig.prod.json' : './tsconfig.dev.json',

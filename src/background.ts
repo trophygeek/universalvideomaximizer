@@ -23,11 +23,12 @@ import {
   getManifestJson,
   getSettings,
   isPageExcluded,
-  logerr,
   saveSettings,
   SETTINGS_STORAGE_KEY,
-  logtrace,
   BLOCKED_SKIPFEATURE_DOMAINS,
+  logerr,
+  logtrace,
+  logwarn,
 } from "./common";
 
 import { injectCssHeaderRemove } from "./injectCssHeaderRemove";
@@ -389,7 +390,7 @@ async function setCurrentTabState(
       if (state === "REFRESH") {
         // Exception
         state = "ZOOMING"; // remapped again below
-        logtrace(`setCurrentState empty state inital case: "REFRESH" => "ZOOMING"`);
+        logtrace(`setCurrentState empty state inital case state: "REFRESH" => "ZOOMING"`);
       }
     }
 
@@ -411,7 +412,6 @@ async function setCurrentTabState(
 
     let { badge, title, showpopup, color } = STATE_DATA[state];
     if (state === "UNZOOMED") {
-      debugger;
       title = await getUnzoomTitle();
     }
     logtrace(
@@ -451,10 +451,10 @@ async function getCurrentTabState(tabId: number): Promise<BackgroundState> {
     const backgroundStates = Object.keys(STATE_DATA) as BackgroundState[];
     const keys = backgroundStates.filter((k) => STATE_DATA[k].title === title);
     if (!keys?.length) {
-      logtrace(`getTabCurrentState NO MATCH "${keys}"`);
+      logtrace(`getTabCurrentState NO MATCH "${keys}" -> UNZOOMED`);
       return "UNZOOMED";
     }
-    logtrace(`getTabCurrentState "${keys}"`);
+    logtrace(`getTabCurrentState "${keys}" -> ${keys[0]}`);
     return keys[0];
   } catch (err) {
     logerr("GetStateErr", err);
@@ -697,10 +697,8 @@ async function DoZoom(tabId: number, state: BackgroundState, domain?: string) {
       await doInjectTagOnlyJS(tabId); // doInjectZoomCSS(tabId, true)
     } else {
       await setCurrentTabState(tabId, "ZOOMING", domain);
-      await Promise.all([
-        doInjectZoom(tabId),
-        doInjectZoomCSS(tabId)
-      ]);
+      await doInjectZoom(tabId);
+      await doInjectZoomCSS(tabId);
 
       // now verify the css wasn't blocked by CSP.
       const wasCSSBlocked = await doInjectCheckCSSIsBlocked(tabId);
@@ -947,7 +945,8 @@ async function showUpgradePageIfNeeded() {
 async function toggleZoomState(tabId: number, domain: string) {
   const state = await getCurrentTabState(tabId);
   if (!isActiveState(state)) {
-    await Promise.all([setCurrentTabState(tabId, "", domain), DoZoom(tabId, state, domain)]);
+    // await setCurrentTabState(tabId, "", domain);
+    await DoZoom(tabId, state, domain);
     // the following dance is to see if we need more permissions
     // domain will set
     // g_globalAccessSubframeData
@@ -1116,12 +1115,10 @@ async function ReZoom(tabId: number, domain: string) {
     // we need to see if we're in "SPEED_ONLY" mode because
     // we don't have access to the url to see if it's a site like hulu
     const nextState = currentState === "SPEED_ONLY" ? "ZOOMING_SPEED_ONLY" : "ZOOMING";
-    await Promise.all([
-      setCurrentTabState(tabId, nextState, currentSpeed),
-      DoZoom(tabId, currentState, domain),
-      // 6/2024 We now read speed back from page on load
-      // doInjectSetSpeed(tabId, domain, currentSpeed, false),
-    ]);
+    await setCurrentTabState(tabId, nextState, currentSpeed);
+    await DoZoom(tabId, currentState, domain);
+    // 6/2024 We now read speed back from page on load
+    // doInjectSetSpeed(tabId, domain, currentSpeed, false)
     logtrace("REZOOM_CMD -- Zooming -- COMPLETE");
   }
 }
@@ -1180,10 +1177,8 @@ chrome.runtime.onMessage.addListener((request: BackgroundMessage, sender, sendRe
           break;
 
         case "SET_SPEED_CMD":
-          await Promise.all([
-            setCurrentTabState(tabId, "ZOOMED_SPEED", domain, speed),
-            doInjectSetSpeed(tabId, domain, speed, true),
-          ]);
+          await setCurrentTabState(tabId, "ZOOMED_SPEED", domain, speed);
+          await doInjectSetSpeed(tabId, domain, speed, true);
           break;
 
         case "REZOOM_CMD":
@@ -1212,7 +1207,6 @@ chrome.runtime.onMessage.addListener((request: BackgroundMessage, sender, sendRe
           await doInjectGetSpeed(tabId, domain);
 
           setTimeout(async () => {
-            debugger;
             const zoomedstate = await doInjectGetVideoZoomed(tabId, domain);
             if (zoomedstate === "NEEDS_REZOOM") {
               logtrace(`doInjectGetVideoZoomed says zoom was lost, Unzooming first`);
@@ -1267,8 +1261,9 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
             await ReZoom(tabId, domain);
             return;
           }
-          if (g_cachedSettings?.stickySPANav ?? true) {
-            logtrace("tabs.onUpdated: g_cachedSettings?.stickySPANav so REzooming");
+          // todo: make sticky spa nav based on domain list
+          if (!g_cachedSettings?.noStickySPANav) {
+            logtrace("tabs.onUpdated: g_cachedSettings?.noStickySPANav so REzooming");
             await ReZoom(tabId, domain);
             return;
           }

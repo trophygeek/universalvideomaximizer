@@ -22,13 +22,15 @@
       "dom.iterable"],
     "typeRoots": [
       "node_modules/@types",
+      "node_modules",
       "@types",
       "@types/videomax",
       "src"],
     "types": [
       "videomax",
       "chrome",
-      "jest"
+      "jest",
+      "vite/client"
     ]
   }
 }
