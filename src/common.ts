@@ -67,7 +67,7 @@ export function logerr(...args: any[]) {
   }
   const inIFrame = /*@__PURE__*/ isRunningInIFrame() ? "iframe" : "main";
   // eslint-disable-next-line no-console
-  /*@__PURE__*/ console.trace(
+  console.trace(
     `%c VideoMax ${inIFrame} ERROR`,
     "color: white; font-weight: bold; background-color: red",
     ...args,
@@ -84,7 +84,7 @@ export function logwarn(...args: any[]) {
   }
   const inIFrame = /*@__PURE__*/ isRunningInIFrame() ? "iframe" : "main";
   // eslint-disable-next-line no-console
-  /*@__PURE__*/ console.warn(
+  console.warn(
     `%c VideoMax ${inIFrame} WARNING`,
     "color: white; font-weight: bold; background-color: coral",
     ...args,
@@ -98,7 +98,7 @@ export function logtrace(...args: any[]) {
   const iframe = /*@__PURE__*/ isRunningInIFrame() ? "iFrame" : "Main";
   // blue color , no break
   // eslint-disable-next-line no-console
-  /*@__PURE__*/ console.log(
+  console.log(
     `%c VideoMax ${iframe}`,
     `color: white; font-weight: bold; background-color: blue`,
     ...args,
@@ -612,6 +612,7 @@ export function centerElem(elem: Element) {
   const { top, left, width, height } = getCoords(elem);
   return { x: Math.round(left + width / 2), y: Math.round(top + height / 2) };
 }
+
 /**
  * @param topElem initially, document.body
  * @param optCenter undefined for root, but when recursing, pass in calc value for optimization.
@@ -673,6 +674,105 @@ export function isElemVisable(elem: Element) {
       checkVisibilityCSS: true,
     }) ?? true
   );
+}
+
+export function pointIsInRect(point: Point, rect: DomRect): boolean {
+  return point.x > rect.left && point.x < rect.right && point.y > rect.top && point.y < rect.bottom;
+}
+
+/**
+ * Finds the intersection point between
+ *     * the rectangle
+ *       with parallel sides to the x and y axes
+ *     * the half-line pointing towards (x,y)
+ *       originating from the middle of the rectangle
+ *
+ * Note: the function works given min[XY] <= max[XY],
+ *       even though min.y may not be the "top" of the rectangle
+ *       because the coordinate system is flipped.
+ * Note: if the input is inside the rectangle,
+ *       the line segment wouldn't have an intersection with the rectangle,
+ *       but the projected half-line does.
+ * Warning: passing in the middle of the rectangle will return the midpoint itself
+ *          there are infinitely many half-lines projected in all directions,
+ *          so let's just shortcut to midpoint (GIGO).
+ *
+ * @param point {Point} Point to build the half-line from
+ * @param rect {DomRect} bounding rect
+ * @return an object with x and y members for the intersection
+ * @throws if validate == true and (x,y) is inside the rectangle
+ * @author TWiStErRob
+ * @licence Dual CC0/WTFPL/Unlicence, whatever floats your boat
+ * @see <a href="http://stackoverflow.com/a/31254199/253468">source</a>
+ * @see <a href="http://stackoverflow.com/a/18292964/253468">based on</a>
+ */
+export function pointOnRect(point: Point, rect: DomRect): Point {
+  const { x, y } = point;
+  const min = { x: rect.left, y: rect.top };
+  const max = { x: rect.right, y: rect.bottom };
+
+  const midX = (min.x + max.x) / 2;
+  const midY = (min.y + max.y) / 2;
+  // if (midX - x == 0) -> m == ±Inf -> minYx/maxYx == x (because value / ±Inf = ±0)
+  const m = (midY - y) / (midX - x);
+
+  if (x <= midX) {
+    // check "left" side
+    const minXy = m * (min.x - x) + y;
+    if (min.y <= minXy && minXy <= max.y) {
+      return { x: min.x, y: minXy };
+    }
+  }
+
+  if (x >= midX) {
+    // check "right" side
+    const maxXy = m * (max.x - x) + y;
+    if (min.y <= maxXy && maxXy <= max.y) {
+      return { x: max.x, y: maxXy };
+    }
+  }
+
+  if (y <= midY) {
+    // check "top" side
+    const minYx = (min.y - y) / m + x;
+    if (min.x <= minYx && minYx <= max.x) {
+      return { x: minYx, y: min.y };
+    }
+  }
+
+  if (y >= midY) {
+    // check "bottom" side
+    const maxYx = (max.y - y) / m + x;
+    if (min.x <= maxYx && maxYx <= max.x) {
+      return { x: maxYx, y: max.y };
+    }
+  }
+
+  // edge case when finding midpoint intersection: m = 0/0 = NaN
+  if (x === midX && y === midY) {
+    return { x: x, y: y };
+  }
+
+  // Should never happen :) If it does, please tell me!
+  throw (
+    "Cannot find intersection for " +
+    [x, y] +
+    " inside rectangle " +
+    [min.x, min.y] +
+    " - " +
+    [max.x, max.y] +
+    "."
+  );
+}
+
+export function distance(point1: Point, point2: Point): number {
+  // x1: number, y1: number, x2: number, y2: number): number {
+  return Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2));
+}
+
+export function centerDomRect(rect: DomRect): Point {
+  const { top, left, width, height } = rect;
+  return { x: Math.round(left + width / 2), y: Math.round(top + height / 2) };
 }
 
 declare global {

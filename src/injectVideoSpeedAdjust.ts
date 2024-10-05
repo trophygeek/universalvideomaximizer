@@ -61,7 +61,7 @@ export function injectVideoSpeedAdjust(newspeed: string, allowPlaybackToggle = t
       }
       const videoElem = event?.target as HTMLMediaElement;
 
-      if (!!videoElem?.src?.length || videoElem.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+      if (videoElem.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
         if (DEV_MODE) {
           // eslint-disable-next-line no-console
           console.log(`VideoMaxExt: loadStart injectVideoSpeedAdjust not running since video not in correct state. 
@@ -101,11 +101,11 @@ export function injectVideoSpeedAdjust(newspeed: string, allowPlaybackToggle = t
     videoElem: HTMLVideoElement,
     newPlaybackRate: number,
     newAllowPlaybackToggle: boolean,
-  ) {
+  ): boolean {
     // Always remove possible loadstart listeners since ads may be on top of older videos
-    //  filter out any videos that don't have a src or data?
-    if (!videoElem?.src?.length && videoElem.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-      return;
+    //  filter out any videos that don't have a src or data? NODE: videoElem?.src is empty for file:// videos
+    if (videoElem.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+      return false;
     }
     videoElem.removeEventListener("loadstart", _loadStart);
 
@@ -118,6 +118,7 @@ export function injectVideoSpeedAdjust(newspeed: string, allowPlaybackToggle = t
     // topVisVideo.defaultPlaybackRate = speed;
     videoElem.playbackRate = Math.abs(newPlaybackRate);
     videoElem.addEventListener("loadstart", _loadStart);
+    return true;
   }
 
   const speedNumber = _getSavedSpeedFromDocument(newspeed);
@@ -138,8 +139,11 @@ export function injectVideoSpeedAdjust(newspeed: string, allowPlaybackToggle = t
     return;
   }
 
-  for (const eachVideo of topVisVideos) {
-    _injectSetSpeedForVideo(eachVideo, speedNumber, allowPlaybackToggle);
-    break; // for MBA, if we do ALL the videos then skipping ads will skip main video
+  for (let i = 0; i < topVisVideos.length; i++) {
+    const eachVideo = topVisVideos[i];
+    const result = _injectSetSpeedForVideo(eachVideo, speedNumber, allowPlaybackToggle);
+    if (result) {
+      break; // for MBA, if we do ALL the videos then skipping ads will skip main video
+    }
   }
 }

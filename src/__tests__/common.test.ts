@@ -29,7 +29,10 @@ import {
   splitUrlWords,
   safeParseInt,
   safeParseFloat,
-} from "../../src/common";
+  centerDomRect,
+  pointIsInRect,
+  pointOnRect,
+} from "../common";
 
 describe("common.ts", () => {
   test("numbericOnly", () => {
@@ -251,6 +254,37 @@ describe("common.ts", () => {
     // this is debatable. round or truncate?
     expect(safeParseFloat("0.6")).toBe(0.6);
   });
+  // //          const centerViewport = centerDomRect(visualViewport);
+  // //           if (pointIsInRect(centerViewport, elemBounds)) {
+  // //             const distantPoint = pointOnRect(centerViewport,elemBounds);
+  const domRect1 = {
+    top: 0,
+    left: 0,
+    bottom: 1000,
+    width: 2000,
+    height: 1000,
+    right: 2000,
+  };
 
-  // diceCoefficient, customDiceCoefficient
+  test("centerDomRect()", () => {
+    expect(centerDomRect(domRect1)).toStrictEqual({ x: 1000, y: 500 });
+  });
+
+  test("pointIsInRect()", () => {
+    expect(pointIsInRect({ x: 100, y: 100 }, domRect1)).toBe(true);
+    expect(pointIsInRect({ x: 0, y: 0 }, domRect1)).toBe(false);
+    expect(pointIsInRect({ x: 3000, y: 3000 }, domRect1)).toBe(false);
+  });
+
+  test("pointOnRect(rect)", () => {
+    expect(pointOnRect({ x: 1000, y: 550 }, domRect1)).toStrictEqual({
+      x: 1000,
+      y: 1000,
+    });
+
+    expect(pointOnRect({ x: 1000, y: 50 }, domRect1)).toStrictEqual({
+      x: 1000,
+      y: 0,
+    });
+  });
 });

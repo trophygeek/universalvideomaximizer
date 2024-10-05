@@ -74,12 +74,12 @@ const defaultStep = {
     },
   },
   treeshake: {
-    preset: 'smallest',
+    preset: isDev ? 'safest':'smallest',
     unknownGlobalSideEffects: false,
     moduleSideEffects: false,
     propertyReadSideEffects: false,
     tryCatchDeoptimization: false,
-    manualPureFunctions: [
+    manualPureFunctions: isDev ?  [] : [
       'printNode',
       'logerr',
       'logtrace',

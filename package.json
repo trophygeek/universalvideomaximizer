@@ -6,6 +6,7 @@
   "npmClient": "yarn",
   "dependencies": {},
   "devDependencies": {
+    "@jest/globals": "^29.7.0",
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-replace": "^5.0.7",
     "@rollup/plugin-typescript": "^11.1.6",
@@ -22,6 +23,7 @@
     "rollup-plugin-copy": "^3.5.0",
     "rollup-plugin-zip": "^1.0.3",
     "ts-jest": "^29.2.5",
+    "ts-jest-mock-import-meta": "^1.2.0",
     "typescript": "^5.5.4",
     "vite": "^5.4.2"
   },
@@ -38,7 +40,7 @@
     "build": "NODE_ENV=production rollup -c rollup.config.mjs --environment BUILD:production",
     "build:dev": "NODE_ENV=development rollup -c rollup.config.mjs --environment BUILD:development",
     "clean": "rimraf dist/videomaximizer",
-    "test": "jest --force-exit",
+    "test": "NODE_ENV=test jest --force-exit",
     "lint:fix": "prettier --bracket-same-line  --print-width 100 --write \"src/**/*.{ts,tsx}\"",
     "update": "git checkout -- yarn.lock && yarn install && yarn upgrade --lastest",
     "buildpackage": "yarn build && node ./scripts/bundlepackage.js"

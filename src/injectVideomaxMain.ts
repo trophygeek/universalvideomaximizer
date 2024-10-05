@@ -25,7 +25,6 @@ import {
   elementExists,
   EMBEDED_SCORES,
   findVideoElementsInShadowRoot,
-  findVideosAtCenter,
   formatFloat,
   formatInt,
   getAttr,
@@ -67,6 +66,11 @@ import {
   VIDEO_MAX_DATA_ATTRIB_UNDO_TAG,
   VIDEO_MAX_INSTALLED_ATTR,
   YOUTUBE_RESTORE_NON_THEATER_ATTR,
+  pointOnRect,
+  pointIsInRect,
+  distance,
+  centerDomRect,
+  centerElem, DEBUG_ENABLED,
 } from "./common.js";
 
 const BREAK_ON_BEST_MATCH = DEV_MODE && false;
@@ -151,7 +155,7 @@ const TITLE_OVERLAP_WEIGHT: number = 100;
 const IN_VIEW_WEIGHT: number = 0.25;
 const ALLOW_FULLSCREEN_WEIGHT: number = 20.0;
 const ADVERTISE_WEIGHT: number = -200.0; // don't hide ads, but don't want them as primary video
-const NEAR_CENTER_WEIGHT: number = 5.0;
+const NEAR_CENTER_WEIGHT: number = 200000; // max value (zero disables)
 
 // main videos
 const DOOMSCROLL_PLAYING_BOOST_FACTOR: number = 50.0;
@@ -338,7 +342,9 @@ function SANITY_CHECK_MATCH_NOT_DELETED() {
   }
 }
 
-if (!isRunningInIFrame()) {
+const g_isRunningInIFrame = isRunningInIFrame();
+
+if (!g_isRunningInIFrame) {
   // @ts-ignore
   if (window?._VideoMaxExt) {
     logtrace("Found globals, restoring");
@@ -382,7 +388,7 @@ function isMaximized() {
  */
 function getPageUrl(): string {
   try {
-    return isRunningInIFrame() ? document.referrer : document.location.href;
+    return g_isRunningInIFrame ? document.referrer : document.location.href;
   } catch (err) {
     logerr(err);
     return "";
@@ -597,10 +603,14 @@ function isIFrameElemMeetsRequirements(elem: Element) {
     // if (!elem?.contentDocument) {
     //   logtrace(`isIFrameElemMeetsRequirements: false (missing
     // contentDocument)`); return false; }
-    if (elem instanceof HTMLIFrameElement && elem?.src === "about:blank") {
-      logtrace(`isIFrameElemMeetsRequirements: false (about:blank)`);
-      return false;
-    }
+
+    // this breaks abcnews.go.com
+    // if (elem instanceof HTMLIFrameElement && elem?.src === "about:blank") {
+    //   logtrace(`isIFrameElemMeetsRequirements: false (about:blank)`);
+    //   return false;
+    // }
+
+
     // width might be "100%" vs pixels
     // if (elem?.width < MIN_IFRAME_WIDTH || elem?.height <
     // MIN_IFRAME_HEIGHT) { logtrace(`isIFrameElemMeetsRequirements: false (too
@@ -638,7 +648,7 @@ function parentElement(elem: Element | DocumentFragment | null): Element | null 
     // same domain) Potential problem: is that this frame MAY NOT BE THE BEST
     // match at the top level if multiple iframes
     if (IFRAME_PARENT_NODE_WORKS) {
-      if (isRunningInIFrame() && elem instanceof HTMLIFrameElement) {
+      if (g_isRunningInIFrame && elem instanceof HTMLIFrameElement) {
         // not sure this is working.
         const result = findIFrameInDocument(elem);
         logtrace(
@@ -674,7 +684,7 @@ function appendUnitTestResultInfo(newStr: string) {
     return;
   }
   try {
-    if (isRunningInIFrame()) {
+    if (g_isRunningInIFrame) {
       return;
     }
 
@@ -780,8 +790,13 @@ function backupAttr(elem: Element | HTMLElement, attrKey: string) {
     return;
   }
   const backupName = `${VIDEO_MAX_DATA_ATTRIB_UNDO_PREFIX}-${attrKey}`;
-  if (getAttr(elem, backupName) !== null) {
-    logtrace(`Attempting to resave attribute (not overwriting)? ${printNode(elem)}"`);
+  const backupValue = getAttr(elem, backupName);
+  if (backupValue !== null) {
+    if (DEBUG_ENABLED && orgValue !== backupValue) {
+      logtrace(`backupAttr: Attempting to resave attribute (not overwriting)?
+       ${attrKey}: "${backupValue}"
+       Elem: "${printNode(elem)}"`);
+    }
   } else {
     setAttr(elem, backupName, orgValue);
     setAttr(elem, VIDEO_MAX_DATA_ATTRIB_UNDO_TAG, "1");
@@ -936,6 +951,7 @@ function findLargestVideoNew(topElem: Element) {
       logerr(`elementMatcher should NOT be null`);
       return false;
     }
+
     // todo: should this always be doc versus document?!?
     {
       const allvideos = topElem.querySelectorAll("video");
@@ -1563,7 +1579,7 @@ function maximizeUpFromVideo() {
   // special case for when videos are in iframes that are not on a different
   // domain. e.g. dailymotion.com
   if (
-    !isRunningInIFrame() &&
+    !g_isRunningInIFrame &&
     isVideoElem(videomaxGlobals.matchedVideo) &&
     isElemInIFrame(videomaxGlobals.matchedVideo)
   ) {
@@ -1588,7 +1604,7 @@ function tagElementAsMatchedVideo(elem: Element | HTMLIFrameElement) {
   videomaxGlobals.matchedVideo = elem;
   videomaxGlobals.matchVideoRect = getCoords(elem);
   videomaxGlobals.matchedVideoSrc = getVideoSource(elem);
-  videomaxGlobals.processInFrame = isRunningInIFrame(); // for debugging
+  videomaxGlobals.processInFrame = g_isRunningInIFrame; // for debugging
   // set the data-videomax-id = "zoomed" so undo can find it.
   setAttr(elem, `${VIDEO_MAX_ATTRIB_FIND}`, VIDEO_MAX_ATTRIB_ID);
   elem?.classList?.add(PLAYBACK_VIDEO_MATCHED_CLASS, MAX_CSS_CLASS);
@@ -2049,7 +2065,7 @@ function hideCSS(id: string) {
 }
 
 function hasInjectedAlready() {
-  const attr = document.body.getAttribute(VIDEO_MAX_INSTALLED_ATTR) ?? "";
+  const attr = document?.body?.getAttribute(VIDEO_MAX_INSTALLED_ATTR) ?? "";
   const thinksInstalled = attr?.length > 0;
   if (!thinksInstalled) {
     return false;
@@ -2285,9 +2301,9 @@ function isSpecialCaseNeverHide(elem: Node): boolean {
  */
 const isSpecialCaseNeverOverlap = (_elem: Node): boolean => false; // in theory more logic can go here.
 
-/** optimization since the matches are called often */
+/** optimization since the matches are called often - todo: move common an unit test */
 const AdverRegex = /(?:^|\W|-)adver/gi;
-const AdRegex = /(?:^|\W|-)ad-|-ad$/gi;
+const AdRegex = /[^a-zA-Z]ad[^a-zA-Z]|[^A-Z]Ad[^a-z]|^ad[^a-z]/g; //
 const BrandingRegex = /(?:^|\W|-)branding/gi;
 
 /**
@@ -2303,6 +2319,9 @@ function smellsLikeAdElem(elem: Node) {
   }
   // regex /^(@)(\wadver)/ig)) <- means start of word
   const arialabel = getAttr(elem, "aria-label");
+  if (!arialabel?.length) {
+    return false;
+  }
   if (arialabel?.match(AdverRegex)) {
     logtrace(`smellsLikeAdElem: matched aria-label for "adver" '${arialabel}'`);
     return true;
@@ -2337,7 +2356,7 @@ function smellsLikeAdElem(elem: Node) {
  * small. Only works when injected into an iframe
  */
 function earyExitForSmallIFrame(): boolean {
-  if (!isRunningInIFrame()) {
+  if (!g_isRunningInIFrame) {
     return false;
   }
   // Running in iframe means.
@@ -2439,7 +2458,7 @@ function maximizeVideoDom() {
   // ANY siblings to the <video> should always just be considered overlapping
   // (crunchyroll's CC canvas
   if (
-    (FIND_CONTROLS_ON_MAIN_THREAD_FOR_IFRAME_MATCH && !isRunningInIFrame()) ||
+    (FIND_CONTROLS_ON_MAIN_THREAD_FOR_IFRAME_MATCH && !g_isRunningInIFrame) ||
     isVideoElem(videomaxGlobals.matchedVideo)
   ) {
     const videoSiblings = getSiblings(videomaxGlobals.matchedVideo);
@@ -2523,7 +2542,7 @@ class ElemMatcherClass {
       this.largestElem = elem;
       this.matchCount = 1;
       logtrace(
-        `Making item best match: \t${elem.nodeName}\t${elem.className.toString()}\t${elem.id}`,
+        `Making item best match: \t${elem?.nodeName}\t${elem?.className?.toString()}\t${elem?.id}`,
       );
       return true;
     }
@@ -2613,6 +2632,9 @@ class ElemMatcherClass {
 
     const { width, height } = this.getElemDimensions(elem, compStyle);
     if (width < MIN_VIDEO_WIDTH || height < MIN_VIDEO_HEIGHT) {
+      logtrace(`getElemMatchScore: fail. Element too small 
+        MIN_VIDEO_WIDTH: ${width} < ${MIN_VIDEO_WIDTH} 
+        IN_VIDEO_HEIGHT: ${height} < ${MIN_VIDEO_HEIGHT}`, elem);
       return 0;
     }
 
@@ -2716,7 +2738,7 @@ class ElemMatcherClass {
                 )} * (inverseDist * RATIO_WEIGHT) * (videoSize * SIZE_WEIGHT) ` +
                 `\t outerPercent: ${formatFloat(outerPercent + 100)} ` +
                 `\t innerPercent:${formatFloat(innerPercent)}` +
-                `\t in ${isRunningInIFrame() ? "iFrame (may be 1.0 for iframe)" : "Main"}`,
+                `\t in ${g_isRunningInIFrame ? "iFrame (may be 1.0 for iframe)" : "Main"}`,
             );
           }
           weight +=
@@ -2728,14 +2750,38 @@ class ElemMatcherClass {
             (videoSize * SIZE_WEIGHT * 0.1);
         }
 
-        // reuse IN_VIEW_WEIGHT variables
-        if (NEAR_CENTER_WEIGHT) {
-          const x = Math.round(visualViewport.left + visualViewport.width / 2);
-          const y = Math.round(visualViewport.top + visualViewport.height / 2);
+        if (NEAR_CENTER_WEIGHT && !g_isRunningInIFrame) {
+          // "How close" is the center of the screen to the center of the video? (NOT the other way around)
+          // Closeness cares about how big the video is.
+          // To do this we:
+          //   1. Verify the center of the screen is inside the bounds of the video.
+          //   2. Draw a line from the center of the video, passing through the center screen until it reaches
+          //        the edge of the video.
+          //   3. Measure the length of the line from video center to video edge and from video center to screen center
+          //   4. The "closeness" is a ratio of these distances.
+          const centerViewport = centerDomRect(visualViewport);
+          if (pointIsInRect(centerViewport, elemBounds)) {
+            debugger;
+            const distantPoint = pointOnRect(centerViewport, elemBounds);
+            const centerElem = centerDomRect(elemBounds);
+            const d1 = distance(centerElem, centerViewport);
+            const d2 = distance(centerElem, distantPoint);
+            // centerweith is always 0-1.0. Closer to zero is better.
+            const ratio = d1 / d2;
+            const centerweight = 1.0 - ratio;  // invert closer to zero is better
+
+            if (EMBED_SCORES) {
+              traceweights.push(
+                `\tNEAR_CENTER_WEIGHT: ` +
+                  `${formatInt(centerweight * NEAR_CENTER_WEIGHT)} ` +
+                  `\t centerweight: ${formatFloat(centerweight)} ` +
+                  `\t inverseDist:${formatFloat(inverseDist)}` +
+                  `\t viewportX: ${formatFloat(centerViewport.x)} viewportY: ${formatFloat(centerViewport.y)}`,
+              );
+            }
+            weight += centerweight * NEAR_CENTER_WEIGHT;
+          }
         }
-        debugger;
-        const centerview = findVideosAtCenter(elem);
-        logtrace(centerview);
       }
     }
 
@@ -2915,7 +2961,7 @@ class ElemMatcherClass {
       }
     }
 
-    if (!isRunningInIFrame()) {
+    if (!g_isRunningInIFrame) {
       if (EMBED_SCORES) {
         traceweights.push(
           `  MAIN_FRAME_WEIGHT (running in main) MAIN_FRAME_WEIGHT:${formatInt(
@@ -3279,7 +3325,7 @@ function postFixUpPageZoom() {
   let useObserver = true;
   // some sites (mba) position a full sized overlay that needs to be centered.
   if (
-    // !isRunningInIFrame() && // NBCNews iframe styles constantly getting
+    // !g_isRunningInIFrame && // NBCNews iframe styles constantly getting
     // updated
     !isVideoElem(videomaxGlobals.matchedVideo)
   ) {
@@ -3379,7 +3425,7 @@ function updateEventListeners(elem: Element, removeOnly = false) {
 }
 
 function isYoutubeInTheaterMode() {
-  if (isRunningInIFrame()) {
+  if (g_isRunningInIFrame) {
     return false;
   }
   const masthead = document.getElementById("masthead");
@@ -3436,10 +3482,11 @@ function doZoomPageRetries(): boolean {
   }
 
   // @ts-ignore This .src is correct. https://developer.mozilla.org/en-US/docs/Web/API/Window/frameElement
-  if (window?.frameElement?.src === "about:blank") {
-    logtrace("Injected into blank iframe, not running");
-    return true; // stop retrying
-  }
+  // this breaks abcnews.go.com
+  // if (window?.frameElement?.src === "about:blank") {
+  //   logtrace("Injected into blank iframe, not running");
+  //   return true; // stop retrying
+  // }
 
   if (!documentLoaded()) {
     logtrace(`document state not complete: '${document.readyState}'`);
@@ -3469,7 +3516,7 @@ function doZoomPageRetries(): boolean {
 
   const getMatchCount = videomaxGlobals.elementMatcher?.getMatchCount() || 0;
   if (getMatchCount === 0) {
-    logtrace(`No video found, ${isRunningInIFrame() ? "iFrame" : "Main"}.
+    logtrace(`No video found, ${g_isRunningInIFrame ? "iFrame" : "Main"}.
         foundVideoNewAlg=${foundVideoNewAlgo}`);
     return false; // keep trying
   }
@@ -3593,13 +3640,13 @@ function mainZoom(tagonly = false) {
   }
   logtrace("running mainVideoMaxInject");
 
-  const retries = isRunningInIFrame() ? 2 : 8;
+  const retries = g_isRunningInIFrame ? 2 : 8;
 
   if (earyExitForSmallIFrame()) {
     return;
   }
 
-  if (CANCEL_SCROLL_EVENTS && !isRunningInIFrame()) {
+  if (CANCEL_SCROLL_EVENTS && !g_isRunningInIFrame) {
     // this is to prevent doomscrollers from completely changing the dom on us
     document.addEventListener("scroll", cancelScrollEvents, CANCEL_EVT_OPTIONS);
   }
@@ -3822,7 +3869,7 @@ function isVisible(elem: Element): boolean {
  * @return {boolean}
  */
 function isTopVisibleVideoElem(videoElem: HTMLVideoElement): boolean {
-  if (isRunningInIFrame()) {
+  if (g_isRunningInIFrame) {
     // this could be tricky as hell... we likely to what's outside our frame
     if (DEV_MODE) {
       // eslint-disable-next-line no-debugger
@@ -4078,7 +4125,7 @@ class UndoZoom {
       videomaxGlobals.findVideoRetryTimer = null;
     }
 
-    if (!isRunningInIFrame()) {
+    if (!g_isRunningInIFrame) {
       // this is to prevent doomscrollers from completely changing the dom on
       // us
       document.removeEventListener("scroll", cancelScrollEvents, CANCEL_EVT_OPTIONS);
@@ -4116,7 +4163,7 @@ class UndoZoom {
   static mainUnzoom() {
     try {
       // clear if we have var saved in window/document
-      if (!isRunningInIFrame() && window._VideoMaxExt) {
+      if (!g_isRunningInIFrame && window._VideoMaxExt) {
         logtrace("removing window._VideoMaxExt for main thread");
         delete window._VideoMaxExt;
       } else if (document._VideoMaxExt) {
@@ -4146,7 +4193,7 @@ class UndoZoom {
       UndoZoom.recurseIFrameUndoAll(window.document);
 
       if (
-        !isRunningInIFrame() &&
+        !g_isRunningInIFrame &&
         getAttr(document.body, YOUTUBE_RESTORE_NON_THEATER_ATTR) !== null
       ) {
         logtrace("Detected we put youtube in theater mode, undoing it");

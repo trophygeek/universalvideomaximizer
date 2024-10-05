@@ -72,7 +72,7 @@ try {
 
   // used to simplify IncreaseSpeed()/DecreaseSpeed()
   const MIN_SPEED = "0.25";
-  const MAX_SPEED = "16.0";
+  const MAX_SPEED = "16.00";
 
   // parse some setting passed to us via the url (tabid, domain, etc)
   const url = new URL(document.location.href);
