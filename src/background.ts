@@ -28,7 +28,6 @@ import {
   BLOCKED_SKIPFEATURE_DOMAINS,
   logerr,
   logtrace,
-  logwarn,
 } from "./common";
 
 import { injectCssHeaderRemove } from "./injectCssHeaderRemove";
@@ -117,6 +116,7 @@ type BackgroundState =
   | "REFRESH"
   | "ERR_PERMISSION"
   | "ERR_URL"
+  | "ERR_TAB_CLOSED"
   | ""; // means
 // preserve
 // state
@@ -135,8 +135,9 @@ type BackgroundStateMap = {
 type SubFrameParamData = {
   tabId: number;
   domain: string;
-  subFrameStr: string;
-  playbackSpeed?: string; // store here so no async required, so we can reply to messages.
+  subFramesStr: string;
+  playbackSpeed: string; // store here so no async required, so we can reply to messages.
+  permissionsRequested: boolean;
 };
 
 type SubFramePermMatching = {
@@ -210,6 +211,13 @@ const STATE_DATA: BackgroundStateMap = {
     zoomed: false,
     color: "#FCD2D2F7",
   },
+  ERR_TAB_CLOSED: {
+    badge: BADGES.WARNING,
+    title: "Tab closed",
+    showpopup: false,
+    zoomed: false,
+    color: "#FCD2D2F7",
+  },
   [""]: {
     // not used
     badge: BADGES.SPEED,
@@ -219,6 +227,8 @@ const STATE_DATA: BackgroundStateMap = {
     color: DEFAULT_COLOR,
   },
 };
+
+const ERROR_STATES = ["ERR_TAB_CLOSED", "ERR_URL", "ERR_PERMISSION"];
 
 // REALLY trying to not require full permissions, but sometime iframes are
 // cross-domain and need more permissions. Try to collect iframe domains
@@ -233,7 +243,7 @@ let g_cachedSettings: SettingsType | undefined;
 // m3 API REALLY needs some "onload" function (that runs async), to allow
 // data to be loaded for background scripts.
 async function refreshSettings() {
-  const g_cachedSettings = await getSettings();
+  g_cachedSettings = await getSettings();
   return g_cachedSettings;
 }
 
@@ -245,46 +255,37 @@ const g_globalAccessSubframeData: SubFramePermMatching = {};
 const EMPTY_ACCESS_SUBFRAME: SubFrameParamData = {
   tabId: 0, // also key
   domain: "",
-  subFrameStr: "",
+  subFramesStr: "",
+  permissionsRequested: false,
   playbackSpeed: DEFAULT_SPEED_STR,
 };
-
-/**
- * Used to track extra domains that iframes might be using so we can prompt for
- * permissions
- */
-function getSubframeData(tabId: number, domainMatch: string): SubFrameParamData | false {
-  if (domainMatch === "") {
-    return false;
-  }
-  const match = g_globalAccessSubframeData[tabId] || EMPTY_ACCESS_SUBFRAME;
-  if (match.domain.indexOf(domainMatch) !== -1) {
-    logtrace(`getSubframeData match tabId: "${tabId}"  ${domainMatch} result: `, match);
-    return match;
-  }
-  return false;
-}
 
 /**
  * See comments above. Set iframe domain that needs extra permissions to inject
  * speed changes into. No delete data because it's just in memory and is short
  * lived.
  */
-function setSubframeData(
-  tabId: number,
-  domain: string,
-  subFrameStr: string,
-  playbackSpeed = DEFAULT_SPEED_STR,
-) {
+function setSubframeData(param: SubFrameParamData) {
   logtrace(
-    `setSubframeData tabId:"${tabId}", domain:"${domain}", subFrameStr: "${subFrameStr}", playbackSpeed: "${playbackSpeed}"`,
+    `setSubframeData tabId:"${param.tabId}", domain:"${param.domain}", subFramesStr: "${param.subFramesStr}", playbackSpeed: "${param.playbackSpeed}"`,
   );
-  g_globalAccessSubframeData[tabId] = {
-    tabId,
-    domain,
-    subFrameStr,
-    playbackSpeed,
-  };
+  g_globalAccessSubframeData[param.tabId] = { ...param };
+}
+
+/**
+ * Used to track extra domains that iframes might be using so we can prompt for
+ * permissions
+ */
+function getSubframeData(tabId: number, domainMatch: string): SubFrameParamData | null {
+  if (domainMatch === "") {
+    return null;
+  }
+  const match = g_globalAccessSubframeData[tabId] || EMPTY_ACCESS_SUBFRAME;
+  if (match.domain.indexOf(domainMatch) !== -1) {
+    logtrace(`getSubframeData match tabId: "${tabId}"  ${domainMatch} result: `, match);
+    return match;
+  }
+  return null;
 }
 
 // speed is read by GET_SPEED_COMPLETE_CMD
@@ -293,7 +294,13 @@ async function setSpeedGlobalData(tabId: number, domain: string, speed: string) 
     // the popup sends message to get the speed, it doesn't support async, so we also store
     // in VERY a shorterm global.
     const matched = getSubframeData(tabId, domain);
-    setSubframeData(tabId, domain, matched ? matched.subFrameStr : "", speed);
+    setSubframeData({
+      tabId,
+      domain,
+      subFramesStr: matched?.subFramesStr ?? "",
+      playbackSpeed: speed,
+      permissionsRequested: matched?.permissionsRequested ?? false,
+    });
 
     const key = `speed.${tabId}.${domain}`;
     const orgValue = await chrome.storage.session.get(key);
@@ -356,6 +363,8 @@ async function getLastUrlTitleFromOnUpdated(tabId: number): Promise<{
     return { url: "", title: "" };
   }
 }
+
+function setWarning(warningId: ErrorMsg) {}
 
 // DEFAULT will be the `default_title` string from our manifest.
 // Remembering to keep in sync is fragile, and doesn't localize, just load it
@@ -457,13 +466,16 @@ async function getCurrentTabState(tabId: number): Promise<BackgroundState> {
     logtrace(`getTabCurrentState "${keys}" -> ${keys[0]}`);
     return keys[0];
   } catch (err) {
-    logerr("GetStateErr", err);
-    return "UNZOOMED";
+    return "ERR_TAB_CLOSED";
   }
 }
 
 function isActiveState(state: BackgroundState) {
   return STATE_DATA[state]?.zoomed || false;
+}
+
+function isErrorState(state: BackgroundState) {
+  return ERROR_STATES.includes(state);
 }
 
 /**
@@ -480,7 +492,7 @@ function injectionResultCheckBool(
     return defaultVal;
   }
   for (const frameresult of injectionResults) {
-    if (frameresult.result !== defaultVal) {
+    if (frameresult.result !== undefined && frameresult.result !== defaultVal) {
       return frameresult.result;
     }
   }
@@ -547,15 +559,6 @@ async function doInjectZoom(tabId: number) {
   try {
     // The script will be run at document_end
     logtrace("doInjectZoom enter");
-    await chrome.scripting.executeScript({
-      target: {
-        tabId,
-        allFrames: true, // false doesn't hide some content.
-      }, // world:  "MAIN",
-      files: ["cmd_zoom_inject.js", "injectVideomaxMain.js"],
-      injectImmediately: true,
-    });
-
     await chrome.scripting.executeScript({
       target: {
         tabId,
@@ -656,15 +659,34 @@ async function doInjectCheckCSSIsBlocked(tabId: number) {
     logtrace(`DoCheckCSSInjectedIsBlocked result: ${result}`, injectionresult);
     return result;
   } catch (err) {
-    logerr("doInjectCheckCSSIsBlocked failed, returning false", err);
-    return true; // true means it's blocked
+    // Most likely, the tab has closed.
+    // we return true since this prevents the calling code from doing more work.
+    return true; // false means it's blocked
+  }
+}
+
+async function doInjectZoomFallbackCSS(tabId: number) {
+  try {
+    logtrace("CSS loading file BLOCKED. directly adding css. undo/redo may fail");
+    // ok. we just need to inject in a way that cannot be easily undone.
+    await chrome.scripting.insertCSS({
+      target: {
+        tabId,
+        allFrames: true,
+      },
+      origin: "AUTHOR",
+      files: [CSS_FILE],
+    });
+  } catch (err) {
+    logerr("doInjectCSSFallback failed, returning false", err);
   }
 }
 
 async function doInjectUnZoom(tabId: number, domain: string) {
   try {
     logtrace("doInjectUnZoom enter");
-    await Promise.all([
+    // await is INTERNALLY missing. Chrome keeps having a bug where `async executeScript` never returns!
+    Promise.all([
       setCurrentTabState(tabId, "UNZOOMED"),
       doInjectUndoCSS(tabId),
       doInjectSetSpeed(tabId, domain, DEFAULT_SPEED_STR, false),
@@ -676,8 +698,10 @@ async function doInjectUnZoom(tabId: number, domain: string) {
         files: ["cmd_unzoom_inject.js", "injectVideomaxMain.js"],
         injectImmediately: true,
       }),
-    ]);
-    logtrace("doInjectUnZoom leave");
+    ]).then(() => {
+      logtrace("doInjectUnZoom completed");
+    });
+    logtrace("doInjectUnZoom return");
   } catch (err) {
     logerr(err);
   }
@@ -697,28 +721,23 @@ async function DoZoom(tabId: number, state: BackgroundState, domain?: string) {
       await doInjectTagOnlyJS(tabId); // doInjectZoomCSS(tabId, true)
     } else {
       await setCurrentTabState(tabId, "ZOOMING", domain);
-      await doInjectZoom(tabId);
-      await doInjectZoomCSS(tabId);
+      // Chrome repeatedly has releases where async inject calls that NEVER return.
+      // https://www.mlb.com/video triggers it.
+      // the await intentionally missing.
+      Promise.all([doInjectZoomCSS(tabId), doInjectZoom(tabId)]).then(() => {
+        logtrace("DoZoom completed");
+      });
 
       // now verify the css wasn't blocked by CSP.
       const wasCSSBlocked = await doInjectCheckCSSIsBlocked(tabId);
       if (wasCSSBlocked) {
-        logtrace("CSS loading file BLOCKED. directly adding css. undo/redo may fail");
-        // ok. we just need to inject in a way that cannot be easily undone.
-        await chrome.scripting.insertCSS({
-          target: {
-            tabId,
-            allFrames: true,
-          },
-          origin: "AUTHOR",
-          files: [CSS_FILE],
-        });
+        await doInjectZoomFallbackCSS(tabId);
       }
     }
   } catch (err) {
     logerr(err);
   }
-  logtrace("DoZoom leave");
+  logtrace("DoZoom return");
 }
 
 async function doInjectSetSpeed(
@@ -732,7 +751,7 @@ async function doInjectSetSpeed(
 
     if (typeof parseFloat(speedStr) !== "number") {
       logerr(`doInjectSetSpeed: Speed NOT valid number '${speedStr}'`);
-      return;
+      return false;
     }
     const currentSpeed = await doInjectGetSpeed(tabId, domain);
 
@@ -740,7 +759,7 @@ async function doInjectSetSpeed(
       logtrace(
         `doInjectSetSpeed: NOT setting video speed since currentSpeed === speedStr "${currentSpeed}"`,
       );
-      return;
+      return true;
     }
 
     await setSpeedGlobalData(tabId, domain, speedStr);
@@ -748,7 +767,8 @@ async function doInjectSetSpeed(
       tabId:${tabId} speed:${speedStr} allowPlaybackToggle:${allowPlaybackToggle}`);
     // "allFrames" is broken unless manifest requests permissions
     // `"optional_host_permissions": ["<all_urls>"]`
-    await chrome.scripting.executeScript({
+    // no await since chrome bug can block it forever.
+    const injectResult = chrome.scripting.executeScript({
       target: {
         tabId,
         allFrames: true,
@@ -758,9 +778,10 @@ async function doInjectSetSpeed(
       injectImmediately: true,
     });
     logtrace(`doInjectSetSpeed: leave`);
+    return injectResult;
   } catch (err) {
     logerr(err);
-    return;
+    return false;
   }
 }
 
@@ -791,6 +812,7 @@ async function doInjectGetVideoZoomed(
 
 async function doInjectGetSpeed(tabId: number, domain: string) {
   try {
+    logtrace(`doInjectGetSpeed enter`);
     const results = await chrome.scripting.executeScript({
       target: {
         tabId,
@@ -802,7 +824,10 @@ async function doInjectGetSpeed(tabId: number, domain: string) {
     });
 
     const speed = injectionResultCheckString(results, DEFAULT_SPEED_STR);
-    logtrace(`doInjectGetSpeed returned "${speed}" for tabId:${tabId} domain: ${domain}`, results);
+    logtrace(
+      `doInjectGetSpeed leave - returned "${speed}" for tabId:${tabId} domain: ${domain}`,
+      results,
+    );
     if (speed) {
       await setSpeedGlobalData(tabId, domain, speed);
       return speed;
@@ -818,6 +843,7 @@ async function doInjectGetSpeed(tabId: number, domain: string) {
 }
 
 async function doInjectSkipPlayback(tabId: number, secondToSkipStr: string, domain: string) {
+  let skipResult = false;
   try {
     logtrace("doInjectSkipPlayback", tabId, secondToSkipStr);
     if (
@@ -825,14 +851,15 @@ async function doInjectSkipPlayback(tabId: number, secondToSkipStr: string, doma
       BLOCKED_SKIPFEATURE_DOMAINS.filter((d) => domain.includes(d)).length > 0
     ) {
       logtrace("netflix fails if we skip");
-      return;
+      // todo: add warning message
+      return false;
     }
     if (typeof parseFloat(secondToSkipStr) !== "number") {
       logerr(`secondToSkipStr NOT valid number '${secondToSkipStr}'`);
-      return;
+      return false;
     }
 
-    await chrome.scripting.executeScript({
+    const injectionresult = await chrome.scripting.executeScript({
       target: {
         tabId,
         allFrames: true,
@@ -841,11 +868,18 @@ async function doInjectSkipPlayback(tabId: number, secondToSkipStr: string, doma
       args: [secondToSkipStr],
       injectImmediately: true,
     });
+    skipResult = injectionResultCheckBool(injectionresult);
+    logtrace("doInjectSkipPlayback leave", tabId, skipResult);
   } catch (err) {
     logerr(err);
   }
+  return skipResult;
 }
 
+/**
+ * Processes results from injection into multiple frames. But also sets globals for permission checks later
+ * @returns {string} A "," seperated list of domains
+ */
 function processIFrameExtraPermissionsResult(
   results: InjectionResult<string[]>[],
   tabId: number,
@@ -853,24 +887,40 @@ function processIFrameExtraPermissionsResult(
   playbackSpeed: string = DEFAULT_SPEED_STR,
 ) {
   if (!GET_IFRAME_PERMISSIONS || results.length === 0) {
-    return false;
+    return "";
   }
   const extraDomainsArry = results
     .map((o) => o.result)
     .flat()
     .filter((str) => str && str?.length > 0);
+
   if (extraDomainsArry.length) {
     // add to existing data
-    const matched = getSubframeData(tabId, domain);
-    if (matched) {
-      const combinedDomainParts = [...matched.subFrameStr.split(","), extraDomainsArry];
-      setSubframeData(tabId, domain, combinedDomainParts.join(","), matched.playbackSpeed);
+    const mergeIntoExistingData = getSubframeData(tabId, domain);
+    if (mergeIntoExistingData) {
+      const combinedDomainParts = [
+        ...mergeIntoExistingData.subFramesStr.split(","),
+        extraDomainsArry,
+      ];
+      const subFramesStr = combinedDomainParts.join(",");
+      if (mergeIntoExistingData.subFramesStr !== subFramesStr) {
+        setSubframeData(mergeIntoExistingData);
+        // return for new domains may be needed.
+        return mergeIntoExistingData;
+      }
     } else {
-      setSubframeData(tabId, domain, extraDomainsArry.join(","), playbackSpeed);
+      const subFramesStr = extraDomainsArry.join(",");
+      setSubframeData({
+        tabId,
+        domain,
+        subFramesStr,
+        playbackSpeed,
+        permissionsRequested: false,
+      });
+      return subFramesStr;
     }
-    return true;
   }
-  return false;
+  return "";
 }
 
 async function doInjectCheckPermissions(tabId: number, domain: string) {
@@ -880,13 +930,19 @@ async function doInjectCheckPermissions(tabId: number, domain: string) {
       target: {
         tabId,
         allFrames: true,
+        // frameIds: [0],
       }, // world:  "MAIN",
       func: injectCheckPermissions,
       args: [],
       injectImmediately: true,
     });
-    logtrace(`doInjectCheckPermissions: leave`);
-    return processIFrameExtraPermissionsResult(results, tabId, domain);
+    logtrace(`doInjectCheckPermissions: leave`, results);
+    const newDomains = processIFrameExtraPermissionsResult(results, tabId, domain);
+    if (newDomains !== "") {
+      // maybe there's something else to do here?
+      return true;
+    }
+    return false;
   } catch (err) {
     logerr(err);
     return false;
@@ -943,30 +999,38 @@ async function showUpgradePageIfNeeded() {
 }
 
 async function toggleZoomState(tabId: number, domain: string) {
-  const state = await getCurrentTabState(tabId);
-  if (!isActiveState(state)) {
-    // await setCurrentTabState(tabId, "", domain);
-    await DoZoom(tabId, state, domain);
-    // the following dance is to see if we need more permissions
-    // domain will set
-    // g_globalAccessSubframeData
-    // to get more permissions on next click event
-    await doInjectCheckPermissions(tabId, domain); // iframe on diff
-    return true;
-  }
+  try {
+    const state = await getCurrentTabState(tabId);
+    if (!isActiveState(state)) {
+      // await setCurrentTabState(tabId, "", domain);
+      await DoZoom(tabId, state, domain);
+      // the following dance is to see if we need more permissions
+      // domain will set
+      // g_globalAccessSubframeData
+      // to get more permissions on next click event
+      const extraPermissionsNeeded = await doInjectCheckPermissions(tabId, domain);
+      if (extraPermissionsNeeded) {
+        logtrace("Extra permissions may be needed do something here?");
+      }
+      return true;
+    }
 
-  // we are zoomed but
-  if (state === "ZOOMED_NOSPEED") {
-    await Promise.all([
-      // toggle behavior otherwise message unzooms
-      doInjectUnZoom(tabId, domain),
-      setCurrentTabState(tabId, "UNZOOMED", domain),
-    ]);
+    // we are zoomed but
+    if (state === "ZOOMED_NOSPEED") {
+      await Promise.all([
+        // toggle behavior otherwise message unzooms
+        doInjectUnZoom(tabId, domain),
+        setCurrentTabState(tabId, "UNZOOMED", domain),
+      ]);
+      return false;
+    }
+
+    await setCurrentTabState(tabId, "", domain);
+    return true;
+  } catch (err) {
+    logerr("toggleZoomState", err);
     return false;
   }
-
-  await setCurrentTabState(tabId, "", domain);
-  return true;
 }
 
 chrome.action.onClicked.addListener((tab) => {
@@ -1037,13 +1101,16 @@ chrome.action.onClicked.addListener((tab) => {
         }
 
         const subFrameData = getSubframeData(tabId, domain);
-        if (GET_IFRAME_PERMISSIONS && subFrameData !== false) {
-          const iframeDomains = subFrameData.subFrameStr
+        if (GET_IFRAME_PERMISSIONS && subFrameData) {
+          const iframeDomains = subFrameData.subFramesStr
             .split(",")
             .map((d) => domainToSiteWildcard(d, settings.wholeDomainAccess))
             .filter((d) => d.length);
           origins.push(...iframeDomains);
           logtrace("Requesting extra iframe domains that blocked speedup", iframeDomains);
+          // update that we're going to request it on the next check
+          subFrameData.permissionsRequested = true;
+          setSubframeData(subFrameData);
         }
       }
 
@@ -1094,32 +1161,36 @@ chrome.action.onClicked.addListener((tab) => {
 /**
  * Called when we're zoomed but the popup is redisplayed.
  */
-async function ReZoom(tabId: number, domain: string) {
-  // the popup is about to display and thinks the page is zoomed, but it's may
-  // not be (e.g. if escape key was pressed.) in theory, re-injecting should be
-  // fine
-  const currentState = await getCurrentTabState(tabId);
+async function reZoom(tabId: number, domain: string) {
+  try {
+    // the popup is about to display and thinks the page is zoomed, but it's may
+    // not be (e.g. if escape key was pressed.) in theory, re-injecting should be
+    // fine
+    const currentState = await getCurrentTabState(tabId);
 
-  if (currentState === "ZOOMING_SPEED_ONLY") {
-    logtrace("REZOOM_CMD - Speed only, not rezooming");
-    // 6/2024 We now read speed back from page on load
-    // await doInjectSetSpeed(tabId, domain, currentSpeed, false);
-  } else {
-    logtrace("REZOOM_CMD -- Zooming");
-    // a full zoom isn't needed, just the css reinjected.
+    if (currentState === "ZOOMING_SPEED_ONLY") {
+      logtrace("REZOOM_CMD - Speed only, not rezooming");
+      // 6/2024 We now read speed back from page on load
+      // await doInjectSetSpeed(tabId, domain, currentSpeed, false);
+    } else {
+      logtrace("REZOOM_CMD -- Zooming");
+      // a full zoom isn't needed, just the css reinjected.
 
-    // ignore the speed sent in. For rezoom, the popup has been deleted, so it
-    // can't send the speed, we have to reget it.
-    const currentSpeed = await doInjectGetSpeed(tabId, domain);
+      // ignore the speed sent in. For rezoom, the popup has been deleted, so it
+      // can't send the speed, we have to reget it.
+      const currentSpeed = await doInjectGetSpeed(tabId, domain);
 
-    // we need to see if we're in "SPEED_ONLY" mode because
-    // we don't have access to the url to see if it's a site like hulu
-    const nextState = currentState === "SPEED_ONLY" ? "ZOOMING_SPEED_ONLY" : "ZOOMING";
-    await setCurrentTabState(tabId, nextState, currentSpeed);
-    await DoZoom(tabId, currentState, domain);
-    // 6/2024 We now read speed back from page on load
-    // doInjectSetSpeed(tabId, domain, currentSpeed, false)
-    logtrace("REZOOM_CMD -- Zooming -- COMPLETE");
+      // we need to see if we're in "SPEED_ONLY" mode because
+      // we don't have access to the url to see if it's a site like hulu
+      const nextState = currentState === "SPEED_ONLY" ? "ZOOMING_SPEED_ONLY" : "ZOOMING";
+      await setCurrentTabState(tabId, nextState, currentSpeed);
+      await DoZoom(tabId, currentState, domain);
+      // 6/2024 We now read speed back from page on load
+      // doInjectSetSpeed(tabId, domain, currentSpeed, false)
+      logtrace("REZOOM_CMD -- Zooming -- COMPLETE");
+    }
+  } catch (err) {
+    logerr(err);
   }
 }
 
@@ -1146,8 +1217,8 @@ chrome.runtime.onMessage.addListener((request: BackgroundMessage, sender, sendRe
   if (cmd === "GET_SPEED_COMPLETE_CMD") {
     // return immediately. Use prior value from "GET_SPEED_PREP_CMD"
     const match = getSubframeData(tabId, domain);
-    const success = match !== false;
-    const playbackSpeed = success ? match.playbackSpeed : DEFAULT_SPEED_STR;
+    const playbackSpeed = match?.playbackSpeed ?? DEFAULT_SPEED_STR;
+    const success = !!match;
     sendResponse({ success, playbackSpeed });
     logtrace(
       `GET_SPEED_COMPLETE_CMD: sendResponse({success: ${success}, playbackSpeed: ${playbackSpeed} })
@@ -1178,15 +1249,37 @@ chrome.runtime.onMessage.addListener((request: BackgroundMessage, sender, sendRe
 
         case "SET_SPEED_CMD":
           await setCurrentTabState(tabId, "ZOOMED_SPEED", domain, speed);
-          await doInjectSetSpeed(tabId, domain, speed, true);
+          const speedSuccess = await doInjectSetSpeed(tabId, domain, speed, true);
+          if (!speedSuccess) {
+            // maybe it failed because of permissions?
+            const subframedata = getSubframeData(tabId, domain);
+            if (subframedata?.permissionsRequested === false) {
+              // todo: set error message... maybe icon
+              logtrace(
+                `Extra permissions for "${subframedata?.domain ?? "unknown"}" require`,
+                subframedata,
+              );
+            }
+          }
           break;
 
         case "REZOOM_CMD":
-          await ReZoom(tabId, domain);
+          await reZoom(tabId, domain);
           break;
 
         case "SKIP_PLAYBACK_CMD":
-          await doInjectSkipPlayback(tabId, speed, domain);
+          const skipSuccess = await doInjectSkipPlayback(tabId, speed, domain);
+          if (!skipSuccess) {
+            // maybe it failed because of permissions?
+            const subframedata = getSubframeData(tabId, domain);
+            if (subframedata?.permissionsRequested === false) {
+              // todo: set error message... maybe icon
+              logtrace(
+                `Extra permissions for "${subframedata?.domain ?? "unknown"}" require`,
+                subframedata,
+              );
+            }
+          }
           break;
 
         case "OPTIONS_CMD":
@@ -1253,18 +1346,23 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       setTimeout(async () => {
         // async calls needed
         const popupUIActive = g_PopupOpenedForTabs.includes(tabId);
-        if (popupUIActive || isActiveState(await getCurrentTabState(tabId))) {
+        const state = await getCurrentTabState(tabId);
+        if (isErrorState(state)) {
+          logtrace(`getCurrentTabState returned error state "${state}". bailing`);
+          return;
+        }
+        if (popupUIActive || isActiveState(state)) {
           // some SPA won't do a clean refetch, we need to uninstall.
           if (popupUIActive) {
             // popup is open, so keep zoomed
             logtrace("tabs.onUpdated: Popup UI Open so REzooming");
-            await ReZoom(tabId, domain);
+            await reZoom(tabId, domain);
             return;
           }
           // todo: make sticky spa nav based on domain list
           if (!g_cachedSettings?.noStickySPANav) {
             logtrace("tabs.onUpdated: g_cachedSettings?.noStickySPANav so REzooming");
-            await ReZoom(tabId, domain);
+            await reZoom(tabId, domain);
             return;
           }
 
@@ -1278,13 +1376,13 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
           // these conditions could be combined, but the logtrace is useful
           if (newTitle.length && lastTitle === newTitle) {
             logtrace("tabs.onUpdated: Page title is the same so REzooming");
-            await ReZoom(tabId, domain);
+            await reZoom(tabId, domain);
             return;
           }
 
           if (newUrl.length && lastUrl === newUrl) {
             logtrace("tabs.onUpdated: Page URL is the same so REzooming");
-            await ReZoom(tabId, domain);
+            await reZoom(tabId, domain);
             return;
           }
           // it's different, so save updated information.

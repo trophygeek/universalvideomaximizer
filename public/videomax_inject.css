@@ -14,7 +14,10 @@ body::-webkit-scrollbar {
  */
 .videomax-ext-max,
 .videomax-ext-max .videomax-ext-max,
-.videomax-ext-max .videomax-ext-max .videomax-ext-max {
+.videomax-ext-max .videomax-ext-max .videomax-ext-max,
+/* the following are hacks because the js on the page messes with classes */
+body.videomax-ext-c-span video.jw-video
+{
   clear: both !important;
   background: rgb(0, 0, 0) !important;
   width: calc(100vw) !important;
@@ -150,6 +153,8 @@ body.videomax-ext-livejasmin .mc_video_background.videomax-ext-overlap,
 body.videomax-ext-livejasmin .mc_video_overlay.mc_js_video_overlay.videomax-ext-overlap,
 body.videomax-ext-mediaite .bxc.bx-base.bx-impress,
 body.videomax-ext-redd div.mx-auto.videomax-ext-overlap,
+body.videomax-ext-youporn canvas.mgp_videoBlackBox,
+body.videomax-ext-redtube canvas.mgp_videoBlackBox,
 body.videomax-ext-twitch [data-test-selector="ad-banner-default-text"],
 body.videomax-ext-twitch [data-test-selector="sad-overlay"],
 body.videomax-ext-youtube .annotation-type-custom.iv-branding,

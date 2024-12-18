@@ -7,56 +7,14 @@
  Removes the clutter. Maximizes videos to view in full-page theater mode on most sites.
  */
 
-import { logtrace } from "./common";
+import { PERMISSIONS_CHECK_DOMAINS_DOC_ATTR } from "./common";
 
 export function injectCheckPermissions(): string[] {
-  const matchedIFrame =
-    document?._VideoMaxExt?.matchedVideo?.nodeName === "IFRAME" ||
-    window?._VideoMaxExt?.matchedVideo?.nodeName === "IFRAME";
-  if (!matchedIFrame) {
-    return [];
+  const resultCrossDomainSet: Set<string> = new Set<string>(); // use Set to dedup
+  const domainliststr = document.body.getAttribute(PERMISSIONS_CHECK_DOMAINS_DOC_ATTR) ?? "";
+  const domainlist = domainliststr.split(",");
+  for (const eachDomain of domainlist) {
+    resultCrossDomainSet.add(eachDomain.trim());
   }
-
-  const resultCrossDomainErrs: Set<string> = new Set<string>(); // use Set to dedup
-  function addresult(frame: HTMLIFrameElement) {
-    // We record this url access that failed and ask for permission to it
-    // but this is run in the context of the page see GET_IFRAME_PERMISSIONS
-    if (frame instanceof HTMLIFrameElement && frame?.src?.length) {
-      const url = frame?.src;
-      if (url.startsWith("https://")) {
-        const domain = new URL(url).host.toLowerCase();
-        // const iframeUrl = document._VideoMaxExt.matchedVideo.src?.toLowerCase() || "";
-        // if (iframeUrl.indexOf(domain) !== -1) {
-        resultCrossDomainErrs.add(domain);
-        logtrace(`VideoMax injectCheckPermissions Need access to ${domain}`);
-        // }
-      }
-    }
-  }
-
-  const allIFrames = document.querySelectorAll("iframe");
-  for (const eachframe of [...allIFrames]) {
-    try {
-      const { contentDocument } = eachframe;
-      if (!contentDocument) {
-        addresult(eachframe);
-        continue;
-      }
-      // we because we EXPECT to get errors thrown for cross-frame security
-      const results = [...contentDocument.body.querySelectorAll("video")];
-      // add videos if on different domain?
-      for (const eachVideo of results) {
-        // duplicate code, just a test
-        const url = eachVideo?.src;
-        if (url.startsWith("https://")) {
-          const domain = new URL(url).host.toLowerCase();
-          resultCrossDomainErrs.add(domain);
-          logtrace(`VideoMax injectCheckPermissions Need access to ${domain}`);
-        }
-      }
-    } catch (err) {
-      addresult(eachframe);
-    }
-  }
-  return [...resultCrossDomainErrs]; // Set->array
+  return [...resultCrossDomainSet]; // Set->array
 }

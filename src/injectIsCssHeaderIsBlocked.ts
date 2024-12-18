@@ -12,6 +12,8 @@
 
  */
 
+import { logtrace } from "./common";
+
 /**
  * needed because we cannot include a chrome reference css for a file:// or
  * if the CSP is too strict. Fallback it to inject from background task.
@@ -31,8 +33,7 @@ export function injectIsCssHeaderIsBlocked(cssHRef: string): boolean {
     }
   } catch (_err) {}
   if (isBlocked) {
-    // eslint-disable-next-line no-console
-    console.log(`VideoMaxExt injectIsCssHeaderIsBlocked: css include file blocked?`);
+    logtrace(`VideoMaxExt injectIsCssHeaderIsBlocked: css include file blocked?`);
   }
   return isBlocked;
 }

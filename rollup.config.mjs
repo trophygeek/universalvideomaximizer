@@ -44,11 +44,19 @@ const replace = opts => {
       delimiters: ['', ''],
       preventAssignment: false,
       'logerr,': ' ',
-      'logerr(': 'false && (',
+      // the start quote matches are to prevent matching:
+      // function logerr(...
+      'logerr("': 'false && ("',
+      'logerr(`': 'false && (`',
+      'logerr(\'': 'false && (\'',
       'logtrace,': '',
-      'logtrace(': 'false && (',
+      'logtrace("': 'false && ("',
+      'logtrace(`': 'false && (`',
+      'logtrace(\'': 'false && (\'',
       'logwarn,': '',
-      'logwarn(': 'false && ('
+      'logwarn("': 'false && ("',
+      'logwarn(`': 'false && (`',
+      'logwarn(\'': 'false && (\''
     })
   }
 };
@@ -84,7 +92,8 @@ const defaultStep = {
       'logerr',
       'logtrace',
       'logwarn',
-      'isRunningInIFrame'],
+      'isRunningInIFrame',
+      'dbgStack'],
   },
   plugins: [
     replace(),

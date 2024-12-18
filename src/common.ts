@@ -10,15 +10,16 @@ export const ERR_BREAK_ENABLED = DEV_MODE && true;
 export const IS_BETA_CHANNEL = false;
 
 export const CSS_FILE = "videomax_inject.css";
-export const CSS_STYLE_HEADER_ID = "maximizier-css-inject";
+export const CSS_STYLE_HEADER_ID = "videomax-css-inject";
 export const PLAYBACK_SPEED_DOC_ATTR = "data-videomax-playbackspeed";
 export const DEFAULT_SPEED_NUM = 1.0;
 export const DEFAULT_SPEED_STR = "1.00";
+export const PERMISSIONS_CHECK_DOMAINS_DOC_ATTR = "data-videomax-permissions-domains";
 
 // todo: move into a setting.
 export const BLOCKED_SKIPFEATURE_DOMAINS = ["netflix."]; // skipping breaks these sites
 export const ALLOW_SMALL_VIDEOS_DOMAINS = ["tiktok", "cnn"];
-export const DOOMSCROLL_BOOST_DOMAINS = ["tiktok", "facebook", "imgur"];
+export const DOOMSCROLL_BOOST_DOMAINS = ["tiktok", "facebook", "imgur", "onlyfans"];
 
 // we use the prop class then flip all the classes at the end.
 // The reason for this is that the clientRect can get confused on rezoom if
@@ -61,17 +62,31 @@ export function isRunningInIFrame() {
   }
 }
 
+export function dbgFrameName() {
+  return isRunningInIFrame() ? "iframe" : " main ";
+}
+
+function dbgStack(...args: any[]) {
+  const err = args.find((arg) => arg instanceof Error);
+  const stack = (err?.stack ?? "").split(/\R/) ?? [];
+  stack.shift();
+  return stack.join("\n");
+}
+
+function dbgStackCaller() {
+  let stackstr = new Error().stack ?? "";
+  const stack = stackstr.split("\n");
+  return stack.splice(stack[0].trim() === "Error" ? 2 : 1)[1] ?? "";
+}
+
 export function logerr(...args: any[]) {
   if (!DEBUG_ENABLED) {
     return;
   }
-  const inIFrame = /*@__PURE__*/ isRunningInIFrame() ? "iframe" : "main";
+  const inIFrame = dbgFrameName();
+
   // eslint-disable-next-line no-console
-  console.trace(
-    `%c VideoMax ${inIFrame} ERROR`,
-    "color: white; font-weight: bold; background-color: red",
-    ...args,
-  );
+  console.error(`📕 VideoMax ${inIFrame} ERROR`, ...args, dbgStack(args));
   if (ERR_BREAK_ENABLED) {
     // eslint-disable-next-line no-debugger
     debugger;
@@ -82,27 +97,18 @@ export function logwarn(...args: any[]) {
   if (!DEBUG_ENABLED) {
     return;
   }
-  const inIFrame = /*@__PURE__*/ isRunningInIFrame() ? "iframe" : "main";
+  const inIFrame = dbgFrameName();
   // eslint-disable-next-line no-console
-  console.warn(
-    `%c VideoMax ${inIFrame} WARNING`,
-    "color: white; font-weight: bold; background-color: coral",
-    ...args,
-  );
+  console.log(`📙VideoMax ${inIFrame} WARNING`, ...args, dbgStackCaller());
 }
 
 export function logtrace(...args: any[]) {
   if (!(DEBUG_ENABLED && TRACE_ENABLED)) {
     return;
   }
-  const iframe = /*@__PURE__*/ isRunningInIFrame() ? "iFrame" : "Main";
-  // blue color , no break
+  const inIFrame = dbgFrameName();
   // eslint-disable-next-line no-console
-  console.log(
-    `%c VideoMax ${iframe}`,
-    `color: white; font-weight: bold; background-color: blue`,
-    ...args,
-  );
+  console.log(`📘VideoMax ${inIFrame}`, ...args, dbgStackCaller());
 }
 
 /**
@@ -207,6 +213,9 @@ export function getDomain(fullUrl: string | undefined | null) {
     if (!fullUrl?.length) {
       return "";
     }
+    if (fullUrl === "about:blank") {
+      return "";
+    }
     let url = fullUrl;
     if (url.startsWith(`blob:https://`)) {
       // seen blob:https://example.com for iframe
@@ -227,6 +236,21 @@ export function getDomain(fullUrl: string | undefined | null) {
  */
 export function listToArray(listStr: string): string[] {
   return (listStr?.split(",") || []).map((s) => s.trim()).filter((s) => s.length > 0);
+}
+
+export function addDomainToList(listStr: string, newDomain: string): string {
+  // use Set to dedup
+  const resultCrossDomainSet: Set<string> = new Set<string>();
+  // add list to Set
+  const list = listToArray(listStr);
+  for (const eachdomain of list) {
+    resultCrossDomainSet.add(eachdomain);
+  }
+  // some domains can be really long like "f2bc6a78895d165295fadfe4b6c511b2.safeframe.googlesyndication.com"
+  // take last 3 words
+  const shortdomain = newDomain.split(".").slice(-3).join(".");
+  resultCrossDomainSet.add(shortdomain);
+  return [...resultCrossDomainSet].join(",");
 }
 
 /**
@@ -439,7 +463,7 @@ export function customDiceCoefficient(pageUrl: string, elemUrl: string) {
 
 export function getCoords(el: Element) {
   try {
-    const { body } = document;
+    const { body } = el?.ownerDocument ?? document; // was just document
     const docEl = document.documentElement;
 
     const scrollTop = window.scrollY || docEl.scrollTop || body.scrollTop;
@@ -461,6 +485,63 @@ export function getCoords(el: Element) {
   }
 }
 
+const INSTANCES_OF_ONLY = true;
+/**
+ * Alternative for instanceof
+ * Cross-Origin:
+ * In some cases, if the element is from a different origin (e.g., an iframe), instanceof Element might not work.
+ * Ugh... so painful. instanceof is NOT reliable for some operations.
+ */
+export function isElement(obj: any): obj is HTMLElement {
+  if (INSTANCES_OF_ONLY) {
+    return obj instanceof HTMLElement;
+  }
+  // HTML or XML element, such as <p> or <div>.
+  // Element_Nodes can have attributes and child nodes of various types, including Element, Text, Comment,
+  // ProcessingInstruction, CDATASection, and EntityReference
+  return obj instanceof HTMLElement || obj?.nodeType === Node.ELEMENT_NODE;
+}
+
+/**
+ * Alternative for instanceof: can be affected by cross-frame issues
+ * @param obj
+ */
+export function isDocument(obj: any): obj is Document {
+  if (INSTANCES_OF_ONLY) {
+    return obj instanceof Document;
+  }
+  return obj instanceof Document || obj?.nodeType === Node.DOCUMENT_NODE;
+}
+
+export function isVideoElement(obj: any): obj is HTMLVideoElement {
+  if (INSTANCES_OF_ONLY) {
+    return obj instanceof HTMLVideoElement;
+  }
+  return obj instanceof HTMLVideoElement || obj?.nodeName.toLowerCase() === "video";
+}
+
+export function isIFrameElem(obj: any): obj is HTMLIFrameElement {
+  try {
+    return (
+      // obj instanceof HTMLIFrameElement || // may have cross-domain issues
+      obj?.tagName === "IFRAME"
+      // || obj?.nodeName.toLowerCase() === "iframe"
+      // || obj?.contentWindow !== undefined
+    );
+  } catch (err) {
+    logerr("isIFrameElem", err);
+    return false;
+  }
+}
+
+export function isShadowDom(obj: any): obj is ShadowRoot {
+  return obj?.shadowRoot;
+}
+
+export function isFunction(obj: any): obj is Function {
+  return typeof obj === "function";
+}
+
 /**
  * Converts element into a string like "<div class='Foo bar' />"
  */
@@ -474,7 +555,7 @@ export function printNode(elem: Element | Node | string | null): string {
     }
 
     let attrStr = "";
-    if (elem instanceof Element && elem.attributes) {
+    if (isElement(elem) && elem.attributes) {
       const attribs = elem?.attributes?.length ? [...elem.attributes] : [];
       for (const attr of attribs) {
         const value = attr.value ? `="${attr.value.substring(0, 2048)}"` : "";
@@ -491,6 +572,24 @@ export function printNode(elem: Element | Node | string | null): string {
   } catch (err) {
     return ` UNKNOWN [${err}]`;
   }
+}
+
+export function printRect(rect: Rect | undefined | null): string {
+  if (!rect) {
+    return `[empty domrect]`;
+  }
+  return `[top: ${rect.top} left: ${rect.left} bottom: ${rect.bottom} right: ${rect.right} width: ${rect.width}px height: ${rect.height}px]`;
+}
+
+export function DOMRectToRect(domrect: DOMRect): Rect {
+  return {
+    top: domrect.y,
+    left: domrect.x,
+    bottom: domrect.bottom,
+    right: domrect.right,
+    width: domrect.width,
+    height: domrect.height,
+  };
 }
 
 // @ts-ignore
@@ -511,7 +610,7 @@ export function parentNodeOrShadowHost(targetNode: Node): Node | null {
 
 // shadowHosts => shadowRoot
 export function shadowRoot(targetNode: Node | null): ShadowRoot | null {
-  if (!(targetNode instanceof Element)) {
+  if (!isElement(targetNode)) {
     return null;
   }
   return targetNode?.shadowRoot ?? null;
@@ -522,7 +621,7 @@ export function deDupArray(arr: any[]): any[] {
 }
 
 export function getOwnerDoc(node: Element | Node) {
-  if (node instanceof Document) {
+  if (isDocument(node)) {
     return node;
   }
   return node?.ownerDocument ?? document;
@@ -567,7 +666,7 @@ export function getVideomaxCmd() {
 
 export function getAttr(elem: Element, attr: string): string | null {
   try {
-    if (typeof elem?.getAttribute !== "function") {
+    if (!isFunction(elem?.getAttribute)) {
       DEV_MODE && logtrace("element doesn't have getAttribute() function, return null");
       return null;
     }
@@ -613,49 +712,86 @@ export function centerElem(elem: Element) {
   return { x: Math.round(left + width / 2), y: Math.round(top + height / 2) };
 }
 
+export function querySelectAllShadowDoms(document: Document) {
+  return [...document.getElementsByTagName("*")].filter((e) => isShadowDom(e));
+}
+
+/**
+ * Trick to try and find the iframe in the main document.
+ * @param topElem
+ */
+export function breakOutOfIFrameShadow(
+  topElem: Element | null | undefined = undefined,
+): Element | null {
+  if (!topElem) {
+    return null;
+  }
+  const center: Point = centerElem(topElem);
+  const elements = topElem.ownerDocument.elementsFromPoint(center.x, center.y);
+  // top .document
+  const iframeShadowDoms = [
+    ...querySelectAllShadowDoms(document),
+    ...document.querySelectorAll("iframe"),
+  ];
+  // loop down until we find the iFrame or shadow element in the list
+  // parent element will be one before it.
+  for (const element of elements) {
+    const contained = iframeShadowDoms.find((qs_items) => element.contains(qs_items));
+    if (contained && !element.isSameNode(contained)) {
+      debugger;
+      return contained;
+    }
+  }
+  return null;
+}
+
 /**
  * @param topElem initially, document.body
  * @param optCenter undefined for root, but when recursing, pass in calc value for optimization.
  */
-export function findVideosAtCenter(
+export function findVideosIFramesAtCenter(
   topElem: Element | null | undefined = undefined,
   optCenter?: Point,
-): HTMLVideoElement[] {
+): Element[] {
   if (!topElem) {
     return [];
   }
 
-  if (topElem instanceof HTMLVideoElement) {
-    return [topElem];
-  }
   // only calculate if not passed in. inline function.
   const center: Point = optCenter ? optCenter : centerElem(topElem);
 
   // elementFromPoint returns the topmost, if we get ALL the elements at a point, we can filter down through them.
   const elements = topElem.ownerDocument.elementsFromPoint(center.x, center.y);
-
+  let results: Element[] = [];
   for (const element of elements) {
-    if (element instanceof HTMLVideoElement) {
-      return [element];
+    if (element.nodeName === "VIDEO") {
+      results.push(element);
+      continue;
     }
     const { shadowRoot } = element;
     if (shadowRoot) {
       const videos = findVideoElementsInShadowRoot(shadowRoot);
-      if (videos.length > 1) {
-        return videos; // may be too niave? Maybe actively playing video?
-      }
+      results = [...results, ...videos]; // may be too naive? Maybe actively playing video?
     }
-    if (element instanceof HTMLIFrameElement) {
-      const { contentDocument } = element;
+    if (isIFrameElem(element)) {
+      const { contentDocument } = element as HTMLIFrameElement;
       if (contentDocument) {
         const videos = findVideoElementsInShadowRoot(contentDocument);
-        if (videos.length > 1) {
-          return videos; // may be too niave? Maybe actively playing video?
-        }
+        results = [...results, ...videos]; // may be too naive? Maybe actively playing video?
+      } else {
+        results = [...results, element];
       }
     }
   }
-  return [];
+  return results;
+}
+
+export function findVideosAtCenter(
+  topElem: Element | null | undefined = undefined,
+  optCenter?: Point,
+): HTMLVideoElement[] {
+  const result = findVideosIFramesAtCenter(topElem, optCenter);
+  return result.filter((e) => isVideoElement(e));
 }
 
 export function isElemVisable(elem: Element) {
@@ -676,7 +812,7 @@ export function isElemVisable(elem: Element) {
   );
 }
 
-export function pointIsInRect(point: Point, rect: DomRect): boolean {
+export function pointIsInRect(point: Point, rect: Rect): boolean {
   return point.x > rect.left && point.x < rect.right && point.y > rect.top && point.y < rect.bottom;
 }
 
@@ -698,7 +834,7 @@ export function pointIsInRect(point: Point, rect: DomRect): boolean {
  *          so let's just shortcut to midpoint (GIGO).
  *
  * @param point {Point} Point to build the half-line from
- * @param rect {DomRect} bounding rect
+ * @param rect {Rect} bounding rect
  * @return an object with x and y members for the intersection
  * @throws if validate == true and (x,y) is inside the rectangle
  * @author TWiStErRob
@@ -706,7 +842,7 @@ export function pointIsInRect(point: Point, rect: DomRect): boolean {
  * @see <a href="http://stackoverflow.com/a/31254199/253468">source</a>
  * @see <a href="http://stackoverflow.com/a/18292964/253468">based on</a>
  */
-export function pointOnRect(point: Point, rect: DomRect): Point {
+export function pointOnRect(point: Point, rect: Rect): Point {
   const { x, y } = point;
   const min = { x: rect.left, y: rect.top };
   const max = { x: rect.right, y: rect.bottom };
@@ -770,9 +906,20 @@ export function distance(point1: Point, point2: Point): number {
   return Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2));
 }
 
-export function centerDomRect(rect: DomRect): Point {
+export function centerDomRect(rect: Rect): Point {
   const { top, left, width, height } = rect;
   return { x: Math.round(left + width / 2), y: Math.round(top + height / 2) };
+}
+
+/**
+ *
+ * @param x between 0.0 - 1.0
+ * @param curve between 0.0 - 1.0
+ * @return 0.0 - 1.0
+ */
+export function normlizedSigmoid(x: number, curve: number = 0.5): number {
+  // see https://dinodini.wordpress.com/2010/04/05/normalized-tunable-sigmoid-functions/
+  return (x - curve * x) / (curve - 2 * curve * Math.abs(x) + 1);
 }
 
 declare global {
@@ -785,7 +932,7 @@ declare global {
     _VideoMaxExt: VideomaxGlobalsTypeBase | undefined;
     videmax_cmd: string;
     _VideoMaxExtEscapeUnzoom: boolean | undefined;
-    _videomax_permissioncheck: HTMLElement[] | undefined;
+    _videomax_permissionCheckDomains: string[] | undefined;
   }
 }
 

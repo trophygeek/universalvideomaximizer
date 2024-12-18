@@ -61,12 +61,12 @@ type CheckVideoZoomedState = "UNZOOMED" | "ZOOMED" | "NEEDS_REZOOM";
 // Used by popup for buttons that aren't speed changes.
 type PopupMenuCmd = "UNZOOM_BTN_CMD" | "OPTIONS_BTN_CMD";
 
-type DomRect = {
+type Rect = {
   top: number,
   left: number,
   bottom: number,
-  width: number,
   right: number,
+  width: number,
   height: number
 }
 
@@ -75,14 +75,18 @@ type ActionFunction = (elem: Node) => boolean;
 type HtmlElementType = keyof Partial<HTMLElementTagNameMap>;
 type HtmlElementTypes = HtmlElementType[];
 
+type VideoElemTypes = HTMLVideoElement | HTMLIFrameElement | Element | null;
 
 type VideomaxGlobalsTypeBase = {
-  matchedVideo: HTMLVideoElement | HTMLIFrameElement | Element | null;
-  matchVideoRect: DomRect;
+  matchedVideo: VideoElemTypes;
+  matchVideoRect: Rect;
   matchedVideoSrc: string;
   matchedCommonCntl: Element | null;
   processInFrame: boolean,
   isMaximized: boolean,
   tagonly: boolean,
   unzooming: boolean,
+  ads: Set<VideoElemTypes>
 };
+
+type ErrorMsg = 'CLEAR_ERROR_MSG' | 'REZOOM_FOR_EXTRA_PERMISSIONS_ERROR_MSG' | 'SKIP_FAILS_ON_NETFLIX';

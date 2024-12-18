@@ -35,7 +35,7 @@ export default function rollupPluginTreeshakeDebugStr () {
       debugger;
       const s = new MagicString(code);
       s.replaceAll(
-        /\blogerr\(|\blogwarn\(|\blogtrace\(/g, "(void*)("
+        /\blogerr\(|\blogwarn\(|\blogtrace\(|dbgStack\(|dbgStackCaller\(/g, "(void*)("
       );
       return {
         code: s.toString(),

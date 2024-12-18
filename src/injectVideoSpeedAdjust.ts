@@ -24,6 +24,7 @@ import {
   PLAYBACK_SPEED_DOC_ATTR,
   safeParseFloat,
   DEFAULT_SPEED_STR,
+  isVideoElement,
 } from "./common.js"; // .js embeds the contents
 
 /**
@@ -31,119 +32,131 @@ import {
  *                  do nothing.
  * @param allowPlaybackToggle
  */
-export function injectVideoSpeedAdjust(newspeed: string, allowPlaybackToggle = true) {
-  function _getSavedSpeedFromDocument(newspeed?: string) {
-    if (newspeed && newspeed?.length > 0) {
-      return safeParseFloat(newspeed, 1.0);
-    }
-    const savedSpeedStr = document.body.getAttribute(PLAYBACK_SPEED_DOC_ATTR) ?? DEFAULT_SPEED_STR;
-    if (savedSpeedStr?.length > 0) {
-      return safeParseFloat(newspeed, 1.0);
-    }
-    return 1.0;
-  }
-
-  /**
-   * This is called when more data is loaded by the video.
-   * When the video comes out of "spinner while loading more data" sometimes
-   * the speed gets reset
-   */
-  function _loadStart(event: Event) {
-    try {
-      // check to see if we're still injected into page.
-      const runningAttr = document?.body?.getAttribute("data-videomax-running") ?? "";
-      if (runningAttr.length <= 0) {
-        if (DEV_MODE) {
-          // eslint-disable-next-line no-console
-          console.log(`VideoMaxExt: loadStart injectVideoSpeedAdjust No longer injected, bailing`);
-        }
-        return;
+export function injectVideoSpeedAdjust(newspeed: string, allowPlaybackToggle = true): boolean {
+  let injectVideoSpeedAdjustResult = false;
+  try {
+    function _getSavedSpeedFromDocument(newspeed?: string) {
+      if (newspeed && newspeed?.length > 0) {
+        return safeParseFloat(newspeed, 1.0);
       }
-      const videoElem = event?.target as HTMLMediaElement;
+      const savedSpeedStr =
+        document.body.getAttribute(PLAYBACK_SPEED_DOC_ATTR) ?? DEFAULT_SPEED_STR;
+      if (savedSpeedStr?.length > 0) {
+        return safeParseFloat(newspeed, 1.0);
+      }
+      return 1.0;
+    }
 
-      if (videoElem.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
-        if (DEV_MODE) {
-          // eslint-disable-next-line no-console
-          console.log(`VideoMaxExt: loadStart injectVideoSpeedAdjust not running since video not in correct state. 
+    /**
+     * This is called when more data is loaded by the video.
+     * When the video comes out of "spinner while loading more data" sometimes
+     * the speed gets reset
+     */
+    function _loadStart(event: Event) {
+      try {
+        // check to see if we're still injected into page.
+        const runningAttr = document?.body?.getAttribute("data-videomax-running") ?? "";
+        if (runningAttr.length <= 0) {
+          if (DEV_MODE) {
+            // eslint-disable-next-line no-console
+            console.log(
+              `VideoMaxExt: loadStart injectVideoSpeedAdjust No longer injected, bailing`,
+            );
+          }
+          return;
+        }
+        const videoElem = event?.target as HTMLMediaElement;
+
+        if (videoElem.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+          if (DEV_MODE) {
+            // eslint-disable-next-line no-console
+            console.log(`VideoMaxExt: loadStart injectVideoSpeedAdjust not running since video not in correct state. 
           src:"${videoElem?.src}"
           readyState:${videoElem.readyState}`);
+          }
+          return;
         }
-        return;
-      }
 
-      const isVis = isElemVisable(videoElem);
-      const speedNumber = _getSavedSpeedFromDocument();
-      // eslint-disable-next-line no-console
-      logtrace(`VideoMaxExt: loadStart injectVideoSpeedAdjust
+        const isVis = isElemVisable(videoElem);
+        const speedNumber = _getSavedSpeedFromDocument();
+        // eslint-disable-next-line no-console
+        logtrace(`VideoMaxExt: loadStart injectVideoSpeedAdjust
           isVis: ${isVis} (false means won't set speed) 
           speedNumber: ${speedNumber}
           videoElem.playbackRate: ${videoElem?.playbackRate}, videoElem`);
-      if (isVis && videoElem && videoElem?.playbackRate !== speedNumber) {
-        // it's changed
-        videoElem.playbackRate = speedNumber;
+        if (isVis && videoElem && videoElem?.playbackRate !== speedNumber) {
+          // it's changed
+          videoElem.playbackRate = speedNumber;
+        }
+
+        // we've loaded, remove ourselves?
+
+        videoElem.removeEventListener("loadstart", _loadStart);
+        logtrace(`videoElem.removeEventListener when RUN!`);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        logerr(`loadStart err`, err);
       }
+    }
 
-      // we've loaded, remove ourselves?
-
+    /**
+     *
+     * newPlaybackRate Neg means paused, but the speed is the "toggle back to speed"
+     */
+    function _injectSetSpeedForVideo(
+      videoElem: HTMLVideoElement,
+      newPlaybackRate: number,
+      newAllowPlaybackToggle: boolean,
+    ): boolean {
+      // Always remove possible loadstart listeners since ads may be on top of older videos
+      //  filter out any videos that don't have a src or data? NODE: videoElem?.src is empty for file:// videos
+      if (videoElem.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+        return false;
+      }
       videoElem.removeEventListener("loadstart", _loadStart);
-      logtrace(`videoElem.removeEventListener when RUN!`);
+
+      // if the speed is negative, then we pause
+      if (newAllowPlaybackToggle && newPlaybackRate <= 0) {
+        videoElem.pause();
+      } else if (newAllowPlaybackToggle && videoElem?.paused && !videoElem?.ended) {
+        videoElem.play().then((r) => {});
+      }
+      // topVisVideo.defaultPlaybackRate = speed;
+      videoElem.playbackRate = Math.abs(newPlaybackRate);
+      videoElem.addEventListener("loadstart", _loadStart);
+      return true;
+    }
+
+    const speedNumber = _getSavedSpeedFromDocument(newspeed);
+    try {
+      if (document?.body && newspeed !== DEFAULT_SPEED_STR) {
+        document.body.setAttribute(PLAYBACK_SPEED_DOC_ATTR, newspeed);
+      } else {
+        // default then we should remove it.
+        document.body.removeAttribute(PLAYBACK_SPEED_DOC_ATTR);
+      }
     } catch (err) {
-      // eslint-disable-next-line no-console
-      logerr(`loadStart err`, err);
+      // could be cross frame error?
     }
-  }
 
-  /**
-   *
-   * newPlaybackRate Neg means paused, but the speed is the "toggle back to speed"
-   */
-  function _injectSetSpeedForVideo(
-    videoElem: HTMLVideoElement,
-    newPlaybackRate: number,
-    newAllowPlaybackToggle: boolean,
-  ): boolean {
-    // Always remove possible loadstart listeners since ads may be on top of older videos
-    //  filter out any videos that don't have a src or data? NODE: videoElem?.src is empty for file:// videos
-    if (videoElem.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
-      return false;
+    const topVisVideos = findVideosAtCenter(document?.body);
+
+    for (let i = 0; i < topVisVideos.length; i++) {
+      const eachVideo = topVisVideos[i];
+      const result = _injectSetSpeedForVideo(eachVideo, speedNumber, allowPlaybackToggle);
+      if (result) {
+        injectVideoSpeedAdjustResult = true;
+        break; // for MBA, if we do ALL the videos then skipping ads will skip main video
+      }
     }
-    videoElem.removeEventListener("loadstart", _loadStart);
-
-    // if the speed is negative, then we pause
-    if (newAllowPlaybackToggle && newPlaybackRate <= 0) {
-      videoElem.pause();
-    } else if (newAllowPlaybackToggle && videoElem?.paused && !videoElem?.ended) {
-      videoElem.play().then((r) => {});
-    }
-    // topVisVideo.defaultPlaybackRate = speed;
-    videoElem.playbackRate = Math.abs(newPlaybackRate);
-    videoElem.addEventListener("loadstart", _loadStart);
-    return true;
-  }
-
-  const speedNumber = _getSavedSpeedFromDocument(newspeed);
-  try {
-    if (document?.body && newspeed !== DEFAULT_SPEED_STR) {
-      document.body.setAttribute(PLAYBACK_SPEED_DOC_ATTR, newspeed);
-    } else {
-      // default then we should remove it.
-      document.body.removeAttribute(PLAYBACK_SPEED_DOC_ATTR);
+    if (!injectVideoSpeedAdjustResult) {
+      const videoMaxGlobal = window?._VideoMaxExt ?? document._VideoMaxExt;
+      if (videoMaxGlobal && isVideoElement(videoMaxGlobal.matchedVideo)) {
+        _injectSetSpeedForVideo(videoMaxGlobal.matchedVideo, speedNumber, allowPlaybackToggle);
+      }
     }
   } catch (err) {
-    // could be cross frame error?
+    logerr("injectVideoSpeedAdjust err", err);
   }
-
-  const topVisVideos = findVideosAtCenter(document?.body);
-  if (topVisVideos.length === 0) {
-    // this happens a lot when injected into a iframe that's not a video one
-    return;
-  }
-
-  for (let i = 0; i < topVisVideos.length; i++) {
-    const eachVideo = topVisVideos[i];
-    const result = _injectSetSpeedForVideo(eachVideo, speedNumber, allowPlaybackToggle);
-    if (result) {
-      break; // for MBA, if we do ALL the videos then skipping ads will skip main video
-    }
-  }
+  return injectVideoSpeedAdjustResult;
 }

@@ -18,8 +18,6 @@ however, modules don't work for injected javascript.
 We want DRY code where possible so we use a [custom rollup plugin](scripts/rollup-plugin-inlined-imports.mjs) to 
 produce a single js file for each of the inject functions.
 
-- 
-
 # License
 
 Because AI bots are crawling code and putting results behind paywalls, this code is now

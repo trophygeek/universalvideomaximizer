@@ -17,6 +17,7 @@ import {
   findVideosAtCenter,
   formatFloat,
   logerr,
+  logtrace,
   PLAYBACK_SPEED_DOC_ATTR,
 } from "./common.js"; // .js embeds the contents
 
@@ -33,11 +34,11 @@ export function injectGetPlaypackSpeed(): string | null {
         document.body.setAttribute(PLAYBACK_SPEED_DOC_ATTR, result);
         return result;
       }
-      anypaused = anypaused || eachVideo.paused;
     }
 
     // We reach here and all the videos are default. Sanity check if paused.
-    if (anypaused) {
+    // Often if an ad is playing, the main video is paused, so take the topmost. Cruchyroll
+    if (topVisVideos[0]?.paused) {
       const result = formatFloat(-1.0);
       document.body.setAttribute(PLAYBACK_SPEED_DOC_ATTR, result);
       return result;
