@@ -53,6 +53,15 @@ export const EMBEDED_SCORES = `${VIDEO_MAX_DATA_PREFIX}-scores`;
 export const VIDEO_MAX_ATTRIB_FIND = `${VIDEO_MAX_DATA_PREFIX}-target`;
 export const VIDEO_MAX_ATTRIB_ID = "zoomed-video";
 
+
+// some domains are allowed smaller sizes
+export const MIN_ALLOWED_VIDEO_WIDTH: number = 320;
+export const MIN_ALLOWED_VIDEO_HEIGHT: number = 240;
+
+export const MIN_IFRAME_WIDTH = MIN_ALLOWED_VIDEO_WIDTH;
+export const MIN_IFRAME_HEIGHT = MIN_ALLOWED_VIDEO_HEIGHT;
+
+
 /* DOM Functions should be moved to their own file*/
 export function isRunningInIFrame() {
   try {
@@ -208,6 +217,11 @@ export function rangeInt(num: number, lower: number, upper: number) {
   return Math.max(lower, Math.min(upper, num));
 }
 
+/**
+ *
+ * @param fullUrl {string} "https://www.example.com/foo/bar.html?param=data"
+ * @returns {string} "www.example.com"
+ */
 export function getDomain(fullUrl: string | undefined | null) {
   try {
     if (!fullUrl?.length) {
@@ -244,12 +258,16 @@ export function addDomainToList(listStr: string, newDomain: string): string {
   // add list to Set
   const list = listToArray(listStr);
   for (const eachdomain of list) {
-    resultCrossDomainSet.add(eachdomain);
+    if (eachdomain.trim().length > 0) {
+      resultCrossDomainSet.add(eachdomain);
+    }
   }
   // some domains can be really long like "f2bc6a78895d165295fadfe4b6c511b2.safeframe.googlesyndication.com"
   // take last 3 words
-  const shortdomain = newDomain.split(".").slice(-3).join(".");
-  resultCrossDomainSet.add(shortdomain);
+  const shortdomain = newDomain.trim().split(".").slice(-3).join(".");
+  if (shortdomain.length > 1) {
+    resultCrossDomainSet.add(shortdomain);
+  }
   return [...resultCrossDomainSet].join(",");
 }
 
@@ -272,6 +290,35 @@ export function normalizeDomain(domain: string) {
     elems.shift(); // remove it.
   }
   return `.${elems.join(".")}.`;
+}
+
+export function matchUrlWithWildcard(pattern: string, url: string) {
+  // Convert wildcard pattern to a regular expression
+  const regexPattern = pattern
+    .replace(/\./g, "\\.") // Escape special characters like '.'
+    .replace(/\*/g, ".*"); // Replace '*' with '.*' (match any character 0 or more times)
+
+  // Create a RegExp object
+  const regex = new RegExp(regexPattern);
+
+  // Test if the URL matches the pattern
+  return regex.test(url);
+}
+
+/**
+ * We gather all the domains used by iFrames, then we need to ask for permissions
+ * to them. This function is used to see if there are any domains we haven't already
+ * got permission to access in the past.
+ * We do this because, if we don't have all the permissions yet, then the zoom or skip
+ * won't work.
+ *
+ * @param allowedWildards permissions we already have in the form of ["https://*.example.com/*",...]
+ * @param neededDomains domains we need ["www.domain.com",...]
+ */
+export function checkPermissions(allowedWildards: string[], neededDomains: string[]) {
+  return neededDomains.filter(
+    (d) => !allowedWildards.some((pattern) => matchUrlWithWildcard(pattern, `https://${d}/`)),
+  );
 }
 
 export function isPageExcluded(domain: string, zoomExclusionListStr: string) {
@@ -492,7 +539,7 @@ const INSTANCES_OF_ONLY = true;
  * In some cases, if the element is from a different origin (e.g., an iframe), instanceof Element might not work.
  * Ugh... so painful. instanceof is NOT reliable for some operations.
  */
-export function isElement(obj: any): obj is HTMLElement {
+export function isHtmlElement(obj: any): obj is HTMLElement {
   if (INSTANCES_OF_ONLY) {
     return obj instanceof HTMLElement;
   }
@@ -555,7 +602,7 @@ export function printNode(elem: Element | Node | string | null): string {
     }
 
     let attrStr = "";
-    if (isElement(elem) && elem.attributes) {
+    if (isHtmlElement(elem) && elem.attributes) {
       const attribs = elem?.attributes?.length ? [...elem.attributes] : [];
       for (const attr of attribs) {
         const value = attr.value ? `="${attr.value.substring(0, 2048)}"` : "";
@@ -610,7 +657,7 @@ export function parentNodeOrShadowHost(targetNode: Node): Node | null {
 
 // shadowHosts => shadowRoot
 export function shadowRoot(targetNode: Node | null): ShadowRoot | null {
-  if (!isElement(targetNode)) {
+  if (!isHtmlElement(targetNode)) {
     return null;
   }
   return targetNode?.shadowRoot ?? null;
@@ -922,6 +969,31 @@ export function normlizedSigmoid(x: number, curve: number = 0.5): number {
   return (x - curve * x) / (curve - 2 * curve * Math.abs(x) + 1);
 }
 
+export function getVideoRatioWeight(width: number, height: number) {
+  // common video sizes
+  // 320x180, 320x240, 640x480, 640x360, 640x480, 640x360, 768x576,
+  // 720x405, 720x576
+  // the most common ratios. The closer a video is to these, the higher the
+  // score.
+  const VIDEO_RATIOS = {
+    21_9: 21 / 9,
+    16_9: 16.0 / 9.0,
+    4_3: 4.0 / 3.0,
+    3_2: 3.0 / 2.0,
+    240: 2.4 / 1.0, // portrait ( < 1)
+    // 4_5:  (4 / 5),
+    // 9_16: (9 / 16),
+  };
+
+  const ratio = width / height;
+  // which ever is smaller is better (closer to one of the magic ratios)
+  const distances = Object.values(VIDEO_RATIOS).map((v) => Math.abs(v - ratio));
+  const bestRatioComp = Math.min(...distances) + 0.001; // +0.001;
+
+  // inverse distance
+  return round(1.0 / bestRatioComp ** 1.15); // was 1.25
+}
+
 declare global {
   interface Document {
     _VideoMaxExt: VideomaxGlobalsTypeBase | undefined;
@@ -936,5 +1008,14 @@ declare global {
   }
 }
 
-/** used by unit tests * */
-// const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+export function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+export function sleepAnimationFrame() {
+  return new Promise((resolve) => {
+    requestAnimationFrame((timestamp) => {
+      resolve(timestamp);
+    });
+  });
+}

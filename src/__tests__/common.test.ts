@@ -18,6 +18,7 @@ import {
   getDomain,
   parseTwoPixelsString,
   intersection,
+  checkPermissions,
   isPageExcluded,
   listToArray,
   numbericOnly,
@@ -32,6 +33,8 @@ import {
   centerDomRect,
   pointIsInRect,
   pointOnRect,
+  matchUrlWithWildcard,
+  addDomainToList,
 } from "../common";
 
 describe("common.ts", () => {
@@ -98,6 +101,65 @@ describe("common.ts", () => {
     expect(intersection(["a", "b", "c", "d"], ["c", "e"])).toBe(true);
     expect(intersection(["a", "b", "c", "d"], [])).toBe(false);
     expect(intersection([], ["a", "b", "c", "d"])).toBe(false);
+  });
+
+  test("", () => {
+    expect(
+      matchUrlWithWildcard(
+        "https://*.example.com/products/*",
+        "https://www.example.com/products/item123",
+      ),
+    ).toBe(true);
+    expect(
+      matchUrlWithWildcard("https://www.example.com/*", "https://www.example.com/products/item123"),
+    ).toBe(true);
+    expect(matchUrlWithWildcard("https://www.example.com/*", "https://www.example.com/")).toBe(
+      true,
+    );
+    expect(matchUrlWithWildcard("https://www.example.com/*", "https://www.foo.com")).toBe(false);
+    // this FAILS so be careful.
+    expect(matchUrlWithWildcard("https://www.example.com/*", "www.example.com")).toBe(false);
+  });
+
+  test("checkPermissions()", () => {
+    expect(checkPermissions(["https://*.example.com/*"], ["www.example.com"])).toStrictEqual([]);
+
+    expect(
+      checkPermissions(
+        ["https://*.example.com/*", "https://*.domain.com/*"],
+        ["www.google.com", "www.domain.com"],
+      ),
+    ).toStrictEqual(["www.google.com"]);
+
+    expect(
+      checkPermissions(["https://*.example.com/*", "https://*.domain.com/*"], []),
+    ).toStrictEqual([]);
+
+    expect(
+      checkPermissions(
+        ["https://*.example.com/*", "https://*.domain.com/*"],
+        ["www.domain.com", "www.example.com", "example.com", "foo.example.com"],
+      ),
+    ).toStrictEqual(["example.com"]);
+
+    expect(checkPermissions([], ["www.example.com", "www.domain.com"])).toStrictEqual([
+      "www.example.com",
+      "www.domain.com",
+    ]);
+
+    expect(checkPermissions([], [])).toStrictEqual([]);
+  });
+
+  test("addDomainToList()", () => {
+    expect(addDomainToList("", "www.example.com")).toStrictEqual("www.example.com");
+    expect(addDomainToList("www.example.com", "")).toStrictEqual("www.example.com");
+    expect(addDomainToList("www.example.com", "www.example.com")).toStrictEqual("www.example.com");
+    expect(addDomainToList("www.example.com", "www.domain.com")).toStrictEqual(
+      "www.example.com,www.domain.com",
+    );
+    expect(addDomainToList("www.domain.com,www.example.com", "www.domain.com")).toStrictEqual(
+      "www.domain.com,www.example.com",
+    );
   });
 
   test("isPageExcluded() true", () => {

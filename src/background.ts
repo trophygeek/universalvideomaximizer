@@ -28,6 +28,8 @@ import {
   BLOCKED_SKIPFEATURE_DOMAINS,
   logerr,
   logtrace,
+  checkPermissions,
+  DEBUG_ENABLED,
 } from "./common";
 
 import { injectCssHeaderRemove } from "./injectCssHeaderRemove";
@@ -40,6 +42,7 @@ import { injectVideoSkip } from "./injectVideoSkip";
 import { injectCheckPermissions } from "./injectCheckPermissions";
 
 import InjectionResult = chrome.scripting.InjectionResult;
+import Permissions = chrome.permissions.Permissions;
 
 /**
  *
@@ -562,7 +565,7 @@ async function doInjectZoom(tabId: number) {
     await chrome.scripting.executeScript({
       target: {
         tabId,
-        allFrames: true, // false doesn't hide some content.
+        allFrames: true,
       }, // world:  "MAIN",
       files: ["cmd_zoom_inject.js", "injectVideomaxMain.js"],
       injectImmediately: true,
@@ -877,39 +880,43 @@ async function doInjectSkipPlayback(tabId: number, secondToSkipStr: string, doma
 }
 
 /**
- * Processes results from injection into multiple frames. But also sets globals for permission checks later
+ * Processes results from injection into multiple frames.
+ * But also sets globals for permission checks later
  * @returns {string} A "," seperated list of domains
  */
 function processIFrameExtraPermissionsResult(
   results: InjectionResult<string[]>[],
   tabId: number,
   domain: string,
-  playbackSpeed: string = DEFAULT_SPEED_STR,
+  playbackSpeed = DEFAULT_SPEED_STR,
 ) {
   if (!GET_IFRAME_PERMISSIONS || results.length === 0) {
     return "";
   }
-  const extraDomainsArry = results
+  const extraDomainsArr = results
     .map((o) => o.result)
     .flat()
-    .filter((str) => str && str?.length > 0);
+    .filter((str) => str && str?.trim().length > 0);
 
-  if (extraDomainsArry.length) {
+  if (extraDomainsArr.length) {
     // add to existing data
     const mergeIntoExistingData = getSubframeData(tabId, domain);
     if (mergeIntoExistingData) {
       const combinedDomainParts = [
         ...mergeIntoExistingData.subFramesStr.split(","),
-        extraDomainsArry,
+        extraDomainsArr,
       ];
-      const subFramesStr = combinedDomainParts.join(",");
+
+      // Set() dedups
+      const subFramesStr = [...new Set(combinedDomainParts)].join(",");
       if (mergeIntoExistingData.subFramesStr !== subFramesStr) {
         setSubframeData(mergeIntoExistingData);
         // return for new domains may be needed.
-        return mergeIntoExistingData;
+        return subFramesStr;
       }
     } else {
-      const subFramesStr = extraDomainsArry.join(",");
+      // Set() dedups
+      const subFramesStr = [...new Set(extraDomainsArr)].join(",");
       setSubframeData({
         tabId,
         domain,
@@ -934,18 +941,13 @@ async function doInjectCheckPermissions(tabId: number, domain: string) {
       }, // world:  "MAIN",
       func: injectCheckPermissions,
       args: [],
-      injectImmediately: true,
+      injectImmediately: false,
     });
     logtrace(`doInjectCheckPermissions: leave`, results);
-    const newDomains = processIFrameExtraPermissionsResult(results, tabId, domain);
-    if (newDomains !== "") {
-      // maybe there's something else to do here?
-      return true;
-    }
-    return false;
+    return processIFrameExtraPermissionsResult(results, tabId, domain);
   } catch (err) {
     logerr(err);
-    return false;
+    return "";
   }
 }
 
@@ -1004,19 +1006,7 @@ async function toggleZoomState(tabId: number, domain: string) {
     if (!isActiveState(state)) {
       // await setCurrentTabState(tabId, "", domain);
       await DoZoom(tabId, state, domain);
-      // the following dance is to see if we need more permissions
-      // domain will set
-      // g_globalAccessSubframeData
-      // to get more permissions on next click event
-      const extraPermissionsNeeded = await doInjectCheckPermissions(tabId, domain);
-      if (extraPermissionsNeeded) {
-        logtrace("Extra permissions may be needed do something here?");
-      }
-      return true;
-    }
-
-    // we are zoomed but
-    if (state === "ZOOMED_NOSPEED") {
+    } else if (state === "ZOOMED_NOSPEED") {
       await Promise.all([
         // toggle behavior otherwise message unzooms
         doInjectUnZoom(tabId, domain),
@@ -1025,7 +1015,57 @@ async function toggleZoomState(tabId: number, domain: string) {
       return false;
     }
 
-    await setCurrentTabState(tabId, "", domain);
+    // the following dance is to see if we need more permissions
+    // domain will set
+    // g_globalAccessSubframeData
+    // to get more permissions on next click event
+    const needDomainPerms = await doInjectCheckPermissions(tabId, domain);
+    if (!needDomainPerms) {
+      await setCurrentTabState(tabId, "", domain);
+      return true;
+    }
+
+    const urls = needDomainPerms.split(",").map(d => `https://${d}/`);
+    const hasPermission = await chrome.permissions.contains({origins: urls});
+    if (hasPermission) {
+      await setCurrentTabState(tabId, "", domain);
+      return true;
+    }
+
+    // This has the potential to simplify a BUNCH of stuff once the API is released
+
+
+    // // @ts-ignore
+    // if (chrome.permissions.addHostAccessRequest) {
+    //   debugger;
+    //   // @ts-ignore
+    //   const result = await chrome.permissions.addHostAccessRequest(
+    //       { tabId, pattern:`https://${domain}/` },
+    //   );
+    //   console.log(result);
+    // }
+
+
+
+    // ACTIVE permissions
+    const havePermissions = await chrome.permissions.getAll();
+    // see if there are any domains that we don't already have access to see.
+    // These come back as ["https://*.domain.com/*",...]
+    if (!havePermissions?.origins) {
+      return true;
+    }
+    const missingDomains = checkPermissions(havePermissions?.origins, needDomainPerms.split(","));
+    if (missingDomains.length === 0) {
+      return true;
+    }
+    if (DEBUG_ENABLED) {
+      const subframedata = getSubframeData(tabId, domain);
+      logtrace(`Extra permissions may be needed do something here?
+        missingDomains: [${missingDomains.join(", ")}]
+        havePermissions (ACTIVE): [${havePermissions?.origins.join(", ")}]
+        subFramesStr: ${subframedata?.subFramesStr || ""}`);
+    }
+    setCurrentTabState(tabId, "REFRESH", domain);
     return true;
   } catch (err) {
     logerr("toggleZoomState", err);
@@ -1057,7 +1097,6 @@ chrome.action.onClicked.addListener((tab) => {
       const settingsSaved: SettingsType = JSON.parse(resultSettings[SETTINGS_STORAGE_KEY] || "{}");
       const settings = { ...DEFAULT_SETTINGS, ...settingsSaved };
       const origins: string[] = [];
-      const permissions = ["scripting"];
 
       if (settings.allSitesAccess) {
         // Many cross-domain iframed videos without "<all_urls>". BBC, NBC,
@@ -1084,7 +1123,7 @@ chrome.action.onClicked.addListener((tab) => {
           (async () => {
             await saveSettings(settings);
             await chrome.permissions.remove({
-              permissions,
+              permissions: ["scripting"],
               origins: ["<all_urls>"],
             });
           })();
@@ -1116,7 +1155,7 @@ chrome.action.onClicked.addListener((tab) => {
 
       chrome.permissions.request(
         {
-          permissions,
+          permissions: ["scripting"],
           origins,
         },
         async (granted) => {
