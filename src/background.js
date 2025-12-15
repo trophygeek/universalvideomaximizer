@@ -93,70 +93,110 @@ const DEFAULT_COLOR = "#FFFFFF00";
 const STATE_DATA = {
   // each title MUST be unique! Reverse lookup uses the title to
   // map chrome.action.getTitle back to state.
-  // titles need localization support
+  // titles are now localized via message keys
   UNZOOMED:           {
     badge:     BADGES.NONE,
-    title:     "", // if empty, reloaded from manifest
+    titleKey:  "", // if empty, reloaded from manifest (uses actionDefaultTitle)
     showpopup: false,
     zoomed:    false,
     color:     DEFAULT_COLOR,
   },
   ZOOMING:            {
     badge:     BADGES.ZOOMED,
-    title:     "Searching for videos to zoom",
+    titleKey:  "stateZooming",
     showpopup: false,
     zoomed:    true,
     color:     DEFAULT_COLOR,
   },
   ZOOMING_SPEED_ONLY: {
     badge:     BADGES.ZOOMED,
-    title:     "Searching for videos enhance",
+    titleKey:  "stateZoomingSpeedOnly",
     showpopup: true,
     zoomed:    true,
     color:     DEFAULT_COLOR,
   },
   ZOOMED_NOSPEED:     {
     badge:     BADGES.SPEED,
-    title:     "Click to unzoom\nNo speed change allowed by this site.",
+    titleKey:  "stateZoomedNoSpeed",
     showpopup: false,
     zoomed:    true,
     color:     DEFAULT_COLOR,
   },
   ZOOMED_SPEED:       {
     badge:     BADGES.SPEED,
-    title:     "Click to change speed or unzoom",
+    titleKey:  "stateZoomedSpeed",
     showpopup: true,
     zoomed:    true,
     color:     DEFAULT_COLOR,
   },
   SPEED_ONLY:         {
     badge:     BADGES.SPEED,
-    title:     "Click to change speed",
+    titleKey:  "stateSpeedOnly",
     showpopup: true,
     zoomed:    true,
     color:     DEFAULT_COLOR,
   },
   REFRESH:            {
     badge:     BADGES.REFRESH,
-    title:     "Permissions check complete.\nClick again more permissions might be needed..",
+    titleKey:  "stateRefresh",
     showpopup: false,
     zoomed:    false,
     color:     "#03FC80F4",
   },
   ERR_PERMISSION:     {
     badge:     BADGES.WARNING,
-    title:     "Permission denied by user",
+    titleKey:  "stateErrPermission",
     showpopup: false,
     zoomed:    false,
     color:     "#FCD2D2F7",
   },
   ERR_URL:            {
     badge:     BADGES.WARNING,
-    title:     "Extension only works on https sites\n or files dragged+dropped into chrome tab",
+    titleKey:  "stateErrUrl",
     showpopup: true,
     zoomed:    false,
     color:     "#FCD2D2F7",
   },
+};
+
+// Cache for localized titles to avoid repeated chrome.i18n.getMessage() calls
+/** @type {Object<string, string>} */
+const localizedTitleCache = {};
+
+/**
+ * Get localized title for a state
+ * @param {BackgroundState} state
+ * @returns {string}
+ */
+const getLocalizedTitle = (state) => {
+  // Return cached value if available
+  if (localizedTitleCache[state]) {
+    return localizedTitleCache[state];
+  }
+  
+  const stateData = STATE_DATA[state];
+  if (!stateData) {
+    return "";
+  }
+  
+  let title = "";
+  
+  // UNZOOMED uses manifest default_title (actionDefaultTitle message key)
+  if (state === "UNZOOMED" && !stateData.titleKey) {
+    title = chrome.i18n.getMessage("actionDefaultTitle") || 
+            chrome.i18n.getMessage("stateClickToZoom") ||
+            "Click to zoom";
+  } else if (stateData.titleKey) {
+    // Use titleKey if available, with fallback
+    title = chrome.i18n.getMessage(stateData.titleKey) || "";
+  }
+  
+  // Cache the result
+  if (title) {
+    localizedTitleCache[state] = title;
+  }
+  
+  return title;
 };
 
 // REALLY trying to not require full permissions, but sometime iframes are
@@ -297,10 +337,10 @@ async function setCurrentTabState(tabId, startingState, domain = "", speed = DEA
 
     const {
       badge,
-      title,
       showpopup,
       color,
     } = STATE_DATA[state];
+    const title = getLocalizedTitle(state);
     trace(`setCurrentState "${state}"
     badge: "${badge}"
     title: "${title}"
@@ -344,19 +384,23 @@ async function setCurrentTabState(tabId, startingState, domain = "", speed = DEA
 async function getCurrentTabState(tabId) {
   try {
     const title = await chrome.action.getTitle({ tabId });
-    // DEFAULT will be the `default_title` string from our manifest.
-    // Remember to keep in sync is fragile, and doesn't localize, just load it
-    if (STATE_DATA.UNZOOMED.title === "") {
-      const manifest = await getManifestJson();
-      STATE_DATA.UNZOOMED.title = manifest?.action?.default_title || "Click to zoom";
-    }
+    // // DEFAULT will be the `default_title` string from our manifest.
+    // // Remember to keep in sync is fragile, and doesn't localize, just load it
+    // if (STATE_DATA.UNZOOMED.title === "") {
+    //   const manifest = await getManifestJson();
+    //   STATE_DATA.UNZOOMED.title = manifest?.action?.default_title || "Click to zoom";
+    // }
 
+    // Compare against localized titles for each state
     // Normally, would could test if the string is in BackgroundState
     // but typescript doesn't support string unions as of 2023
     const key = /** @type {[BackgroundState]} */ Object.keys(STATE_DATA)
-      .filter(k => STATE_DATA[k].title === title);
+      .filter(k => {
+        const localizedTitle = getLocalizedTitle(k);
+        return localizedTitle === title;
+      });
     if (!key?.length) {
-      trace(`getTabCurrentState NO MATCH "${key}"`);
+      trace(`getTabCurrentState NO MATCH for title "${title}"`);
       return /** @type {BackgroundState} */  "UNZOOMED";
     }
     trace(`getTabCurrentState "${key}"`);
@@ -993,19 +1037,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         case "UNZOOM_CMD":
           await unZoom(tabId, domain);
-        if (IS_BETA_CHANNEL) {
-          const settings = await getSettings();
-          if (!settings.beta3EndingShown) {
-              await chrome.tabs.create({
-                                         url:    chrome?.runtime?.getURL("beta_ending.html"),
-                                         active: false,
-                                       });
-            settings.beta3EndingShown = true;
-            await saveSettings(settings);
-            }
-
-          }
-
           break;
 
         case "SET_SPEED_CMD":

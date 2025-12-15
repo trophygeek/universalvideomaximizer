@@ -1,7 +1,7 @@
 <!Doctype html>
-<html lang="en">
+<html>
 <head>
-  <title>Video Maximizer - Options</title>
+  <title id="pageTitle">Video Maximizer - Options</title>
   <meta charset="utf-8">
   <link href="chota.css" rel="stylesheet" type="text/css">
   <link href="options.css" rel="stylesheet" type="text/css">
@@ -10,47 +10,47 @@
 <body class="dark">
 
 <div class="container">
-  <h1>Video Maximizer - Options</h1>
+  <h1 data-i18n="optionsHeading">Video Maximizer - Options</h1>
 
   <div class="container" id="mainForm">
     <fieldset>
-      <legend>Advanced playback features</legend>
+      <legend data-i18n="optionsAdvancedFeaturesLegend">Advanced playback features</legend>
       <div class="row col label">
         <input class="toggle" id="useAdvancedFeatures" name="useAdvancedFeatures" type="checkbox">
-        <label for="useAdvancedFeatures">
+        <label for="useAdvancedFeatures" data-i18n="optionsAdvancedFeaturesLabel">
           Enable <span class="emphasis">ADVANCED</span> features (Experimental)
         </label>
-        <p>Some sites lose their playback controls when zoomed. Advanced features allow you to skip and change playback
+        <p data-i18n="optionsAdvancedFeaturesDescription">Some sites lose their playback controls when zoomed. Advanced features allow you to skip and change playback
           speed.</p>
-        <p>See the <a href="help.html" rel="noopener" target="vidomaxhelp">Help ↗</a> page for more details about how to
+        <p data-i18n="optionsAdvancedFeaturesHelpLink">See the <a href="help.html" rel="noopener" target="vidomaxhelp">Help ↗</a> page for more details about how to
           use advanced features.</p>
         <p><img alt="screen shot" class="illustration" src="img/new_speed_control_bar.png"></p>
       </div>
     </fieldset>
     <!-- this setting is too complex for now -->
     <fieldset class="diableForSimpleFeatures is-hidden">
-      <legend>Allow more access - whole site by default</legend>
+      <legend data-i18n="optionsWholeDomainLegend">Allow more access - whole site by default</legend>
       <div class="row col label">
         <input class="toggle" id="wholeDomainAccess" name="wholeDomainAccess" type="checkbox">
-        <label for="wholeDomainAccess">
+        <label for="wholeDomainAccess" data-i18n="optionsWholeDomainLabel">
           May help reduce the number of "rezooms" required to get all permission prompts from chrome.
         </label>
       </div>
       <div class="container">
         <div class="row col is-italic">
-          <p><span class="emphasis">USER FEEDBACK WANTED</span></p>
-          <p>Is this setting useful for anyone? I'm considering removing it if ends up being more confusing than
+          <p><span class="emphasis" data-i18n="optionsWholeDomainFeedback">USER FEEDBACK WANTED</span></p>
+          <p data-i18n="optionsWholeDomainFeedbackQuestion">Is this setting useful for anyone? I'm considering removing it if ends up being more confusing than
             helpful.</p>
-          <p>Changes permissions prompt from:<br>
+          <p data-i18n="optionsWholeDomainPromptFrom">Changes permissions prompt from:<br>
             <samp> &nbsp; "Read and change your data on www.example.com"</samp><br>
             to:<br>
             <samp> &nbsp; "Read and change all your data on example.com sites"</samp>
           </p>
-          <p>
+          <p data-i18n="optionsWholeDomainHelp">
             Can help reduce the number of prompts per new site since you won't get prompted for "www.example.com" and
             "static.example.com" separately.
           </p>
-          <p>
+          <p data-i18n="optionsWholeDomainQuestion">
             Is the message difference more scary when it says "all your data"?
           </p>
         </div>
@@ -59,15 +59,15 @@
 
 
     <fieldset class="diableForSimpleFeatures">
-      <legend>Allow full access to all sites by default</legend>
+      <legend data-i18n="optionsAllSitesLegend">Allow full access to all sites by default</legend>
       <div class="row col label">
         <input class="toggle" id="allSitesAccess" name="allSitesAccess" type="checkbox">
-        <label for="allSitesAccess">
+        <label for="allSitesAccess" data-i18n="optionsAllSitesLabel">
           If the security prompts annoy you OR Video Maximizer still won't work, then try this setting.
         </label>
       </div>
       <div class="container">
-        <div class="row col">WARNING: It will allow FULL ACCESS to ALL SITES by default. <br/>
+        <div class="row col" data-i18n="optionsAllSitesWarning">WARNING: It will allow FULL ACCESS to ALL SITES by default. <br/>
           This access should not be required, but is a fix-all. Once granted and accepted, it silences all further
           permissions prompting.<br/><br/>
           Find a site that still doesn't work? <a
@@ -79,15 +79,15 @@
     </fieldset>
 
     <fieldset class="diableForSimpleFeatures">
-      <legend>Playback skipping</legend>
+      <legend data-i18n="optionsPlaybackSkippingLegend">Playback skipping</legend>
       <div class="container padding-1">
-        While Video Maximizer popup controls are displayed, you can use the arrow keys to skip playback.&nbsp;
-        Playback skipping is in <i>viewing</i> times, not video time. For example, 2x playback speed skips twice as far.
-        <a href="help.html" target="videomaxhelp">Read more on the help page</a>
+        <span data-i18n="optionsPlaybackSkippingDescription">While Video Maximizer popup controls are displayed, you can use the arrow keys to skip playback.&nbsp;
+        Playback skipping is in <i>viewing</i> times, not video time. For example, 2x playback speed skips twice as far.</span>
+        <a href="help.html" target="videomaxhelp" data-i18n="optionsPlaybackSkippingHelpLink">Read more on the help page</a>
       </div>
 
       <div class="row col label">
-        <label for="regSkipSeconds">
+        <label for="regSkipSeconds" data-i18n="optionsSkipSecondsLabel">
           Skip seconds:
         </label>
         <input class="secondsTextInput"
@@ -103,7 +103,7 @@
       </div>
 
       <div class="row col label">
-        <label for="longSkipSeconds">
+        <label for="longSkipSeconds" data-i18n="optionsSkipSecondsLabel">
           Skip seconds:
         </label>
 
@@ -116,7 +116,7 @@
                minlength="1"
                name="longSkipSeconds"
                pattern="[0-9]*"
-               type="number"><span class="label"> (when Shift key is used)</span>
+               type="number"><span class="label" data-i18n="optionsSkipSecondsShiftLabel"> (when Shift key is used)</span>
       </div>
       <!--        <div class="row col label">-->
       <!--          <input checked id="preportionalSkipTimes" name="preportionalSkipTimes" type="checkbox">-->
@@ -125,18 +125,18 @@
     </fieldset>
 
     <fieldset class="diableForSimpleFeatures">
-      <legend>Activation Hotkey</legend>
+      <legend data-i18n="optionsHotkeyLegend">Activation Hotkey</legend>
       <div class="container padding-1">
-        To have a hotkey activate VideoMaximizer on page, simply use the built-in Chrome feature. <br/>
-        Go to Extensions in Chrome and select "Keyboard shortcuts" from the left.<br/> Or navigate directly to <code>chrome://extensions/shortcuts</code>
+        <span data-i18n="optionsHotkeyDescription">To have a hotkey activate VideoMaximizer on page, simply use the built-in Chrome feature. <br/>
+        Go to Extensions in Chrome and select "Keyboard shortcuts" from the left.<br/> Or navigate directly to <code>chrome://extensions/shortcuts</code></span>
       </div>
     </fieldset>
 
     <fieldset class="diableForSimpleFeatures">
-      <legend>Speed controls only sites</legend>
+      <legend data-i18n="optionsSpeedControlsLegend">Speed controls only sites</legend>
       <div class="row col label">
         <!-- this is a non-standard use for label to do javascript-less (css only) section expansion -->
-        <label class="padding-1" for="nozoomlist">Some sites that are already fullscreened in theater mode, so VideoMax
+        <label class="padding-1" for="nozoomlist" data-i18n="optionsSpeedControlsLabel">Some sites that are already fullscreened in theater mode, so VideoMax
           won't try to zoom
           them again. But speed controls could still be nice. Just use main domain part. So for "www.example.com" or
           "example.uk.co", just supply
@@ -145,22 +145,22 @@
           <ul class="list" id="nozoomlist">
           </ul>
           <br>
-          <button class="add-button" id="addpathblacklist"> + Add New ...</button>
+          <button class="add-button" id="addpathblacklist" data-i18n="optionsAddNewButton"> + Add New ...</button>
           <br/><br/>
-          <div>Adding a new site? Consider submitting a bug on github to get it added to future releases.</div>
+          <div data-i18n="optionsAddNewSiteNote">Adding a new site? Consider submitting a bug on github to get it added to future releases.</div>
         </div>
       </div>
     </fieldset>
 
     <fieldset>
-      <legend>Report problems</legend>
-      <div class="row col bold">Report problems via &nbsp; <a
+      <legend data-i18n="optionsReportProblemsLegend">Report problems</legend>
+      <div class="row col bold" data-i18n="optionsReportProblemsLink">Report problems via &nbsp; <a
           href="https://github.com/trophygeek/universalvideomaximizer/issues" rel="noopener" target="_blank">GitHub
         issue ↗</a></div>
       <div class="container">
         <div class="wrap-collabsible">
           <input class="toggle" id="collapsible" type="checkbox">
-          <label class="lbl-toggle" for="collapsible" tabindex="0">Include this information in the report:</label>
+          <label class="lbl-toggle" for="collapsible" tabindex="0" data-i18n="optionsIncludeInfoLabel">Include this information in the report:</label>
           <div class="collapsible-content">
             <div class="content-inner"><span id="version"></span></div>
           </div>
@@ -168,10 +168,10 @@
       </div>
     </fieldset>
     <fieldset>
-      <legend>Reset</legend>
+      <legend data-i18n="optionsResetLegend">Reset</legend>
       <div class="container">
-        <button id="reset" type="reset">Reset to defaults</button>
-        <button id="save" type="button">Close</button>
+        <button id="reset" type="reset" data-i18n="optionsResetButton">Reset to defaults</button>
+        <button id="save" type="button" data-i18n="optionsCloseButton">Close</button>
       </div>
     </fieldset>
   </div>

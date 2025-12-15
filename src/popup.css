@@ -32,6 +32,48 @@ body {
     width: 100%;
 }
 
+/* ==========================================================================
+   Japanese (ja) - CJK Font Stack for Popup
+   ========================================================================== */
+:lang(ja) body .control-container {
+  font-family: 
+    /* 1. Western digits/letters */
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    /* 2. macOS / iOS */
+    "Hiragino Kaku Gothic ProN", "Hiragino Sans",
+    /* 3. Windows 10+ (Modern) */
+    "Yu Gothic", "YuGothic",
+    /* 4. Windows 7/8 (Legacy) */
+    "Meiryo",
+    /* 5. Linux / Android */
+    "Noto Sans JP",
+    /* 6. Generic Fallback */
+    sans-serif;
+  
+  line-height: 1.6;
+  font-weight: 400;
+}
+
+/* ==========================================================================
+   Simplified Chinese (zh-CN) - CJK Font Stack for Popup
+   ========================================================================== */
+:lang(zh-CN) body .control-container {
+  font-family: 
+    /* 1. Western digits/letters */
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    /* 2. macOS / iOS (Modern) */
+    "PingFang SC",
+    /* 3. macOS (Legacy) */
+    "Hiragino Sans GB",
+    /* 4. Windows */
+    "Microsoft YaHei New", "Microsoft YaHei",
+    /* 5. Linux / Android */
+    "Noto Sans SC",
+    /* 6. Generic Fallback */
+    sans-serif;
+    
+  line-height: 1.6;
+}
 
 label {
     float: left;

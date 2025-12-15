@@ -59,3 +59,12 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* ==========================================================================
+   CJK Button Text Wrapping
+   Japanese and Chinese text doesn't have spaces, so buttons need word-break
+   ========================================================================== */
+:lang(ja) button, 
+:lang(zh-CN) button {
+  word-break: break-all; /* Forces wrap if the text is too long for the button */
+}

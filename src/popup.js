@@ -361,6 +361,15 @@ try {
 
   document.addEventListener("DOMContentLoaded", async () => {
     try {
+      // Set lang attribute dynamically based on Chrome locale
+      document.documentElement.lang = chrome.i18n.getUILanguage();
+      
+      // Set page title
+      const titleElement = document.getElementById("pageTitle");
+      if (titleElement) {
+        titleElement.textContent = chrome.i18n.getMessage("popupTitle");
+      }
+
       const params = new URLSearchParams(globals.url.hash.replace("#", ""));
       globals.tabId = params.get("tabId");
       globals.currentSpeed = params.get("speed") || DEFAULT_SPEED;

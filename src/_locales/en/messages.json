@@ -1,2 +1,416 @@
 {
+  "appName": {
+    "message": "Video Maximizer"
+  },
+  "appDescription": {
+    "message": "Remove visual clutter and maximizes videos for easy viewing, including full-page theater mode on most sites."
+  },
+  "actionDefaultTitle": {
+    "message": "Click to zoom video on page.\nRight-click to change Options"
+  },
+  "optionsTitle": {
+    "message": "Video Maximizer - Options"
+  },
+  "optionsHeading": {
+    "message": "Video Maximizer - Options"
+  },
+  "optionsAdvancedFeaturesLegend": {
+    "message": "Advanced playback features"
+  },
+  "optionsAdvancedFeaturesLabel": {
+    "message": "Enable <span class=\"emphasis\">ADVANCED</span> features (Experimental)"
+  },
+  "optionsAdvancedFeaturesDescription": {
+    "message": "Some sites lose their playback controls when zoomed. Advanced features allow you to skip and change playback speed."
+  },
+  "optionsAdvancedFeaturesHelpLink": {
+    "message": "See the <a href=\"help.html\" rel=\"noopener\" target=\"vidomaxhelp\">Help ↗</a> page for more details about how to use advanced features."
+  },
+  "optionsWholeDomainLegend": {
+    "message": "Allow more access - whole site by default"
+  },
+  "optionsWholeDomainLabel": {
+    "message": "May help reduce the number of \"rezooms\" required to get all permission prompts from chrome."
+  },
+  "optionsWholeDomainFeedback": {
+    "message": "USER FEEDBACK WANTED"
+  },
+  "optionsWholeDomainFeedbackQuestion": {
+    "message": "Is this setting useful for anyone? I'm considering removing it if ends up being more confusing than helpful."
+  },
+  "optionsWholeDomainPromptFrom": {
+    "message": "Changes permissions prompt from:<br><samp> &nbsp; \"Read and change your data on www.example.com\"</samp><br>to:<br><samp> &nbsp; \"Read and change all your data on example.com sites\"</samp>"
+  },
+  "optionsWholeDomainHelp": {
+    "message": "Can help reduce the number of prompts per new site since you won't get prompted for \"www.example.com\" and \"static.example.com\" separately."
+  },
+  "optionsWholeDomainQuestion": {
+    "message": "Is the message difference more scary when it says \"all your data\"?"
+  },
+  "optionsAllSitesLegend": {
+    "message": "Allow full access to all sites by default"
+  },
+  "optionsAllSitesLabel": {
+    "message": "If the security prompts annoy you OR Video Maximizer still won't work, then try this setting."
+  },
+  "optionsAllSitesWarning": {
+    "message": "WARNING: It will allow FULL ACCESS to ALL SITES by default. <br/>This access should not be required, but is a fix-all. Once granted and accepted, it silences all further permissions prompting.<br/><br/>Find a site that still doesn't work? <a href=\"https://github.com/trophygeek/universalvideomaximizer/issues\" rel=\"noopener\" target=\"_blank\">Open a GitHub issue ↗</a>."
+  },
+  "optionsPlaybackSkippingLegend": {
+    "message": "Playback skipping"
+  },
+  "optionsPlaybackSkippingDescription": {
+    "message": "While Video Maximizer popup controls are displayed, you can use the arrow keys to skip playback.&nbsp;Playback skipping is in <i>viewing</i> times, not video time. For example, 2x playback speed skips twice as far."
+  },
+  "optionsPlaybackSkippingHelpLink": {
+    "message": "Read more on the help page"
+  },
+  "optionsSkipSecondsLabel": {
+    "message": "Skip seconds:"
+  },
+  "optionsSkipSecondsShiftLabel": {
+    "message": " (when Shift key is used)"
+  },
+  "optionsHotkeyLegend": {
+    "message": "Activation Hotkey"
+  },
+  "optionsHotkeyDescription": {
+    "message": "To have a hotkey activate VideoMaximizer on page, simply use the built-in Chrome feature. Go to Extensions in Chrome and select \"Keyboard shortcuts\" from the left. Or navigate directly to chrome://extensions/shortcuts"
+  },
+  "optionsSpeedControlsLegend": {
+    "message": "Speed controls only sites"
+  },
+  "optionsSpeedControlsLabel": {
+    "message": "Some sites that are already fullscreened in theater mode, so VideoMax won't try to zoom them again. But speed controls could still be nice. Just use main domain part. So for \"www.example.com\" or \"example.uk.co\", just supply \"example\""
+  },
+  "optionsAddNewButton": {
+    "message": "+ Add New ..."
+  },
+  "optionsAddNewSiteNote": {
+    "message": "Adding a new site? Consider submitting a bug on github to get it added to future releases."
+  },
+  "optionsReportProblemsLegend": {
+    "message": "Report problems"
+  },
+  "optionsReportProblemsLink": {
+    "message": "Report problems via &nbsp; <a href=\"https://github.com/trophygeek/universalvideomaximizer/issues\" rel=\"noopener\" target=\"_blank\">GitHub issue ↗</a>"
+  },
+  "optionsIncludeInfoLabel": {
+    "message": "Include this information in the report:"
+  },
+  "optionsResetLegend": {
+    "message": "Reset"
+  },
+  "optionsResetButton": {
+    "message": "Reset to defaults"
+  },
+  "optionsCloseButton": {
+    "message": "Close"
+  },
+  "optionsRemoveButton": {
+    "message": "Remove"
+  },
+  "optionsDisableAdvancedAlert": {
+    "message": "This will remove the speed controls.\n\nTo access this Option page in the future, RIGHT-CLICK on the extension's icon in toolbar and select \"options\""
+  },
+  "optionsAllSitesAlert": {
+    "message": "Enabling this feature will prompt you ONE last time to grant this extension FULL ACCESS.\n\nYou may need to REFRESH the video page before it takes effect."
+  },
+  "optionsPromptDomain": {
+    "message": "New domain name to exclude from zooming:"
+  },
+  "helpTitle": {
+    "message": "Video Maximizer - Help"
+  },
+  "helpHeading": {
+    "message": "Video Maximizer - Help"
+  },
+  "helpUpdateHeading": {
+    "message": "Oct 2023 Update (Version 3.0.115)"
+  },
+  "helpUpdateHeading3117": {
+    "message": "Dec 2025 Update (Version 3.0.117)"
+  },
+  "helpUpdateHeading3116": {
+    "message": "Dec 2025 Update (Version 3.0.116)"
+  },
+  "helpBugFixes": {
+    "message": "Bug Fixes:"
+  },
+  "helpFeatureLocalization": {
+    "message": "Localization support for multiple languages."
+  },
+  "helpBugFixYoutube": {
+    "message": "Youtube fixes around zooming."
+  },
+  "helpNewFeatures": {
+    "message": "New features:"
+  },
+  "helpFeature1": {
+    "message": "Enhanced Security. Grants access only after you approve once."
+  },
+  "helpFeature2": {
+    "message": "NEW Prompt for Advanced UI (for upgrading v2 users)"
+  },
+  "helpFeature3": {
+    "message": "Arrow keys enable video rewind/forward skipping"
+  },
+  "helpFeature4": {
+    "message": "Improved speed adjusted playback"
+  },
+  "helpFeature5": {
+    "message": "Settings to automatically grant extra permissions that reduces security prompts"
+  },
+  "helpReportingIssuesHeading": {
+    "message": "Reporting other issues"
+  },
+  "helpReportingIssuesText": {
+    "message": "Any problems or feature requests can be reported with a new <a href=\"https://github.com/trophygeek/universalvideomaximizer/issues\" rel=\"noopener\" target=\"_blank\">GitHub issue ↗</a>. Chrome's store support does not notify the author when new issues are added."
+  },
+  "helpAlwaysFree": {
+    "message": "As always, this extension is:"
+  },
+  "helpFree": {
+    "message": "FREE"
+  },
+  "helpPrompts": {
+    "message": "Prompts for permissions to increase security and maintain your privacy."
+  },
+  "helpNoDataCollection": {
+    "message": "NEVER collects ANY data"
+  },
+  "helpNoDataCollectionText": {
+    "message": "Privacy and security are a top priorities."
+  },
+  "helpOpenSource": {
+    "message": "Is <a href=\"https://github.com/trophygeek/universalvideomaximizer/\" rel=\"noopener\" target=\"_blank\">open-sourced ↗</a> for transparency."
+  },
+  "helpNewPlaybackFeaturesHeading": {
+    "message": "New playback features"
+  },
+  "helpWhyPlaybackControls": {
+    "message": "Why include playback controls?"
+  },
+  "helpWhyPlaybackControlsText": {
+    "message": "Video Maximizer does its best to include the original playback controls when zooming, but some sites may still fail and end up missing them. That's when having some basic playback controls as part of Video Maximizer comes in handy."
+  },
+  "helpPlaybackFeatures": {
+    "message": "The feature allows: pause, skip and speed control directly from the extension."
+  },
+  "helpSecondPrompt": {
+    "message": "On pages where videos are actually hosted on a different site, it may require a <i>second</i> permissions prompt (e.g. misc sites embedding youtube videos). This appears to be a limitation of the Chrome APIs but hopefully will improve in future versions."
+  },
+  "helpSpeedControlsFail": {
+    "message": "If the <span class=\"emphasis bold\">speed controls fail</span> or the layout isn't centered, then <span class=\"emphasis bold\">unzoom and rezoom</span> to see if you get another permissions prompt."
+  },
+  "helpPermissionsRemembered": {
+    "message": "Permissions are remembered by Chrome and you should not be asked again for the same site."
+  },
+  "helpAfterZooming": {
+    "message": "After zooming, clicking the Video Maximizer button shows extra options to control playback speed."
+  },
+  "helpWhySpeedControlFailsHeading": {
+    "message": "Why speed control fails on some sites"
+  },
+  "helpCrossDomainVideos": {
+    "message": "When pages load their videos from a different site (e.g. a youtube video embedded in a non-youtube site), then the speed control feature will not work without permissions to both sites."
+  },
+  "helpTryRezooming": {
+    "message": "If this happens, you can try rezooming a couple of times and see if more Access prompts show up. Yes, the multiple promptings can be annoying, but it's just how Chrome works and you will only be asked once per site. If you grant permissions, then you will NOT be prompted again."
+  },
+  "helpExtraPermissions": {
+    "message": "If you continue to have access issues or find the prompting annoying there are extra permissions you can try in the Video Maxmizer Options page."
+  },
+  "helpAllowAllSites": {
+    "message": "The <b>\"Allow access to all sites by default\"</b> in the <a href=\"options.html\" target=\"videomaxoptions\">Options</a> will increase this extension's base permissions."
+  },
+  "helpPrivacyThoughts": {
+    "message": "Privacy thoughts"
+  },
+  "helpPrivacyThoughtsText": {
+    "message": "when granting sites individual permissions, Chrome saves the list of domains with the extension. (See Chrome's Extension page, then click \"Details\" for the extension.) This list is <b>preserved</b> even if you delete your browsing history. If this is a concern for you, then enabling <b>\"Allow access to all sites by default\"</b> will grant Video Maximizer access to sites when you activate the extension, but the internal Chrome list will no longer track it."
+  },
+  "helpFundamentalIssue": {
+    "message": "The fundamental issue is how the cross-domain-frame-permissions-granting works in Chrome. See <a href=\"https://bugs.chromium.org/p/chromium/issues/detail?id=826433\" rel=\"noopener\" target=\"_blank\">Issue #826433 ↗</a>"
+  },
+  "helpKeyboardShortcutsHeading": {
+    "message": "New keyboard shortcuts"
+  },
+  "helpUnzoomFunction": {
+    "message": "The Unzoom function can be accessed by <span class=\"bold\">clicking</span> this icon (or the Spacebar after opening)"
+  },
+  "helpSpeedToggle": {
+    "message": "Clicking the speed-change button a second time toggles it back to normal speed."
+  },
+  "helpUpDownKeys": {
+    "message": "up/down keys:"
+  },
+  "helpUpDownKeysDesc": {
+    "message": "Increase and decrease playback speed."
+  },
+  "helpLeftRightKeys": {
+    "message": "right/left keys:"
+  },
+  "helpLeftRightKeysDesc": {
+    "message": "Skip the playback forwards/backwards."
+  },
+  "helpShiftArrow": {
+    "message": "shift + arrow:"
+  },
+  "helpShiftArrowDesc": {
+    "message": "Longer skips."
+  },
+  "helpSpaceKey": {
+    "message": "space key:"
+  },
+  "helpSpaceKeyDesc": {
+    "message": "Toggle speed to zero."
+  },
+  "helpRelativeSkipTimes": {
+    "message": "relative skip times:"
+  },
+  "helpRelativeSkipTimesDesc": {
+    "message": "Changing playback speed adjusts how long the skip is.<br/>0.25x playback speed is 1/4th less the skip time.<br/>e.g. 10s skip at 16x playback would skip forward 1m 40s in the video."
+  },
+  "helpLengthOfSkips": {
+    "message": "Length of skips"
+  },
+  "helpLengthOfSkipsDesc": {
+    "message": "Can be customized in the <a href=\"options.html\" target=\"videomaxoptions\">Options</a>."
+  },
+  "helpTipEscape": {
+    "message": "TIP:"
+  },
+  "helpTipEscapeDesc": {
+    "message": "Pressing the Escape key on the page UNZOOMS."
+  },
+  "helpTipEscapePopup": {
+    "message": "TIP:"
+  },
+  "helpTipEscapePopupDesc": {
+    "message": "Pressing escape when the Speed Control window is open will close it."
+  },
+  "helpNoteSpeedChanging": {
+    "message": "NOTE:"
+  },
+  "helpNoteSpeedChangingDesc": {
+    "message": "Speed changing <span class=\"emphasis\">will not work </span> on sites hosting videos from other sites without unzooming and rezooming to see if there are additional access prompts. This should only be required once per site, but can be bypassed if you enable the \"full access to all sites by default\" in <a href=\"options.html\" target=\"videomaxoptions\">Options</a>"
+  },
+  "helpNoteDisable": {
+    "message": "NOTE:"
+  },
+  "helpNoteDisableDesc": {
+    "message": "There is an <span class=\"emphasis\">option to disable</span> the Speed Controls to revert to the behavior of the original Video Maximizer (see Options below)"
+  },
+  "helpKeyboardShortcutZoom": {
+    "message": "Keyboard shortcut to zoom:"
+  },
+  "helpKeyboardShortcutZoomDesc": {
+    "message": "This is built into chrome! Go to <code>chrome://extensions/shortcuts</code>"
+  },
+  "helpPinningHeading": {
+    "message": "Pinning the extension to the toolbar makes it easier to use."
+  },
+  "helpPinningStep1": {
+    "message": "To pin, first click on the Extensions puzzle piece icon"
+  },
+  "helpPinningStep2": {
+    "message": "Click the Pin icon"
+  },
+  "helpKnownIssuesHeading": {
+    "message": "Known issues"
+  },
+  "helpNetflixIssueHeading": {
+    "message": "Skipping doesn't work on Netflix"
+  },
+  "helpNetflixIssueText": {
+    "message": "Skipping the video backwards on netflix causes an error. There's no workaround, so this feature is just disabled for now."
+  },
+  "helpSpeedControlsIssueHeading": {
+    "message": "Speed controls don't work on some sites"
+  },
+  "helpSpeedControlsIssueText1": {
+    "message": "Video Maximizer attempts to use the minimal permissions required to do its job. However, there are still some sites that require more access to work. (The technical reason has to do with embedding iframes that have cross-domain references.)"
+  },
+  "helpSpeedControlsIssueText2": {
+    "message": "The default settings for Video Maximizer is maximum privacy, but see the <a href=\"options.html\" target=\"videomaxoptions\">Options</a> page for more choices to grant this extension more permissions."
+  },
+  "helpDisablingPermissionsHeading": {
+    "message": "Disabling \"Allow access to all sites by default\" doesn't reset permissions"
+  },
+  "helpDisablingPermissionsText": {
+    "message": "Another Chrome issue. Video Maximizer removes the extra permissions; however, since they've already been granted, it seems like the extension must be uninstalled and reinstalled to reset it."
+  },
+  "helpConstantPromptingHeading": {
+    "message": "Constant security prompting"
+  },
+  "helpConstantPromptingText": {
+    "message": "You should only get prompted ONCE per unique site you use Video Maximizer on; however, if this frequency annoys you, then you have the choice to enable the \"Allow access to all sites by default\" option. You will then get one last prompt and never be bugged again."
+  },
+  "helpChangingOptionsHeading": {
+    "message": "Changing Options"
+  },
+  "helpChangingOptionsStep1": {
+    "message": "<span class=\"bold\">Right-click</span> the icon"
+  },
+  "helpChangingOptionsStep2": {
+    "message": "Select Option from the dropdown menu."
+  },
+  "helpChangingOptionsText": {
+    "message": "You can disable the speed controls and revert the behavior back to the classic toggle."
+  },
+  "helpLocalFilesHeading": {
+    "message": "Using with local video files"
+  },
+  "helpLocalFilesText1": {
+    "message": "You can use Video Maximizer with local video files (like .mp4). Simply drag-and-drop into a browser window to start playing the video. Then click the extension button."
+  },
+  "helpLocalFilesText2": {
+    "message": "If you have issues with local files working, you may want to check the extension permissions."
+  },
+  "helpLocalFilesStep1": {
+    "message": "Go into Chrome Extensions page <code>chrome://extensions/</code>"
+  },
+  "helpLocalFilesStep2": {
+    "message": "Find the VideoMaximizer in the list of extensions."
+  },
+  "helpLocalFilesStep3": {
+    "message": "Click the Details button"
+  },
+  "helpLocalFilesStep4": {
+    "message": "Scroll down until you see the \"Allow access to file URLs\" and make sure it's enabled."
+  },
+  "helpLocalFilesText3": {
+    "message": "You can disable the speed controls and revert the behavior back to the classic toggle."
+  },
+  "popupTitle": {
+    "message": "Video Maximizer"
+  },
+  "stateZooming": {
+    "message": "Searching for videos to zoom"
+  },
+  "stateZoomingSpeedOnly": {
+    "message": "Searching for videos enhance"
+  },
+  "stateZoomedNoSpeed": {
+    "message": "Click to unzoom\nNo speed change allowed by this site."
+  },
+  "stateZoomedSpeed": {
+    "message": "Click to change speed or unzoom"
+  },
+  "stateSpeedOnly": {
+    "message": "Click to change speed"
+  },
+  "stateRefresh": {
+    "message": "Permissions check complete.\nClick again more permissions might be needed.."
+  },
+  "stateErrPermission": {
+    "message": "Permission denied by user"
+  },
+  "stateErrUrl": {
+    "message": "Extension only works on https sites\n or files dragged+dropped into chrome tab"
+  },
+  "stateClickToZoom": {
+    "message": "Click to zoom"
+  }
 }

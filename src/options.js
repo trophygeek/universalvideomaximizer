@@ -23,6 +23,34 @@ import {
 let g_settings = { ...DEFAULT_SETTINGS };
 
 /**
+ * Localize the page by processing all data-i18n attributes
+ */
+const localizePage = () => {
+  // Set page title
+  const titleElement = document.getElementById("pageTitle");
+  if (titleElement) {
+    titleElement.textContent = chrome.i18n.getMessage("optionsTitle");
+  }
+
+  // Process all elements with data-i18n attributes
+  const elements = document.querySelectorAll("[data-i18n]");
+  for (const element of elements) {
+    const messageKey = element.getAttribute("data-i18n");
+    if (messageKey) {
+      const message = chrome.i18n.getMessage(messageKey);
+      if (message) {
+        // If message contains HTML tags, use innerHTML, otherwise textContent
+        if (message.includes("<") && message.includes(">")) {
+          element.innerHTML = message;
+        } else {
+          element.textContent = message;
+        }
+      }
+    }
+  }
+};
+
+/**
  *
  * @returns {Promise<String>}
  */
@@ -108,7 +136,8 @@ const loadSettingsIntoFields = (settings) => {
     /* Used to build list */
     const LI_START = `<li class="list-group-item container"><div class="container"><div class="row is-center">`;
     const LI_START2 = `${LI_START}<div class="col-1 is-left domain">`;
-    const LI_END = `</div><div class="col-10 is-right"><button name="removeBtn" class="delete-button">Remove</button></div></div></div></li>`;
+    const removeButtonText = chrome.i18n.getMessage("optionsRemoveButton");
+    const LI_END = `</div><div class="col-10 is-right"><button name="removeBtn" class="delete-button">${removeButtonText}</button></div></div></div></li>`;
     const listarr = listToArray(settings.zoomExclusionListStr);
     // noinspection UnnecessaryLocalVariableJS
     const list = LI_START2 + listarr.join(LI_END + LI_START2) + LI_END;
@@ -201,6 +230,10 @@ ${userAgent}
 
 document.addEventListener("DOMContentLoaded", async () => {
   try {
+    // Set lang attribute dynamically based on Chrome locale
+    document.documentElement.lang = chrome.i18n.getUILanguage();
+    
+    localizePage();
     await setupPageFromSettings();
 
     document.getElementById("mainForm")
@@ -214,10 +247,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         setTimeout(() => {
           if (!getChecked("useAdvancedFeatures")) {
             // eslint-disable-next-line no-alert
-            alert(`
-This will remove the speed controls.
-
-To access this Option page in the future, RIGHT-CLICK on the extension's icon in toolbar and select "options"`);
+            alert(chrome.i18n.getMessage("optionsDisableAdvancedAlert"));
           }
         }, 250);
       });
@@ -227,10 +257,7 @@ To access this Option page in the future, RIGHT-CLICK on the extension's icon in
         setTimeout(() => {
           if (getChecked("allSitesAccess")) {
             // eslint-disable-next-line no-alert
-            alert(`
-Enabling this feature will prompt you ONE last time to grant this extension FULL ACCESS.
-
-You may need to REFRESH the video page before it takes effect.`);
+            alert(chrome.i18n.getMessage("optionsAllSitesAlert"));
           }
         }, 250);
       });
@@ -238,7 +265,7 @@ You may need to REFRESH the video page before it takes effect.`);
     document.getElementById("addpathblacklist")
       .addEventListener("click", async (e) => {
         // eslint-disable-next-line no-alert
-        const newDomainStr = prompt("New domain name to exclude from zooming:");
+        const newDomainStr = prompt(chrome.i18n.getMessage("optionsPromptDomain"));
         if (newDomainStr?.length) {
           const domain = getDomain(newDomainStr);
           g_settings.zoomExclusionListStr = `${g_settings.zoomExclusionListStr},${domain}`;

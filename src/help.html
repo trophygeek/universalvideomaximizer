@@ -1,50 +1,73 @@
 <!Doctype html>
-<html lang="en">
+<html>
 <head>
-  <title>Video Maximizer - Help</title>
+  <title id="pageTitle">Video Maximizer - Help</title>
   <meta charset="utf-8">
   <link href="chota.css" rel="stylesheet" type="text/css">
 </head>
 <body class="dark">
 
 <div class="container">
-  <h1><img alt="logo" class="logo" src="icons/icon128.png">Video Maximizer - Help</h1>
+  <h1><img alt="logo" class="logo" src="icons/icon128.png"><span data-i18n="helpHeading">Video Maximizer - Help</span></h1>
+  <h2 data-i18n="helpUpdateHeading3117">
+    Dec 2025 Update (Version 3.0.117)
+  </h2>
+  <section class="padding-1">
+    <span data-i18n="helpNewFeatures">New features:</span>
+    <ul>
+      <li data-i18n="helpFeatureLocalization">Localization support for multiple languages.</li>
+    </ul>
+  </section>
+
   <hr>
-  <h2>
+
+  <h2 data-i18n="helpUpdateHeading3116">
+    Dec 2025 Update (Version 3.0.116)
+  </h2>
+  <section class="padding-1">
+    <span data-i18n="helpBugFixes">Bug Fixes:</span>
+    <ul>
+      <li data-i18n="helpBugFixYoutube">Youtube fixes around zooming.</li>
+    </ul>
+  </section>
+
+  <hr>
+
+  <h2 data-i18n="helpUpdateHeading">
     Oct 2023 Update (Version 3.0.115)
   </h2>
 
   <section class="padding-1">
-    New features:
+    <span data-i18n="helpNewFeatures">New features:</span>
     <ul>
-      <li>Enhanced Security. Grants access only after you approve once.</li>
-      <li><span class="emphasis">NEW</span> Prompt for Advanced UI (for upgrading v2 users)</li>
-      <li>Arrow keys enable video rewind/forward skipping</li>
-      <li>Improved speed adjusted playback</li>
-      <li>Settings to automatically grant extra permissions that reduces security prompts</li>
+      <li data-i18n="helpFeature1">Enhanced Security. Grants access only after you approve once.</li>
+      <li><span class="emphasis" data-i18n="helpFeature2">NEW Prompt for Advanced UI (for upgrading v2 users)</span></li>
+      <li data-i18n="helpFeature3">Arrow keys enable video rewind/forward skipping</li>
+      <li data-i18n="helpFeature4">Improved speed adjusted playback</li>
+      <li data-i18n="helpFeature5">Settings to automatically grant extra permissions that reduces security prompts</li>
     </ul>
   </section>
 
   <hr/>
-  <h3>Reporting other issues</h3>
-  <section class="padding-1">
+  <h3 data-i18n="helpReportingIssuesHeading">Reporting other issues</h3>
+  <section class="padding-1" data-i18n="helpReportingIssuesText">
     Any problems or feature requests can be reported with a new
     <a href="https://github.com/trophygeek/universalvideomaximizer/issues" rel="noopener" target="_blank">GitHub
       issue ↗</a>. Chrome's store support does not notify the author when new issues are added.
   </section>
 
   <section class="padding-1">
-    As always, this extension is:
+    <span data-i18n="helpAlwaysFree">As always, this extension is:</span>
     <ul>
-      <li><span class="emphasis bold">FREE</span>
+      <li><span class="emphasis bold" data-i18n="helpFree">FREE</span>
 
-      <li>Prompts for permissions to increase security and maintain your privacy.
+      <li data-i18n="helpPrompts">Prompts for permissions to increase security and maintain your privacy.
       </li>
 
-      <li><span class="emphasis">NEVER collects ANY data</span>. Privacy and security are a top priorities.
+      <li><span class="emphasis" data-i18n="helpNoDataCollection">NEVER collects ANY data</span>. <span data-i18n="helpNoDataCollectionText">Privacy and security are a top priorities.</span>
       </li>
 
-      <li>Is <a href="https://github.com/trophygeek/universalvideomaximizer/" rel="noopener"
+      <li data-i18n="helpOpenSource">Is <a href="https://github.com/trophygeek/universalvideomaximizer/" rel="noopener"
                 target="_blank">open-sourced ↗</a> for transparency.
       </li>
     </ul>
@@ -52,172 +75,171 @@
 
   <hr/>
 
-  <h3 id="newdesign">New playback features</h3>
+  <h3 id="newdesign" data-i18n="helpNewPlaybackFeaturesHeading">New playback features</h3>
   <section class="padding-3">
-    <span class="emphasis bold"> Why include playback controls?</span><br>
-    Video Maximizer does its best to include the original playback controls when zooming, but
+    <span class="emphasis bold" data-i18n="helpWhyPlaybackControls"> Why include playback controls?</span><br>
+    <span data-i18n="helpWhyPlaybackControlsText">Video Maximizer does its best to include the original playback controls when zooming, but
     some sites may still fail and end up missing them. That's when having some basic playback controls as part of
-    Video Maximizer comes in handy.
+    Video Maximizer comes in handy.</span>
   </section>
-  <section class="padding-2">
+  <section class="padding-2" data-i18n="helpPlaybackFeatures">
     The feature allows: pause, skip and speed control directly from the extension.
   </section>
 
-  <section class="padding-2">
+  <section class="padding-2" data-i18n="helpSecondPrompt">
     On pages where videos are actually hosted on a different site, it may require a <i>second</i> permissions prompt
     (e.g. misc sites embedding youtube videos). This appears to be a limitation of the Chrome APIs but
-    hopefully will improve in future versions.<br/>
-    <br/>
+    hopefully will improve in future versions.
+  </section>
+
+  <section class="padding-2" data-i18n="helpSpeedControlsFail">
     If the <span class="emphasis bold">speed controls fail</span> or the layout isn't centered, then <span
       class="emphasis bold">unzoom and rezoom</span> to see if you get another permissions prompt.
   </section>
 
   <section class="padding-2">
-    Permissions are remembered by Chrome and you should not be asked again for the same site.
-  </section>
-
-  <section class="padding-2">
     <img alt="screen shot" class="illustration" src="img/new_speed_control_bar.png">
-    After zooming, clicking the Video Maximizer button shows extra options to control playback speed.
+    <span data-i18n="helpAfterZooming">After zooming, clicking the Video Maximizer button shows extra options to control playback speed.</span>
   </section>
 
-  <h3>Why speed control fails on some sites</h3>
+  <h3 data-i18n="helpWhySpeedControlFailsHeading">Why speed control fails on some sites</h3>
   <section class="padding-2">
     <img alt="screen shot" class="illustration" src="img/permissions_prompt.png">
-    When pages load their videos from a different site (e.g. a youtube video embedded in a non-youtube site), then
-    the speed control feature will not work without permissions to both sites.<br/><br/>
-    If this happens, you can try rezooming a couple of times and see if more Access prompts show up. Yes, the
-    multiple promptings can be annoying, but it's just how Chrome works and you will only be asked once per site.<br>
-    If you grant permissions, then you will NOT be prompted again.<br/><br/>
-    If you continue to have access issues or find the prompting annoying there are extra permissions you can try
-    in the Video Maxmizer Options page.
+    <span data-i18n="helpCrossDomainVideos">When pages load their videos from a different site (e.g. a youtube video embedded in a non-youtube site), then
+    the speed control feature will not work without permissions to both sites.</span><br/><br/>
+    <span data-i18n="helpTryRezooming">If this happens, you can try rezooming a couple of times and see if more Access prompts show up. Yes, the
+    multiple promptings can be annoying, but it's just how Chrome works and you will only be asked once per site. If you grant permissions, then you will NOT be prompted again.</span><br/><br/>
+    <span data-i18n="helpExtraPermissions">If you continue to have access issues or find the prompting annoying there are extra permissions you can try
+    in the Video Maxmizer Options page.</span>
   </section>
-  <section class="padding-2">
+  <section class="padding-2" data-i18n="helpAllowAllSites">
     The <b>"Allow access to all sites by default"</b> in the <a href="options.html" target="videomaxoptions">Options</a>
     will
-    increase this extension's base permissions.<br/><br/>
-    <b>Privacy thoughts</b>: when granting sites individual permissions, Chrome saves the list of domains with the
+    increase this extension's base permissions.
+  </section>
+  <section class="padding-2">
+    <b data-i18n="helpPrivacyThoughts">Privacy thoughts</b>: <span data-i18n="helpPrivacyThoughtsText">when granting sites individual permissions, Chrome saves the list of domains with the
     extension.
     (See Chrome's Extension page, then click "Details" for the extension.) This list is <b>preserved</b> even if you
     delete your
     browsing history. If this is a concern for you, then enabling <b>"Allow access to all sites by default"</b> will
     grant
     Video Maximizer access to sites when you activate the extension, but the internal Chrome list will no longer track
-    it.
+    it.</span>
     <br/><br/>
-    The fundamental issue is how the cross-domain-frame-permissions-granting works in Chrome. See <a
+    <span data-i18n="helpFundamentalIssue">The fundamental issue is how the cross-domain-frame-permissions-granting works in Chrome. See <a
       href="https://bugs.chromium.org/p/chromium/issues/detail?id=826433" rel="noopener"
-      target="_blank">Issue #826433 ↗</a>
+      target="_blank">Issue #826433 ↗</a></span>
   </section>
 
   <hr/>
 
-  <h3>
+  <h3 data-i18n="helpKeyboardShortcutsHeading">
     New keyboard shortcuts
   </h3>
 
   <section class="padding-1">
     <img alt="illustration showing video maximizer" class="illustration" src="img/tips3.png">
     <ol>
-      <li>The Unzoom function can be accessed by <span class="bold">clicking</span> this icon (or the Spacebar after
+      <li data-i18n="helpUnzoomFunction">The Unzoom function can be accessed by <span class="bold">clicking</span> this icon (or the Spacebar after
         opening)
       </li>
-      <li>Clicking the speed-change button a second time toggles it back to normal speed.</li>
+      <li data-i18n="helpSpeedToggle">Clicking the speed-change button a second time toggles it back to normal speed.</li>
     </ol>
     <img alt="graphics showing arrow keys" class="illustration" src="img/arrow_keys.png">
     <ul>
-      <li><span class="text-success">up/down keys: <span class="tag is-large">⬍</span></span> Increase and decrease
-        playback speed.
+      <li><span class="text-success" data-i18n="helpUpDownKeys">up/down keys:</span> <span class="tag is-large">⬍</span> <span data-i18n="helpUpDownKeysDesc">Increase and decrease
+        playback speed.</span>
       </li>
-      <li><span class="text-success">right/left keys: <span class="tag is-large">⬌</span></span> Skip the playback
-        forwards/backwards.
+      <li><span class="text-success" data-i18n="helpLeftRightKeys">right/left keys:</span> <span class="tag is-large">⬌</span> <span data-i18n="helpLeftRightKeysDesc">Skip the playback
+        forwards/backwards.</span>
       </li>
-      <li><span class="text-success">shift + arrow:</span> Longer skips.</li>
-      <li><span class="text-success">space key:</span> Toggle speed to zero.</li>
-      <li><span class="text-success">relative skip times:</span> Changing playback speed adjusts how long the skip is.
+      <li><span class="text-success" data-i18n="helpShiftArrow">shift + arrow:</span> <span data-i18n="helpShiftArrowDesc">Longer skips.</span></li>
+      <li><span class="text-success" data-i18n="helpSpaceKey">space key:</span> <span data-i18n="helpSpaceKeyDesc">Toggle speed to zero.</span></li>
+      <li><span class="text-success" data-i18n="helpRelativeSkipTimes">relative skip times:</span> <span data-i18n="helpRelativeSkipTimesDesc">Changing playback speed adjusts how long the skip is.
         <br/>0.25x playback speed is 1/4th less the skip time.
-        <br/>e.g. 10s skip at 16x playback would skip forward 1m 40s in the video.
+        <br/>e.g. 10s skip at 16x playback would skip forward 1m 40s in the video.</span>
       </li>
-      <li><span class="text-success">Length of skips</span> Can be customized in the <a href="options.html"
-                                                                                        target="videomaxoptions">Options</a>.
+      <li><span class="text-success" data-i18n="helpLengthOfSkips">Length of skips</span> <span data-i18n="helpLengthOfSkipsDesc">Can be customized in the <a href="options.html"
+                                                                                        target="videomaxoptions">Options</a>.</span>
       </li>
-      <li><span class="text-success">TIP: </span> Pressing the Escape key on the page UNZOOMS.
-      <li><span class="text-success">TIP:</span> Pressing escape when the Speed Control window is open will close it.
+      <li><span class="text-success" data-i18n="helpTipEscape">TIP: </span> <span data-i18n="helpTipEscapeDesc">Pressing the Escape key on the page UNZOOMS.</span>
+      <li><span class="text-success" data-i18n="helpTipEscapePopup">TIP:</span> <span data-i18n="helpTipEscapePopupDesc">Pressing escape when the Speed Control window is open will close it.</span>
       </li>
-      <li><span class="text-success">NOTE: </span> Speed changing <span class="emphasis">will not work </span> on
+      <li><span class="text-success" data-i18n="helpNoteSpeedChanging">NOTE: </span> <span data-i18n="helpNoteSpeedChangingDesc">Speed changing <span class="emphasis">will not work </span> on
         sites hosting videos from other sites without unzooming and rezooming to see if there are additional access
         prompts.
         This should only be required once per site, but can be bypassed if you enable the "full access to all sites by
-        default" in <a href="options.html" target="videomaxoptions">Options</a>
+        default" in <a href="options.html" target="videomaxoptions">Options</a></span>
       </li>
-      <li><span class="text-success">NOTE: </span> There is an <span class="emphasis">option to disable</span> the Speed
-        Controls to revert to the behavior of the original Video Maximizer (see Options below)
+      <li><span class="text-success" data-i18n="helpNoteDisable">NOTE: </span> <span data-i18n="helpNoteDisableDesc">There is an <span class="emphasis">option to disable</span> the Speed
+        Controls to revert to the behavior of the original Video Maximizer (see Options below)</span>
       </li>
-      <li><span class="text-success">Keyboard shortcut to zoom:</span> This is built into chrome!
-        Go to <code>chrome://extensions/shortcuts</code>
+      <li><span class="text-success" data-i18n="helpKeyboardShortcutZoom">Keyboard shortcut to zoom:</span> <span data-i18n="helpKeyboardShortcutZoomDesc">This is built into chrome!
+        Go to <code>chrome://extensions/shortcuts</code></span>
       </li>
     </ul>
   </section>
 
   <hr/>
 
-  <h3>
+  <h3 data-i18n="helpPinningHeading">
     Pinning the extension to the toolbar makes it easier to use.
   </h3>
 
   <section class="padding-14">
     <img alt="illustration showing how to pin an extension" class="illustration" src="img/tips1.png">
     <ol>
-      <li>To pin, first click on the Extensions puzzle piece icon</li>
-      <li>Click the Pin icon</li>
+      <li data-i18n="helpPinningStep1">To pin, first click on the Extensions puzzle piece icon</li>
+      <li data-i18n="helpPinningStep2">Click the Pin icon</li>
     </ol>
     <br/><br/>
   </section>
   <hr/>
-  <h3>
+  <h3 data-i18n="helpKnownIssuesHeading">
     Known issues
   </h3>
   <section class="padding-7">
-    <h4>Skipping doesn't work on Netflix</h4>
-    <p>Skipping the video backwards on netflix causes an error. There's no workaround, so this feature is just disabled
+    <h4 data-i18n="helpNetflixIssueHeading">Skipping doesn't work on Netflix</h4>
+    <p data-i18n="helpNetflixIssueText">Skipping the video backwards on netflix causes an error. There's no workaround, so this feature is just disabled
       for now.</p>
 
     <br/>
 
-    <h4>Speed controls don't work on some sites</h4>
-    <p>Video Maximizer attempts to use the minimal permissions required to do its job. However, there are still some
+    <h4 data-i18n="helpSpeedControlsIssueHeading">Speed controls don't work on some sites</h4>
+    <p data-i18n="helpSpeedControlsIssueText1">Video Maximizer attempts to use the minimal permissions required to do its job. However, there are still some
       sites that require more access to work.
       (The technical reason has to do with embedding iframes that have cross-domain references.)</p>
-    <p>The default settings for Video Maximizer is maximum privacy, but see the
+    <p data-i18n="helpSpeedControlsIssueText2">The default settings for Video Maximizer is maximum privacy, but see the
       <a href="options.html" target="videomaxoptions">Options</a>
       page for more choices to grant this extension more permissions.</p>
     <br/>
 
-    <h4>Disabling "Allow access to all sites by default" doesn't reset permissions</h4>
-    <p>Another Chrome issue. Video Maximizer removes the extra permissions; however, since they've already been granted,
+    <h4 data-i18n="helpDisablingPermissionsHeading">Disabling "Allow access to all sites by default" doesn't reset permissions</h4>
+    <p data-i18n="helpDisablingPermissionsText">Another Chrome issue. Video Maximizer removes the extra permissions; however, since they've already been granted,
       it seems like the extension must be uninstalled and reinstalled to reset it.</p>
 
     <br/>
-    <h4>Constant security prompting</h4>
-    <p>You should only get prompted ONCE per unique site you use Video Maximizer on; however, if this frequency annoys
+    <h4 data-i18n="helpConstantPromptingHeading">Constant security prompting</h4>
+    <p data-i18n="helpConstantPromptingText">You should only get prompted ONCE per unique site you use Video Maximizer on; however, if this frequency annoys
       you, then you have the choice to enable the "Allow access to all sites by default" option. You will then get one
       last prompt and never be bugged again.</p>
 
   </section>
   <hr/>
 
-  <h3>
+  <h3 data-i18n="helpChangingOptionsHeading">
     Changing Options
   </h3>
 
   <section class="padding-7">
     <img alt="screenshot showing how to show options page" class="illustration" src="img/tips2.png">
     <ol>
-      <li><span class="bold">Right-click</span> the icon</li>
-      <li>Select Option from the dropdown menu.
+      <li data-i18n="helpChangingOptionsStep1"><span class="bold">Right-click</span> the icon</li>
+      <li data-i18n="helpChangingOptionsStep2">Select Option from the dropdown menu.
       </li>
     </ol>
-    You can disable the speed controls and revert the behavior back to the classic toggle.
+    <span data-i18n="helpChangingOptionsText">You can disable the speed controls and revert the behavior back to the classic toggle.</span>
   </section>
 
   <br/>
@@ -227,25 +249,26 @@
 
   <hr/>
 
-  <h3 id="localfile">
+  <h3 id="localfile" data-i18n="helpLocalFilesHeading">
     Using with local video files
   </h3>
 
   <section class="padding-7">
-    <p>You can use Video Maximizer with local video files (like .mp4).
+    <p data-i18n="helpLocalFilesText1">You can use Video Maximizer with local video files (like .mp4).
       Simply drag-and-drop into a browser window to start playing the video. Then click the extension button.
     </p>
-    <p>If you have issues with local files working, you may want to check the extension permissions.</p>
+    <p data-i18n="helpLocalFilesText2">If you have issues with local files working, you may want to check the extension permissions.</p>
     <ol>
-      <li>Go into Chrome Extensions page <code>chrome://extensions/</code></li>
-      <li>Find the VideoMaximizer in the list of extensions.</li>
-      <li>Click the Details button</li>
-      <li>Scroll down until you see the "Allow access to file URLs" and make sure it's enabled.</li>
+      <li data-i18n="helpLocalFilesStep1">Go into Chrome Extensions page <code>chrome://extensions/</code></li>
+      <li data-i18n="helpLocalFilesStep2">Find the VideoMaximizer in the list of extensions.</li>
+      <li data-i18n="helpLocalFilesStep3">Click the Details button</li>
+      <li data-i18n="helpLocalFilesStep4">Scroll down until you see the "Allow access to file URLs" and make sure it's enabled.</li>
     </ol>
-    You can disable the speed controls and revert the behavior back to the classic toggle.
+    <span data-i18n="helpLocalFilesText3">You can disable the speed controls and revert the behavior back to the classic toggle.</span>
   </section>
 </div>
 <br/>
 <br/>
+<script src="help.js"></script>
 </body>
 </html>

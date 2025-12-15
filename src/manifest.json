@@ -1,8 +1,8 @@
 {
-  "name": "Video Maximizer",
-  "version": "3.0.116",
+  "name": "__MSG_appName__",
+  "version": "3.0.117",
   "manifest_version": 3,
-  "description": "Remove visual clutter and maximizes videos for easy viewing, including full-page theater mode on most sites.",
+  "description": "__MSG_appDescription__",
   "homepage_url": "https://github.com/trophygeek/universalvideomaximizer",
   "icons": {
     "48": "icons/icon48.png",
@@ -11,7 +11,7 @@
   },
   "default_locale": "en",
   "action": {
-    "default_title": "Click to zoom video on page.\nRight-click to change Options"
+    "default_title": "__MSG_actionDefaultTitle__"
   },
   "background": {
     "service_worker": "background.js",
