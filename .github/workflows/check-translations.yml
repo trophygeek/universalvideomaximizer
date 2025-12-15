@@ -1,0 +1,115 @@
+name: Check Translation Completeness
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/_locales/**/*.json'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/_locales/**/*.json'
+
+jobs:
+  check-translations:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Check translation completeness
+        run: |
+          echo "Checking translation completeness..."
+          
+          # Read English messages.json as the reference
+          ENGLISH_FILE="src/_locales/en/messages.json"
+          if [ ! -f "$ENGLISH_FILE" ]; then
+            echo "::error::English messages file not found: $ENGLISH_FILE"
+            exit 1
+          fi
+          
+          # Extract all keys from English file
+          ENGLISH_KEYS=$(node -e "
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync('$ENGLISH_FILE', 'utf8'));
+            const keys = Object.keys(data).sort();
+            console.log(JSON.stringify(keys));
+          ")
+          
+          # Find all locale directories
+          LOCALE_DIRS=$(find src/_locales -mindepth 1 -maxdepth 1 -type d ! -name en)
+          
+          HAS_WARNINGS=false
+          
+          for LOCALE_DIR in $LOCALE_DIRS; do
+            LOCALE=$(basename "$LOCALE_DIR")
+            MESSAGES_FILE="$LOCALE_DIR/messages.json"
+            
+            if [ ! -f "$MESSAGES_FILE" ]; then
+              echo "::warning::Locale '$LOCALE' directory exists but messages.json is missing"
+              HAS_WARNINGS=true
+              continue
+            fi
+            
+            # Extract keys from this locale's messages.json
+            LOCALE_KEYS=$(node -e "
+              const fs = require('fs');
+              try {
+                const data = JSON.parse(fs.readFileSync('$MESSAGES_FILE', 'utf8'));
+                const keys = Object.keys(data).sort();
+                console.log(JSON.stringify(keys));
+              } catch (e) {
+                console.log('[]');
+              }
+            ")
+            
+            # Compare keys
+            MISSING_KEYS=$(node -e "
+              const englishKeys = $ENGLISH_KEYS;
+              const localeKeys = $LOCALE_KEYS;
+              const missing = englishKeys.filter(k => !localeKeys.includes(k));
+              console.log(missing.join(','));
+            ")
+            
+            if [ -n "$MISSING_KEYS" ]; then
+              echo "::warning::Locale '$LOCALE' is missing the following keys:"
+              echo "$MISSING_KEYS" | tr ',' '\n' | while read -r key; do
+                echo "  - $key"
+              done
+              HAS_WARNINGS=true
+            else
+              echo "Locale '$LOCALE': All keys present"
+            fi
+            
+            # Check for extra keys (keys in locale but not in English)
+            EXTRA_KEYS=$(node -e "
+              const englishKeys = $ENGLISH_KEYS;
+              const localeKeys = $LOCALE_KEYS;
+              const extra = localeKeys.filter(k => !englishKeys.includes(k));
+              console.log(extra.join(','));
+            ")
+            
+            if [ -n "$EXTRA_KEYS" ]; then
+              echo "::warning::Locale '$LOCALE' has extra keys not in English:"
+              echo "$EXTRA_KEYS" | tr ',' '\n' | while read -r key; do
+                echo "  - $key"
+              done
+              HAS_WARNINGS=true
+            fi
+          done
+          
+          if [ "$HAS_WARNINGS" = true ]; then
+            echo ""
+            echo "Translation completeness check completed with warnings."
+            echo "These are warnings only - the build will not fail."
+            echo "Please review and add missing translations when ready."
+          else
+            echo ""
+            echo "Translation completeness check passed!"
+          fi
+
