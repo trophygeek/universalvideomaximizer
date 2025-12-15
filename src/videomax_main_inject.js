@@ -1938,10 +1938,10 @@ try { // scope and prevent errors from leaking out to page.
     /**
      * @param func {() => boolean}
      */
-    this.startTimer = (func) => {
+    this.startTimer = (func, initialDelay = false) => {
       this.func = func;
       this.retryFunc.bind(this);
-      setTimeout(() => this.retryFunc(), 0);
+      setTimeout(() => this.retryFunc(), initialDelay ? this.delay : 1);
     };
 
     this.retryFunc = () => {
@@ -3254,6 +3254,10 @@ try { // scope and prevent errors from leaking out to page.
     return getAttr(masthead, "theater") !== null;
   };
 
+  const isYoutubeSite = () => {
+    return smellsLikeMatch(getPageUrl(), YOUTUBE_TLD_NAMES);
+  }
+
   /**
    * Fixing youtube's progress indicator when it's in small mode is next to impossible to make
    * large-screen friendly. The thumb position is set via javascript that sets a style directly
@@ -3263,7 +3267,7 @@ try { // scope and prevent errors from leaking out to page.
    */
   const setYoutubeIntoTheaterMode = (theaterMode) => {
     // verify it smells like a youtube domain. But the element check below would probably be enough
-    if (!smellsLikeMatch(getPageUrl(), YOUTUBE_TLD_NAMES)) {
+    if (!isYoutubeSite()) {
       return;
     }
     // check if we're in theater mode we want
@@ -3282,6 +3286,30 @@ try { // scope and prevent errors from leaking out to page.
     const theaterButton = document.getElementsByClassName("ytp-size-button")?.[0];
     theaterButton?.click?.();
   };
+
+  function hideEverything() {
+      if (!isMaximized()) {
+        trace("hideEverythingTimer: isMaximized false");
+        return true;
+      }
+      // BBC has some special css with lots of !importants
+      hideCSS("screen-css");
+      if (!fixUpPageZoom()) {
+        return false;
+      }
+
+      postFixUpPageZoom();
+
+      // this refresh will cause the scroller js in the page to "update" it's visible
+      // list of videos and may remove our primary.
+      forceRefresh(videomaxGlobals.matchedVideo);
+      forceRefresh(window.body);
+      forceRefresh(window);
+
+      videomaxGlobals.isMaximized = true;
+      document.body.setAttribute(VIDEO_MAX_INSTALLED_ATTR, "running");
+      return true; // stop retrying - we kep trying to rehide
+  }
 
   /**
    * Called multiple time until it succeeds. Required because some pages just deferred js
@@ -3378,29 +3406,8 @@ try { // scope and prevent errors from leaking out to page.
       trace("Tag only is set. Will not modify page to zoom video");
     } else {
       document.body.setAttribute(VIDEO_MAX_INSTALLED_ATTR, "zoomed");
-      videomaxGlobals.hideEverythingTimer?.startTimer(() => {
-        if (!isMaximized()) {
-          trace("hideEverythingTimer: isMaximized false");
-          return true;
-        }
-        // BBC has some special css with lots of !importants
-        hideCSS("screen-css");
-        if (!fixUpPageZoom()) {
-          return false;
-        }
-
-        postFixUpPageZoom();
-
-        // this refresh will cause the scroller js in the page to "update" it's visible
-        // list of videos and may remove our primary.
-        forceRefresh(videomaxGlobals.matchedVideo);
-        forceRefresh(window.body);
-        forceRefresh(window);
-
-        videomaxGlobals.isMaximized = true;
-        document.body.setAttribute(VIDEO_MAX_INSTALLED_ATTR, "running");
-        return true; // stop retrying - we kep trying to rehide
-      });
+      const delayForYoutube = isYoutubeSite() && !isYoutubeInTheaterMode();
+      videomaxGlobals.hideEverythingTimer?.startTimer(() => hideEverything(), delayForYoutube);
     }
     return true;
   }
@@ -3463,7 +3470,7 @@ try { // scope and prevent errors from leaking out to page.
     setYoutubeIntoTheaterMode(true);
 
     if (!tagonly) {
-      videomaxGlobals.hideEverythingTimer = new RetryTimeoutClass("hideEverythingTimer", 250,
+      videomaxGlobals.hideEverythingTimer = new RetryTimeoutClass("hideEverythingTimer", 750,
                                                                   retries);
       // don't start there, do it from doZoomPage()
     }
