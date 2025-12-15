@@ -118,7 +118,35 @@ try {
     }
   };
 
-  const IncreaseSpeed = (): string => {
+  // Some sites can set the video to speeds we don't support (e.g. 1.20 vs 1.25)
+  // Find our closest match.
+  const findClosestSpeedIndex = (speedStr: string): string => {
+    const targetSpeed = parseFloat(speedStr);
+    const speedMap: { [key: string]: number } = {};
+
+    MENU.forEach(item => {
+      const parsedValue = parseFloat(item.value);
+      if (!isNaN(parsedValue)) {
+        speedMap[item.value] = parsedValue;
+      }
+    });
+
+    const speedEntries = Object.entries(speedMap);
+    let closestSpeedStr = speedEntries[0][0];
+    let minDifference = Math.abs(speedEntries[0][1] - targetSpeed);
+
+    speedEntries.forEach(([speedStrKey, speed]) => {
+      const difference = Math.abs(speed - targetSpeed);
+      if (difference < minDifference) {
+        minDifference = difference;
+        closestSpeedStr = speedStrKey;
+      }
+    });
+
+    return closestSpeedStr;
+  };
+
+  const increaseSpeed = (): string => {
     if (MAX_SPEED === globals.currentSpeed) {
       // already maxed
       return globals.currentSpeed;
@@ -127,7 +155,7 @@ try {
     return MENU[offset + 1]?.value || DEFAULT_SPEED_STR;
   };
 
-  const DecreaseSpeed = (): string => {
+  const decreaseSpeed = (): string => {
     if (MIN_SPEED === globals.currentSpeed) {
       // already maxed
       return globals.currentSpeed;
@@ -141,7 +169,7 @@ try {
       const id = itemId(ii);
       const label =
         item.label === UNZOOM_LABEL
-          ? `<img src='${UNZOOM_ICON}' class='closeicon'>`
+          ? `<img src='${UNZOOM_ICON}' class='closeicon' alt="close popup">`
           : `${item.label}`;
       // we use checkboxes vs radio so we can intercept the arrow keys.
       // radio buttons grabs the arrows keys to move between items.
@@ -254,7 +282,7 @@ try {
     }
   };
 
-  const RefreshSpeed = async () => {
+  const refreshSpeed = async () => {
     // The page could have been UNZOOMED by the escape key and everything could be out of sync
     await chrome.runtime.sendMessage<BackgroundMessage>({
       message: {
@@ -266,7 +294,7 @@ try {
     });
   };
 
-  function GetSpeedRecursive(delay = 25, retrycount = 0) {
+  function getSpeedRecursive(delay = 25, retrycount = 0) {
     if (retrycount > 5) {
       return; // stop
     }
@@ -302,7 +330,7 @@ try {
         logtrace(`GetSpeedRecursive new speed`, globals.currentSpeed);
       } else {
         logtrace(`GetSpeedRecursive trying retrycount: ${retrycount + 1}`);
-        GetSpeedRecursive(delay + 250, retrycount + 1);
+        getSpeedRecursive(delay + 250, retrycount + 1);
       }
     }, delay);
   }
@@ -312,7 +340,7 @@ try {
    * @param evt {KeyboardEvent}
    * @constructor
    */
-  const HandleKeydown = async (evt: KeyboardEvent) => {
+  const handleKeydown = async (evt: KeyboardEvent) => {
     logtrace("document.addEventListener keydown", evt);
     const { domain, tabId } = globals;
     switch (evt.code) {
@@ -365,17 +393,17 @@ try {
       case "ArrowUp":
         logtrace("ArrowUp");
         evt.stopImmediatePropagation();
-        globals.currentSpeed = IncreaseSpeed();
+        globals.currentSpeed = increaseSpeed();
         checkItem(globals.currentSpeed);
-        await RefreshSpeed();
+        await refreshSpeed();
         break;
 
       case "ArrowDown":
         logtrace("ArrowDown");
         evt.stopImmediatePropagation();
-        globals.currentSpeed = DecreaseSpeed();
+        globals.currentSpeed = decreaseSpeed();
         checkItem(globals.currentSpeed);
-        await RefreshSpeed();
+        await refreshSpeed();
         break;
 
       case "KeyZ":
@@ -405,6 +433,7 @@ try {
     try {
       const container = window.document.getElementById("speedBtnGroup");
 
+      globals.currentSpeed = findClosestSpeedIndex(globals.currentSpeed);
       logtrace(`DOMContentLoaded params
           tabId:'${globals.tabId}'
           currentSpeed:'${globals.currentSpeed}'
@@ -422,19 +451,19 @@ try {
 
       document.addEventListener("keydown", (evt) => {
         logtrace(`DOCUMENT.addEventListener("keydown")...`);
-        HandleKeydown(evt);
+        handleKeydown(evt);
       });
 
       container?.addEventListener("keydown", (evt) => {
         logtrace(`CONTAINER.addEventListener("keydown")...`);
-        HandleKeydown(evt);
+        handleKeydown(evt);
       });
 
       // if the user pressed escape in the page, then our zoom was lost, update speed.
-      GetSpeedRecursive();
+      getSpeedRecursive();
 
       // to know when the popup has closed, we have to open a socket and watch for it to be
-      // closed. Seriously?!? WTF!
+      // closed. Seriously?!?
       _detectCloseListenerPort = chrome.runtime.connect();
     } catch (err) {
       logerr(err);
@@ -443,7 +472,7 @@ try {
 
   // if the popup is opening, then the video should be zoomed. Can get unzoomed and confused
   // when the user hits escape inside the page to unzoom.
-  chrome.runtime.sendMessage<BackgroundMessage>({
+  await chrome.runtime.sendMessage<BackgroundMessage>({
     message: {
       cmd: "REZOOM_CMD",
       domain: globals.domain,

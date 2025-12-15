@@ -15,7 +15,7 @@ type SettingsType = {
   spacebarTogglesPlayback: boolean,
   regSkipSeconds: number,
   longSkipSeconds: number,
-  preportionalSkipTimes: boolean,
+  proportionalSkipTimes: boolean,
   wholeDomainAccess: boolean,
   allSitesAccess: boolean,
   allSitesAccessNeedsRevoke: boolean,
@@ -39,6 +39,8 @@ type CmdType =
     | "OPTIONS_CMD"
     | "GET_SPEED_PREP_CMD"
     | "GET_SPEED_COMPLETE_CMD"
+    | "PAGE_UNZOOMED_NOTIFICATION"
+    | "PAGE_LOST_VIDEO_NOTIFICATION"
     | ""; // last one is fallback
 
 type BackgroundMessage = {

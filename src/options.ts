@@ -79,7 +79,7 @@ const loadSettingsIntoFields = (settings: SettingsType) => {
   setChecked("useAdvancedFeatures", settings.useAdvancedFeatures);
   setTextNum("regSkipSeconds", settings.regSkipSeconds);
   setTextNum("longSkipSeconds", settings.longSkipSeconds);
-  // setChecked("preportionalSkipTimes", settings.preportionalSkipTimes);
+  // setChecked("proportionalSkipTimes", settings.proportionalSkipTimes);
   setChecked("wholeDomainAccess", settings.wholeDomainAccess);
   setChecked("allSitesAccess", settings.allSitesAccess);
 
@@ -128,7 +128,7 @@ const saveFieldsIntoSettings = (settingsIn: SettingsType): SettingsType => {
     settings.useAdvancedFeatures = getChecked("useAdvancedFeatures");
     settings.regSkipSeconds = getTextNum("regSkipSeconds");
     settings.longSkipSeconds = getTextNum("longSkipSeconds");
-    // settings.preportionalSkipTimes = getChecked("preportionalSkipTimes");
+    // settings.proportionalSkipTimes = getChecked("proportionalSkipTimes");
     settings.allSitesAccess = getChecked("allSitesAccess");
     settings.wholeDomainAccess = getChecked("wholeDomainAccess");
   } catch (err) {

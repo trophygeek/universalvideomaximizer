@@ -132,9 +132,8 @@ export default [
       'src/injectCssHeader.ts',
       'src/injectCssHeaderRemove.ts',
       'src/injectIsCssHeaderIsBlocked.ts',
-      'src/injectGetPlaypackSpeed.ts',
+      'src/injectGetPlaybackSpeed.ts',
       'src/injectVideoSpeedAdjust.ts',
-      'src/injectVideoSkip.ts',
       'src/injectGetVideoZoomedState.ts',
     ],
     ...defaultStep,
@@ -160,7 +159,7 @@ export default [
     ...defaultIsolatedStep,
   },
   {
-    input: ['src/injectGetPlaypackSpeed.ts'],
+    input: ['src/injectGetPlaybackSpeed.ts'],
     ...defaultIsolatedStep,
   },
   {

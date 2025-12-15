@@ -17,3 +17,4 @@ test/yarn.lock
 build/*
 dist/*
 tmp/
+package-lock.json

@@ -36,7 +36,7 @@ import { injectCssHeaderRemove } from "./injectCssHeaderRemove";
 import { injectIsCssHeaderIsBlocked } from "./injectIsCssHeaderIsBlocked";
 import { injectCssHeader } from "./injectCssHeader";
 import { injectVideoSpeedAdjust } from "./injectVideoSpeedAdjust";
-import { injectGetPlaypackSpeed } from "./injectGetPlaypackSpeed";
+import { injectGetPlaybackSpeed } from "./injectGetPlaybackSpeed";
 import { injectGetVideoZoomedState } from "./injectGetVideoZoomedState";
 import { injectVideoSkip } from "./injectVideoSkip";
 import { injectCheckPermissions } from "./injectCheckPermissions";
@@ -195,7 +195,7 @@ const STATE_DATA: BackgroundStateMap = {
   },
   REFRESH: {
     badge: BADGES.REFRESH,
-    title: "Permissions check complete.\nClick again more permissions might be needed..",
+    title: "Permissions check complete.\nClick again, more permissions might be needed.",
     showpopup: false,
     zoomed: false,
     color: "#03FC80F4",
@@ -315,8 +315,10 @@ async function setSpeedGlobalData(tabId: number, domain: string, speed: string) 
     return speed === "1.0"; // true if not speed change required.
   } catch (err) {
     logerr(`setSpeedGlobalData failed`, err);
-    await chrome.storage.session.clear(); // we may have run out of quota if
-    // user never closes their browser
+    // Only clear if quota exceeded (specific error check)
+    if (err instanceof Error && err.message?.includes('QUOTA')) {
+      await chrome.storage.session.clear();
+    }
     return false;
   }
 }
@@ -343,8 +345,10 @@ async function setLastUrlTitleFromOnUpdated(tabId: number, url: string, title: s
     // required?
   } catch (err) {
     logerr(`setLastUrlFromOnUpdated err`, err);
-    await chrome.storage.session.clear(); // we may have run out of quota if
-    // user never closes their browser
+    // Only clear if quota exceeded (specific error check)
+    if (err instanceof Error && err.message?.includes('QUOTA')) {
+      await chrome.storage.session.clear();
+    }
   }
 }
 
@@ -355,7 +359,7 @@ async function getLastUrlTitleFromOnUpdated(tabId: number): Promise<{
   try {
     const key = `lasturlandtitle.${tabId}`;
     const result = await chrome.storage.session.get(key);
-    const resulstStr = result[key] || "\t";
+    const resulstStr = (result[key] as string | undefined) || "\t";
     const parts = resulstStr.split("\t");
     return {
       url: parts[0] || "",
@@ -415,7 +419,6 @@ async function setCurrentTabState(
       case "ZOOMING_SPEED_ONLY":
         state = "SPEED_ONLY";
         logtrace(`setCurrentState precheck from "ZOOMING_SPEED_ONLY" => "SPEED_ONLY"`);
-        debugger;
         break;
 
       default:
@@ -821,7 +824,7 @@ async function doInjectGetSpeed(tabId: number, domain: string) {
         tabId,
         allFrames: true,
       }, // world:  "MAIN",
-      func: injectGetPlaypackSpeed,
+      func: injectGetPlaybackSpeed,
       args: [],
       injectImmediately: true,
     });
@@ -1032,39 +1035,6 @@ async function toggleZoomState(tabId: number, domain: string) {
       return true;
     }
 
-    // This has the potential to simplify a BUNCH of stuff once the API is released
-
-
-    // // @ts-ignore
-    // if (chrome.permissions.addHostAccessRequest) {
-    //   debugger;
-    //   // @ts-ignore
-    //   const result = await chrome.permissions.addHostAccessRequest(
-    //       { tabId, pattern:`https://${domain}/` },
-    //   );
-    //   console.log(result);
-    // }
-
-
-
-    // ACTIVE permissions
-    const havePermissions = await chrome.permissions.getAll();
-    // see if there are any domains that we don't already have access to see.
-    // These come back as ["https://*.domain.com/*",...]
-    if (!havePermissions?.origins) {
-      return true;
-    }
-    const missingDomains = checkPermissions(havePermissions?.origins, needDomainPerms.split(","));
-    if (missingDomains.length === 0) {
-      return true;
-    }
-    if (DEBUG_ENABLED) {
-      const subframedata = getSubframeData(tabId, domain);
-      logtrace(`Extra permissions may be needed do something here?
-        missingDomains: [${missingDomains.join(", ")}]
-        havePermissions (ACTIVE): [${havePermissions?.origins.join(", ")}]
-        subFramesStr: ${subframedata?.subFramesStr || ""}`);
-    }
     setCurrentTabState(tabId, "REFRESH", domain);
     return true;
   } catch (err) {
@@ -1093,7 +1063,7 @@ chrome.action.onClicked.addListener((tab) => {
     }
 
     // can't use async... which really sucks and is annoying
-    chrome.storage.local.get((resultSettings) => {
+    chrome.storage.local.get((resultSettings: { [x: string]: any; }) => {
       const settingsSaved: SettingsType = JSON.parse(resultSettings[SETTINGS_STORAGE_KEY] || "{}");
       const settings = { ...DEFAULT_SETTINGS, ...settingsSaved };
       const origins: string[] = [];
@@ -1244,7 +1214,7 @@ chrome.runtime.onMessage.addListener((request: BackgroundMessage, sender, sendRe
     if (sendResponse) {
       sendResponse({ success: false });
     }
-    return;
+    return false;
   }
 
   logtrace(
@@ -1264,9 +1234,11 @@ chrome.runtime.onMessage.addListener((request: BackgroundMessage, sender, sendRe
         subvrameParamData:`,
       match,
     );
+    return false; // Response already sent synchronously
   }
 
-  // use timeout to get async scope. listener callbacks can't be async.
+  // Return true to indicate we will send response asynchronously
+  // Handle async work and call sendResponse after completion
   setTimeout(async () => {
     try {
       switch (cmd) {
@@ -1283,7 +1255,9 @@ chrome.runtime.onMessage.addListener((request: BackgroundMessage, sender, sendRe
               await saveSettings(settings);
             }
           }
-
+          if (sendResponse) {
+            sendResponse({ success: true });
+          }
           break;
 
         case "SET_SPEED_CMD":
@@ -1300,10 +1274,16 @@ chrome.runtime.onMessage.addListener((request: BackgroundMessage, sender, sendRe
               );
             }
           }
+          if (sendResponse) {
+            sendResponse({ success: speedSuccess });
+          }
           break;
 
         case "REZOOM_CMD":
           await reZoom(tabId, domain);
+          if (sendResponse) {
+            sendResponse({ success: true });
+          }
           break;
 
         case "SKIP_PLAYBACK_CMD":
@@ -1319,16 +1299,25 @@ chrome.runtime.onMessage.addListener((request: BackgroundMessage, sender, sendRe
               );
             }
           }
+          if (sendResponse) {
+            sendResponse({ success: skipSuccess });
+          }
           break;
 
         case "OPTIONS_CMD":
           {
             const url = chrome?.runtime?.getURL("options.html") || "";
             if (!url) {
+              if (sendResponse) {
+                sendResponse({ success: false });
+              }
               return;
             }
             await chrome.tabs.create({ url, active: true });
             // also, the popup is closing
+            if (sendResponse) {
+              sendResponse({ success: true });
+            }
           }
           break;
 
@@ -1337,6 +1326,9 @@ chrome.runtime.onMessage.addListener((request: BackgroundMessage, sender, sendRe
           // it is NOT in this switch because it has a response that cannot be async
           // and since it cannot be async, we have this two-part request.
           await doInjectGetSpeed(tabId, domain);
+          if (sendResponse) {
+            sendResponse({ success: true });
+          }
 
           setTimeout(async () => {
             const zoomedstate = await doInjectGetVideoZoomed(tabId, domain);
@@ -1348,8 +1340,10 @@ chrome.runtime.onMessage.addListener((request: BackgroundMessage, sender, sendRe
           break;
 
         case "":
-        case "GET_SPEED_COMPLETE_CMD":
-          // mostly handled above
+          // handle empty cmd case
+          if (sendResponse) {
+            sendResponse({ success: true });
+          }
           setTimeout(async () => {
             const zoomedstate = await doInjectGetVideoZoomed(tabId, domain);
             if (zoomedstate !== "ZOOMED") {
@@ -1357,18 +1351,24 @@ chrome.runtime.onMessage.addListener((request: BackgroundMessage, sender, sendRe
               await doInjectZoom(tabId);
             }
           }, 0);
+          break;
 
+        default:
+          if (sendResponse) {
+            sendResponse({ success: false });
+          }
           break;
       }
     } catch (err) {
       logerr(err);
+      if (sendResponse) {
+        sendResponse({ success: false });
+      }
     }
   }, 0);
 
-  if (sendResponse) {
-    logtrace("closing popup");
-    sendResponse({ success: true }); // used to close popup.
-  }
+  // Return true to indicate we will send response asynchronously
+  return true;
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
@@ -1482,3 +1482,4 @@ chrome.runtime.onConnect.addListener((externalPort) => {
     }
   });
 });
+

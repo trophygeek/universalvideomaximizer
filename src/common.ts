@@ -151,7 +151,7 @@ export const DEFAULT_SETTINGS: SettingsType = {
   spacebarTogglesPlayback: true,
   regSkipSeconds: 5,
   longSkipSeconds: 20,
-  preportionalSkipTimes: true,
+  proportionalSkipTimes: true,
   wholeDomainAccess: true, // "all example.com sites" vs "on www.example.com"
   allSitesAccess: false,
   allSitesAccessNeedsRevoke: false,
@@ -166,11 +166,12 @@ export function getKeys<T extends object>(obj: T) {
 export async function getSettings(): Promise<SettingsType> {
   try {
     const result = await chrome?.storage?.local?.get();
-    if (!result[SETTINGS_STORAGE_KEY]?.length) {
+    const settingsValue = result[SETTINGS_STORAGE_KEY] as string | undefined;
+    if (!settingsValue?.length) {
       return { ...DEFAULT_SETTINGS }; // make a copy
     }
     /** @type SettingsType * */
-    const savedSetting: SettingsType = JSON.parse(result[SETTINGS_STORAGE_KEY]);
+    const savedSetting: SettingsType = JSON.parse(settingsValue);
     return { ...DEFAULT_SETTINGS, ...savedSetting };
   } catch (err) {
     logerr(err);
