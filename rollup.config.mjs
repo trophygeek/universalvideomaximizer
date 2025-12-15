@@ -101,6 +101,7 @@ const defaultStep = {
     typescript({
       typescript: ts,
       tsconfig: isProd ? './tsconfig.prod.json' : './tsconfig.dev.json',
+      exclude: ['**/__tests__/**', '**/*.test.ts'],
     }),
 
   ],
@@ -186,6 +187,7 @@ export default [
       typescript({
         typescript: ts,
         tsconfig: isProd ? './tsconfig.prod.json' : './tsconfig.dev.json',
+        exclude: ['**/__tests__/**', '**/*.test.ts'],
       }),
       rollupPluginTryCatch(),
       copy({

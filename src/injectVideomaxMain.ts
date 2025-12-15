@@ -1618,14 +1618,14 @@ function maximizeUpFromVideo(
     cssClass: string = MAX_CSS_CLASS,
 ) {
   ReApplyUpFromElem(matchedVideo, cssClass, null, true);
-  // special case for when videos are in iframes that are not on a different
-  // domain. e.g. dailymotion.com
-  debugger;
+
   if (
       // !g_isRunningInIFrame &&
       isVideoElement(matchedVideo) &&
       isElemInIFrame(matchedVideo)
   ) {
+    // special case for when videos are in iframes that are not on a different
+    // domain. e.g. dailymotion.com
     {
       const items = findVideosIFramesAtCenter(matchedVideo);
       console.log(items);
@@ -3643,7 +3643,6 @@ function isYoutubeInTheaterMode() {
  * @param theaterMode {boolean}
  */
 function setYoutubeIntoTheaterMode(theaterMode: boolean) {
-  debugger;
   // verify it smells like a youtube domain. But the element check below
   // would probably be enough
   if (!smellsLikeMatch(getPageUrl(), YOUTUBE_TLD_NAMES)) {
@@ -3665,6 +3664,9 @@ function setYoutubeIntoTheaterMode(theaterMode: boolean) {
   const theaterButton = document.getElementsByClassName("ytp-size-button")?.[0];
   if (isHtmlElement(theaterButton)) {
     theaterButton.click?.();
+  } else if (theaterMode) {
+    // we need to warn users that youtube needs to be in theater mode.
+    logerr("Cannot file youtube theater mode button!");
   }
 }
 
@@ -3879,6 +3881,7 @@ function mainZoom(tagonly = false) {
   setYoutubeIntoTheaterMode(true);
 
   if (!tagonly) {
+    clearHideEverythingTimer();
     g_videomaxGlobals.hideEverythingTimer = new RetryTimeoutClass(
         "hideEverythingTimer",
         750,
@@ -3886,7 +3889,8 @@ function mainZoom(tagonly = false) {
     );
     // don't start there, do it from doZoomPage()
   }
-
+  
+  clearFindVideoRetryTimer();
   g_videomaxGlobals.tagonly = tagonly;
   g_videomaxGlobals.findVideoRetryTimer = new RetryTimeoutClass("doZoomPage", 500, retries);
   g_videomaxGlobals.findVideoRetryTimer.startTimer(doZoomPageRetries);
@@ -4011,7 +4015,7 @@ function addClassMutationObserver() {
     // SANITY_CHECK_MATCH_NOT_DELETED();
 
     if (!isMaximized()) {
-      logerr("mutationObserverAttr - !isMaximized() probably video element deleted");
+      // logerr("mutationObserverAttr - !isMaximized() probably video element deleted");
       removeClassObserver();
       //        UndoZoom.mainUnzoom();
       // todo: warn about why it's failing.
@@ -4215,6 +4219,20 @@ function videoCanPlayBufferingInit() {
   }
 }
 
+function clearHideEverythingTimer() {
+  if (g_videomaxGlobals.hideEverythingTimer) {
+    g_videomaxGlobals.hideEverythingTimer.cleartimeout();
+    g_videomaxGlobals.hideEverythingTimer = null;
+  }
+}
+
+function clearFindVideoRetryTimer() {
+  if (g_videomaxGlobals.findVideoRetryTimer) {
+    g_videomaxGlobals.findVideoRetryTimer.cleartimeout();
+    g_videomaxGlobals.findVideoRetryTimer = null;
+  }
+}
+
 // <editor-fold defaultstate="collapsed" desc="UndoZoom">
 /**
  * Using a class for better namespacing. Should do the same for zooming logic
@@ -4333,14 +4351,9 @@ class UndoZoom {
       return;
     }
     // stop timers that may be attempting to rezoom in the background
-    if (g_videomaxGlobals.hideEverythingTimer) {
-      g_videomaxGlobals.hideEverythingTimer.cleartimeout();
-      g_videomaxGlobals.hideEverythingTimer = null;
-    }
-    if (g_videomaxGlobals.findVideoRetryTimer) {
-      g_videomaxGlobals.findVideoRetryTimer.cleartimeout();
-      g_videomaxGlobals.findVideoRetryTimer = null;
-    }
+    clearHideEverythingTimer();
+    clearFindVideoRetryTimer();
+
 
     if (!g_isRunningInIFrame) {
       // this is to prevent doomscrollers from completely changing the dom on

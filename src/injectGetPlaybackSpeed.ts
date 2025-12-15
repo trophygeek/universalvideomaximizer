@@ -55,3 +55,4 @@ export function injectGetPlaybackSpeed(): string | null {
     return null;
   }
 }
+

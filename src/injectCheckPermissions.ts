@@ -7,12 +7,12 @@
  Removes the clutter. Maximizes videos to view in full-page theater mode on most sites.
  */
 
-import {logtrace, MIN_IFRAME_WIDTH, PERMISSIONS_CHECK_DOMAINS_DOC_ATTR} from "./common";
+import {logtrace, MIN_IFRAME_WIDTH, MIN_IFRAME_HEIGHT, PERMISSIONS_CHECK_DOMAINS_DOC_ATTR} from "./common";
 
 export function injectCheckPermissions() {
   if (
       document.body.scrollWidth < MIN_IFRAME_WIDTH ||
-      document.body.scrollHeight < MIN_IFRAME_WIDTH
+      document.body.scrollHeight < MIN_IFRAME_HEIGHT
   ) {
     logtrace(`injectCheckPermissions: iframe too small, ignoring.`);
     return [];

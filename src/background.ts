@@ -907,12 +907,13 @@ function processIFrameExtraPermissionsResult(
     if (mergeIntoExistingData) {
       const combinedDomainParts = [
         ...mergeIntoExistingData.subFramesStr.split(","),
-        extraDomainsArr,
+        ...extraDomainsArr,
       ];
 
       // Set() dedups
       const subFramesStr = [...new Set(combinedDomainParts)].join(",");
       if (mergeIntoExistingData.subFramesStr !== subFramesStr) {
+        mergeIntoExistingData.subFramesStr = subFramesStr; // Update object before saving
         setSubframeData(mergeIntoExistingData);
         // return for new domains may be needed.
         return subFramesStr;
@@ -1009,14 +1010,14 @@ async function toggleZoomState(tabId: number, domain: string) {
     if (!isActiveState(state)) {
       // await setCurrentTabState(tabId, "", domain);
       await DoZoom(tabId, state, domain);
-    } else if (state === "ZOOMED_NOSPEED") {
-      await Promise.all([
-        // toggle behavior otherwise message unzooms
-        doInjectUnZoom(tabId, domain),
-        setCurrentTabState(tabId, "UNZOOMED", domain),
-      ]);
-      return false;
-    }
+    // } else if (state === "ZOOMED_NOSPEED") {
+    //   await Promise.all([
+    //     // toggle behavior otherwise message unzooms
+    //     doInjectUnZoom(tabId, domain),
+    //     setCurrentTabState(tabId, "UNZOOMED", domain),
+    //   ]);
+    //   return false;
+    // }
 
     // the following dance is to see if we need more permissions
     // domain will set
@@ -1028,14 +1029,30 @@ async function toggleZoomState(tabId: number, domain: string) {
       return true;
     }
 
-    const urls = needDomainPerms.split(",").map(d => `https://${d}/`);
-    const hasPermission = await chrome.permissions.contains({origins: urls});
-    if (hasPermission) {
-      await setCurrentTabState(tabId, "", domain);
+      const urls = needDomainPerms.split(",").map(d => `https://${d}/`);
+      const hasPermission = await chrome.permissions.contains({origins: urls});
+      if (hasPermission) {
+        return true;
+      }
+
+      await setCurrentTabState(tabId, "REFRESH", domain);
       return true;
+    } else if (state === "ZOOMED_NOSPEED") {
+      logerr("case still needed")
     }
 
-    setCurrentTabState(tabId, "REFRESH", domain);
+    // we are zoomed but
+    if (state === "ZOOMED_NOSPEED") {
+      await Promise.all([
+        // toggle behavior otherwise message unzooms
+        doInjectUnZoom(tabId, domain),
+        setCurrentTabState(tabId, "UNZOOMED", domain),
+      ]);
+      return false;
+    }
+
+    // Fallback for other active states (shouldn't normally reach here)
+    await setCurrentTabState(tabId, "", domain);
     return true;
   } catch (err) {
     logerr("toggleZoomState", err);
