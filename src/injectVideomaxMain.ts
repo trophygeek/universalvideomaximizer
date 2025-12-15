@@ -1628,8 +1628,7 @@ function maximizeUpFromVideo(
     // domain. e.g. dailymotion.com
     {
       const items = findVideosIFramesAtCenter(matchedVideo);
-      console.log(items);
-      debugger;
+      logerr("dev-testing iframe special case", items);
     }
     // root.nodeName === "#document"
     const root = matchedVideo.getRootNode();
@@ -2068,10 +2067,10 @@ class RetryTimeoutClass {
   }
 
   // func() returning true means done
-  startTimer = (func: () => boolean) => {
+  startTimer = (func: () => boolean, startDelayed: boolean = false) => {
     this.callback = func;
     this.retryFunc.bind(this);
-    setTimeout(() => this.retryFunc(), 0);
+    setTimeout(() => this.retryFunc(), startDelayed ? this.delay : 1);
   };
 
   retryFunc = () => {
@@ -2126,7 +2125,7 @@ function hasInjectedAlready() {
     logwarn(
         "VIDEO_MAX_INSTALLED_ATTR on body but matched video missing. Background should be attempting rezoom.",
     );
-    debugger;
+
     // we can't find the possible new video while everything is zoomed
     removeClassObserver();
     videoCanPlayRemove();
@@ -2517,7 +2516,7 @@ function maximizeVideoDomAndCntrls() {
     // experiment. ANY elements overlapping video and the same ~ size are all maximized.
     // The goal is to zoom overlapping ads.
     if (STACKING_ORDER_WEIGHT && !g_isRunningInIFrame) {
-      debugger;
+      logerr("experiment with stacking order weight");
       const visVideos = findVideosIFramesAtCenter(g_videomaxGlobals.matchedVideo);
       for (const eachVisVideo of visVideos) {
         const isAd = smellsLikeAdElem(eachVisVideo);
@@ -3634,6 +3633,9 @@ function isYoutubeInTheaterMode() {
   return theaterAttr !== null;
 }
 
+function isYoutubeSite(): boolean {
+  return smellsLikeMatch(getPageUrl(), YOUTUBE_TLD_NAMES);
+}
 /**
  * Fixing youtube's progress indicator when it's in small mode is next to
  * impossible to make large-screen friendly. The thumb position is set via
@@ -3642,16 +3644,16 @@ function isYoutubeInTheaterMode() {
  * mode and then restore it when we unzoom.
  * @param theaterMode {boolean}
  */
-function setYoutubeIntoTheaterMode(theaterMode: boolean) {
+function setYoutubeIntoTheaterMode(theaterMode: boolean): boolean {
   // verify it smells like a youtube domain. But the element check below
   // would probably be enough
-  if (!smellsLikeMatch(getPageUrl(), YOUTUBE_TLD_NAMES)) {
-    return;
+  if (!isYoutubeSite()) {
+    return false;
   }
   // check if we're in theater mode we want
   if (isYoutubeInTheaterMode() === theaterMode) {
     logtrace(`youtube already in ${theaterMode ? "theater" : "non-theater"} mode, doing nothing`);
-    return;
+    return false;
   }
 
   if (theaterMode) {
@@ -3661,15 +3663,50 @@ function setYoutubeIntoTheaterMode(theaterMode: boolean) {
     removeAttr(document.body, YOUTUBE_RESTORE_NON_THEATER_ATTR);
   }
 
-  const theaterButton = document.getElementsByClassName("ytp-size-button")?.[0];
-  if (isHtmlElement(theaterButton)) {
+  const theaterButton = document.querySelector<HTMLElement>('.ytp-size-button');
+  if (theaterButton) {
     theaterButton.click?.();
+    // we REALLY neeed to wait the animation is done before trying to zoom.
+    return true;
   } else if (theaterMode) {
     // we need to warn users that youtube needs to be in theater mode.
     logerr("Cannot file youtube theater mode button!");
   }
+  return false;
 }
 
+// return true to stop retrying.
+function hideEverything() {
+    if (!isMaximized()) {
+      logtrace("hideEverythingTimer: isMaximized false");
+      return true;
+    }
+    // BBC has some special css with lots of !importants
+    hideCSS("screen-css");
+    if (!fixUpPageZoom()) {
+      return false;
+    }
+
+    postFixUpPageZoom();
+
+    // this refresh will cause the scroller js in the page to "update" it's
+    // visible list of videos and may remove our primary.
+    forceRefresh(g_videomaxGlobals.matchedVideo);
+    if (g_videomaxGlobals.matchedVideo) {
+      const doc = getOwnerDoc(g_videomaxGlobals.matchedVideo);
+      forceRefresh(doc.body);
+
+      const parent = g_videomaxGlobals.matchedVideo.parentElement;
+      if (parent) {
+        forceRefresh(parent);
+      }
+    }
+    forceRefresh(window);
+
+    g_videomaxGlobals.isMaximized = true;
+    document.body.setAttribute(VIDEO_MAX_INSTALLED_ATTR, "running");
+    return true; // stop retrying - we kep trying to rehide
+}
 /**
  * Called multiple time until it succeeds. Required because some pages just
  * deferred js to load videos.
@@ -3736,9 +3773,7 @@ function doZoomPageRetries(): boolean {
   const matchCount = g_videomaxGlobals.elementMatcher.getMatchCount();
   if (matchCount > 1) {
     if (DEV_MODE) {
-      logtrace(`FOUND TOO MANY SAME SCORED VIDEOS ON PAGE? #${matchCount}`);
-      // eslint-disable-next-line no-debugger
-      debugger;
+      logerr(`FOUND TOO MANY SAME SCORED VIDEOS ON PAGE? #${matchCount}`);
     }
   } else {
     logtrace("Final Best Matched Element: ", bestMatch.nodeName, bestMatch);
@@ -3781,37 +3816,11 @@ function doZoomPageRetries(): boolean {
     logtrace("Tag only is set. Will not modify page to zoom video");
   } else {
     document.body.setAttribute(VIDEO_MAX_INSTALLED_ATTR, "zoomed");
-    g_videomaxGlobals.hideEverythingTimer?.startTimer(() => {
-      if (!isMaximized()) {
-        logtrace("hideEverythingTimer: isMaximized false");
-        return true;
-      }
-      // BBC has some special css with lots of !importants
-      hideCSS("screen-css");
-      if (!fixUpPageZoom()) {
-        return false;
-      }
-
-      postFixUpPageZoom();
-
-      // this refresh will cause the scroller js in the page to "update" it's
-      // visible list of videos and may remove our primary.
-      forceRefresh(g_videomaxGlobals.matchedVideo);
-      if (g_videomaxGlobals.matchedVideo) {
-        const doc = getOwnerDoc(g_videomaxGlobals.matchedVideo);
-        forceRefresh(doc.body);
-
-        const parent = g_videomaxGlobals.matchedVideo.parentElement;
-        if (parent) {
-          forceRefresh(parent);
-        }
-      }
-      forceRefresh(window);
-
-      g_videomaxGlobals.isMaximized = true;
-      document.body.setAttribute(VIDEO_MAX_INSTALLED_ATTR, "running");
-      return true; // stop retrying - we kep trying to rehide
-    });
+    // youtube needs a delay to before the hideEverything runs!
+    // this is VERY fragile code, basically, there's an animation that's run for toggling
+    // the theater mode and we MUST wait until it completes.
+    const delayedHide = isYoutubeSite() && !isYoutubeInTheaterMode();
+    g_videomaxGlobals.hideEverythingTimer?.startTimer(() => hideEverything(), delayedHide);
   }
   return true;
 }
@@ -3878,18 +3887,19 @@ function mainZoom(tagonly = false) {
 
   spaNonMatchFlipClasses();
 
-  setYoutubeIntoTheaterMode(true);
+  const waitForTheater = setYoutubeIntoTheaterMode(true);
 
   if (!tagonly) {
     clearHideEverythingTimer();
     g_videomaxGlobals.hideEverythingTimer = new RetryTimeoutClass(
         "hideEverythingTimer",
-        750,
+        // youtube MUST wait until fulling in theater mode (which is animated) before doing the hide.
+        waitForTheater ? 1200 : 750,
         retries,
     );
     // don't start there, do it from doZoomPage()
   }
-  
+
   clearFindVideoRetryTimer();
   g_videomaxGlobals.tagonly = tagonly;
   g_videomaxGlobals.findVideoRetryTimer = new RetryTimeoutClass("doZoomPage", 500, retries);
@@ -4460,8 +4470,7 @@ class UndoZoom {
         const missedRemoved1 = document.querySelectorAll(`[class*="${PREFIX_CSS_CLASS}"]`);
         if (missedRemoved1.length) {
           // undo didn't remove all "videomax-ext" classes from this doc
-          // (maybe iframe) eslint-disable-next-line no-debugger
-          debugger;
+          logerr(`undo didn't remove all "videomax-ext" css classes from this doc - investigate (1)`);
         }
 
         if (g_videomaxGlobals.matchedVideo?.ownerDocument) {
@@ -4471,8 +4480,7 @@ class UndoZoom {
               ) || [];
           if (notRemoved2.length) {
             // undo didn't remove all "videomax-ext" classes from document
-            // where video was found eslint-disable-next-line no-debugger
-            debugger;
+            logerr(`undo didn't remove all "videomax-ext" css classes from this doc - investigate (2)`);
           }
         }
       } // DEV_MODE
