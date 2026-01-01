@@ -1,6 +1,6 @@
 {
-    "appName": { "message": "Video Maximizer" },
-    "appDescription": { "message": "不要な表示を削除し、ほとんどのサイトで動画を全画面シアターモードで最大化します。" },
+    "appName": { "message": "Video Maximizer - ウィンドウに合わせてズーム" },
+    "appDescription": { "message": "ほとんどのサイトで動画を素早く安全にブラウザ幅まで拡大。フルスクリーンが大きすぎる場合にサイズを調整できます。" },
     "actionDefaultTitle": { "message": "クリックして動画をズーム\n右クリックでオプション" },
     "optionsTitle": { "message": "Video Maximizer - オプション" },
     "optionsHeading": { "message": "Video Maximizer - オプション" },

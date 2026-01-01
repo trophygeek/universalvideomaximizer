@@ -1,6 +1,6 @@
 {
-    "appName": { "message": "Video Maximizer" },
-    "appDescription": { "message": "Entfernt visuelle Unordnung und maximiert Videos für den Vollbild-Theatermodus auf den meisten Webseiten." },
+    "appName": { "message": "Video Maximizer – Zoom auf Fenstergröße" },
+    "appDescription": { "message": "Videos schnell und sicher vergrößern, um den Browser zu füllen. Steuern Sie die Größe, wenn der Vollbildmodus zu groß ist." },
     "actionDefaultTitle": { "message": "Klicken zum Vergrößern des Videos.\nRechtsklick für Optionen" },
     "optionsTitle": { "message": "Video Maximizer - Einstellungen" },
     "optionsHeading": { "message": "Video Maximizer - Einstellungen" },

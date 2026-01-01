@@ -1,16 +1,19 @@
 {
   "name": "__MSG_appName__",
-  "version": "3.0.117",
+  "version": "3.0.118",
   "manifest_version": 3,
   "description": "__MSG_appDescription__",
   "homepage_url": "https://github.com/trophygeek/universalvideomaximizer",
   "icons": {
-    "48": "icons/icon48.png",
-    "96": "icons/icon96.png",
+    "16": "icons/icon16.png",
     "128": "icons/icon128.png"
   },
   "default_locale": "en",
   "action": {
+    "default_icon": {
+      "19": "icons/icon19.png",
+      "38": "icons/icon38.png"
+    },
     "default_title": "__MSG_actionDefaultTitle__"
   },
   "background": {

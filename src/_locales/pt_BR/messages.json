@@ -1,6 +1,6 @@
 {
-    "appName": { "message": "Video Maximizer" },
-    "appDescription": { "message": "Remove a poluição visual e maximiza vídeos para o modo teatro em tela cheia na maioria dos sites." },
+    "appName": { "message": "Video Maximizer – Zoom para Preencher" },
+    "appDescription": { "message": "Amplie vídeos de forma rápida e segura para preencher o navegador. Controle o tamanho quando a tela cheia for grande demais." },
     "actionDefaultTitle": { "message": "Clique para ampliar o vídeo.\nClique com botão direito para Opções" },
     "optionsTitle": { "message": "Video Maximizer - Opções" },
     "optionsHeading": { "message": "Video Maximizer - Opções" },

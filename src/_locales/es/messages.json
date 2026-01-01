@@ -1,6 +1,6 @@
 {
-    "appName": { "message": "Video Maximizer" },
-    "appDescription": { "message": "Elimina el desorden visual y maximiza los videos para verlos en modo teatro a pantalla completa en la mayoría de los sitios." },
+    "appName": { "message": "Video Maximizer – Zoom para Llenar" },
+    "appDescription": { "message": "Amplía vídeos de forma rápida y segura para llenar el navegador. Controla el tamaño si la pantalla completa es demasiado grande." },
     "actionDefaultTitle": { "message": "Haga clic para ampliar el video.\nHaga clic derecho para cambiar las Opciones" },
     "optionsTitle": { "message": "Video Maximizer - Opciones" },
     "optionsHeading": { "message": "Video Maximizer - Opciones" },

@@ -1,9 +1,9 @@
 {
   "appName": {
-    "message": "Video Maximizer"
+    "message": "Video Maximizer - Zoom to Fill"
   },
   "appDescription": {
-    "message": "Remove visual clutter and maximizes videos for easy viewing, including full-page theater mode on most sites."
+    "message": "Quickly and securely zoom videos to fill your browser on most sites. Control the size when fullscreen is too big."
   },
   "actionDefaultTitle": {
     "message": "Click to zoom video on page.\nRight-click to change Options"

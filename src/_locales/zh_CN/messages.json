@@ -1,6 +1,6 @@
 {
-    "appName": { "message": "Video Maximizer" },
-    "appDescription": { "message": "消除视觉干扰，在大多数网站上最大化视频以进行全屏剧场模式观看。" },
+    "appName": { "message": "Video Maximizer - 缩放至窗口大小" },
+    "appDescription": { "message": "快速安全地放大视频以填充浏览器窗口。当全屏模式太大时，您可以自由控制视频大小。" },
     "actionDefaultTitle": { "message": "点击放大视频。\n右键点击更改选项" },
     "optionsTitle": { "message": "Video Maximizer - 选项" },
     "optionsHeading": { "message": "Video Maximizer - 选项" },
