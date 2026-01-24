@@ -87,8 +87,12 @@ body.videomax-ext-c-span video.jw-video
 
 /* crunchyroll's CC text alignment fix */
 .videomax-ext-max canvas#velocity-canvas {
-  bottom: 1rem;
-  width: calc(100vw); /* center gets messed up when resizing. Top text still sometimes gets lost */
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  pointer-events: none !important;
 }
 
 /* cnbc jplayer controls are at top without this. Very fragile, but whatever */
