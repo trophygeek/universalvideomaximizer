@@ -25,7 +25,7 @@
     "ts-jest": "^29.2.5",
     "ts-jest-mock-import-meta": "^1.2.0",
     "typescript": "^5.5.4",
-    "vite": "^5.4.12"
+    "vite": "^6.4.3"
   },
   "browserslist": {
     "production": [
